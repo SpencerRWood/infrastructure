@@ -1,0 +1,5 @@
+name: wood-dev
+
+# Step 6 topology scaffold. Service definitions are added only when a shared
+# service or workload is deliberately onboarded; this file starts nothing.
+services: {}

@@ -1,0 +1,5 @@
+name: wood-prod
+
+# Step 6 topology scaffold. Production services are introduced only through a
+# reviewed deployment step; this file starts nothing.
+services: {}

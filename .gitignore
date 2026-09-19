@@ -1,0 +1,28 @@
+# Environment variables and credentials
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Terraform state and local provider data
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Docker and Compose local data
+compose.override.yaml
+*.local.yaml
+
+# Shell/editor/OS artifacts
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
