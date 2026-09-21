@@ -1,8 +1,8 @@
 # Legacy PostgreSQL remainder inventory
 
 Live audit: Beelink `wood-data-postgres`, 2026-09-21. Runtime state, not the
-old planning inventory, is authoritative. The legacy server had no active
-application sessions during the audit.
+old planning inventory, is authoritative. After the portfolio cutover, the
+legacy server has zero active application sessions.
 
 | Database | Owner | Size | User tables | Disposition | Active consumers | Retention / deletion blocker |
 | --- | --- | ---: | ---: | --- | --- | --- |
@@ -11,7 +11,7 @@ application sessions during the audit.
 | `keycloak` | `keycloak` | 12 MB | 88 | rollback-only copy | none | retain through approved rollback period |
 | `openwebui` | `openwebui` | 10 MB | 43 | rollback-only copy | none | retain through approved rollback period |
 | `synthetic_website_data` | `wood` | 388 MB | 15 | rollback-only copy | none on legacy after restore | retain source and final backup |
-| `portfolio_website` | `portfolio_migrator` | 7.6 MB | 0 | deferred | website-portfolio | explicitly out of scope |
+| `portfolio_website` | `portfolio_migrator` | 7.6 MB | 0 | rollback-only copy | none | retain source and final backup |
 | `wood_data` | `wood` | 7.5 MB | 0 | administrative/bootstrap artifact | none | future deletion candidate; do not delete now |
 | `postgres` | `wood` | 7.5 MB | 0 | administrative | PostgreSQL administration | required while cluster exists |
 | `template1` | `wood` | 7.6 MB | 0 | administrative template | PostgreSQL administration | required while cluster exists |
@@ -35,13 +35,33 @@ for the dump and `40c85ffc6880fb1b8baceb53a056801d6ad067c820804af14994bdf684aead
 for globals. The restored target has 15 user tables, 9 user views, and zero
 sequences. The legacy source remains unchanged for rollback.
 
+## Portfolio Website migration record
+
+The legacy `portfolio_website` source is an intentionally empty application
+database: `plpgsql`, `public` owned by `portfolio_migrator`, no user tables,
+views, sequences, or Alembic version table. `portfolio_migrator` is the
+LOGIN-owning/migration role; `portfolio_runtime` is a separate LOGIN role with
+CONNECT access only. The target preserves that model and empty schema state.
+
+Its custom-format dump and globals capture are retained at
+`/srv/infrastructure/backups/wood-data-platform/2026-09-21-portfolio-website/`.
+SHA-256: `119f6796816b7d40d10e77c6d3ce78833c6cdad5188a4d69003478966b46c399`
+for the dump and `042e39350ebc437075af8c7f11f55ceeaeabb9c47895212583098d9386df486a`
+for globals. The independently owned website runtime now receives its
+`DATABASE_URL` from its existing local Compose configuration and targets
+`192.168.1.21:25433`. No website runtime migration occurred.
+
+The contact endpoint correctly returns its pre-existing unavailable response
+until the application owner deliberately applies its pending Alembic migration;
+that schema change is outside this database-move release.
+
 ## Consumer mapping
 
 | Consumer | Database | Host | State |
 | --- | --- | --- | --- |
 | infrastructure Dagster, Open WebUI, Keycloak, Infisical | named service database | `postgres:5432` on infrastructure-dev | active target |
 | synthetic data, analytics, and dbt local checkouts | `synthetic_website_data` | `192.168.1.21:25433` | active target; direct read and dbt validation passed |
-| website-portfolio | `portfolio_website` | legacy cluster | deferred |
+| website-portfolio | `portfolio_website` | `192.168.1.21:25433` | active target; website runtime unchanged |
 | migrated legacy copies | named above | legacy cluster | rollback only |
 
 ## Next release: wood-data-platform runtime decommission
