@@ -5,8 +5,9 @@ caddy_http_port: 8080
 caddy_https_port: 8443
 caddy_allowed_cidrs:
   - 192.168.1.0/24
+dagster_restore_backup_path: /srv/infrastructure/backups/dagster/dagster-final.dump
 services:
   postgres: true
   caddy: true
-  dagster: false
+  dagster: true
   rudderstack: false

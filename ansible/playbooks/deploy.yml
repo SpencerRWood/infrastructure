@@ -27,3 +27,9 @@
         name: caddy
       when: services.caddy | bool
       tags: [caddy]
+
+    - name: Deploy selected Dagster component
+      ansible.builtin.include_role:
+        name: dagster
+      when: services.dagster | bool
+      tags: [dagster]

@@ -1,0 +1,66 @@
+---
+name: ${DAGSTER_PROJECT_NAME:?required}
+x-build: &build
+  context: .
+  args:
+    DAGSTER_VERSION: ${DAGSTER_VERSION:?required}
+    DAGSTER_LIB_VERSION: ${DAGSTER_LIB_VERSION:?required}
+    PYTHON_VERSION: ${PYTHON_VERSION:?required}
+services:
+  dagster-user-code:
+    build: *build
+    image: ${DAGSTER_IMAGE:?required}
+    restart: unless-stopped
+    env_file: ["${DAGSTER_RUNTIME_ENV_FILE:?required}"]
+    command:
+      - dagster
+      - code-server
+      - start
+      - -h
+      - 0.0.0.0
+      - -p
+      - '4000'
+      - -f
+      - /opt/dagster/app/definitions.py
+    expose: ['4000']
+    networks: [postgres]
+    healthcheck:
+      test: [CMD, dagster, api, grpc-health-check, -p, '4000']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+  dagster-webserver:
+    image: ${DAGSTER_IMAGE:?required}
+    restart: unless-stopped
+    depends_on: {dagster-user-code: {condition: service_healthy}}
+    env_file: ["${DAGSTER_RUNTIME_ENV_FILE:?required}"]
+    command: [dagster-webserver, -h, 0.0.0.0, -p, '3000', -w, /opt/dagster/dagster_home/workspace.yaml]
+    expose: ['3000']
+    volumes:
+      - "${DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
+      - "${DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
+    networks: [postgres, proxy]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:3000/server_info', timeout=5)"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+  dagster-daemon:
+    image: ${DAGSTER_IMAGE:?required}
+    restart: unless-stopped
+    depends_on: {dagster-user-code: {condition: service_healthy}}
+    env_file: ["${DAGSTER_RUNTIME_ENV_FILE:?required}"]
+    command: [dagster-daemon, run]
+    volumes:
+      - "${DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
+      - "${DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
+    networks: [postgres]
+networks:
+  postgres: {external: true, name: "${DAGSTER_POSTGRES_NETWORK:?required}"}
+  proxy: {external: true, name: "${DAGSTER_PROXY_NETWORK:?required}"}

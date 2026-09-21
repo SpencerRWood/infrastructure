@@ -36,8 +36,22 @@ fragment per service, rather than being copied from homelab or accumulated in a
 shared Caddyfile. The route moves only with its service: canonical Compose
 definition, database dependency, secrets, proxy-network membership, route,
 runtime validation, legacy shutdown, and rollback procedure are one migration
-unit. Development URLs use `http://service-dev.<domain>:8080`; later TLS URLs
-will use `https://service-dev.<domain>:8443`. No DNS or public-ingress change is
+unit. Development URLs use `http://dev-<service>.woodhost.cloud:8080`; later TLS
+URLs will use `https://dev-<service>.woodhost.cloud:8443`. No DNS or public-ingress change is
 part of this model. On a dedicated production host, infrastructure-prod Caddy
 may own `:80/:443` directly. Component availability never enables production
 deployment by itself.
+
+## Dagster ownership
+
+Dagster is a dev-only infrastructure component. `compose/dagster/` owns its
+webserver, daemon, gRPC user-code server, workspace, and storage configuration.
+The webserver alone joins `infrastructure-dev-proxy`; all services join the
+isolated infrastructure Postgres network. Its Caddy route is an infrastructure
+fragment and is independent of homelab Caddy. The external
+`synthetic_website_poc` gRPC location remains configuration-only and is not
+migrated in this release. The existing legacy database/runtime and a protected
+custom-format backup are retained for rollback; do not run both daemons. The
+attended cutover restored the final backup to infrastructure-dev Postgres,
+stopped the legacy project, and verified 9 historical runs and 179 event logs
+through the infrastructure Caddy route.

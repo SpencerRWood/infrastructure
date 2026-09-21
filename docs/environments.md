@@ -32,4 +32,9 @@ Route fragments under `compose/caddy/routes/` are added only as part of an
 individual service migration, together with its Compose definition, database,
 secrets, `infrastructure-dev-proxy` membership, validation, legacy shutdown,
 and rollback plan. Dev URLs explicitly include alternate ports, for example
-`http://service-dev.<domain>:8080`; DNS does not conceal the port.
+`http://dev-<service>.woodhost.cloud:8080`; DNS does not conceal the port.
+
+Dagster is selected only in `dev`; production remains disabled. Its protected
+runtime environment reads `DAGSTER_POSTGRES_PASSWORD` and
+`MACBOOK_DAGSTER_HOST` from the untracked dev environment. Its route moves only
+with the runtime and does not alter homelab Caddy.

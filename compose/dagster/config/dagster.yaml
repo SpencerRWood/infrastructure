@@ -1,0 +1,20 @@
+storage:
+  postgres:
+    postgres_db:
+      username: {env: DAGSTER_POSTGRES_USER}
+      password: {env: DAGSTER_POSTGRES_PASSWORD}
+      hostname: {env: DAGSTER_POSTGRES_HOST}
+      db_name: {env: DAGSTER_POSTGRES_DB}
+      port: {env: DAGSTER_POSTGRES_PORT}
+run_coordinator:
+  module: dagster.core.run_coordinator
+  class: QueuedRunCoordinator
+local_artifact_storage:
+  module: dagster.core.storage.root
+  class: LocalArtifactStorage
+  config: {base_dir: /opt/dagster/local/artifacts}
+compute_logs:
+  module: dagster.core.storage.local_compute_log_manager
+  class: LocalComputeLogManager
+  config: {base_dir: /opt/dagster/local/compute_logs}
+telemetry: {enabled: false}

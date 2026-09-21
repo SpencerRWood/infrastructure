@@ -1,0 +1,242 @@
+---
+- name: Require the local Dagster secret contract
+  ansible.builtin.assert:
+    that: "lookup('ansible.builtin.env', item) | length > 0"
+    fail_msg: "{{ item }} must be set by the selected local environment file."
+  loop: "{{ dagster_required_environment }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true
+  tags: [dagster]
+
+- name: Create Dagster component directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ dagster_compose_directory }}", mode: '0755'}
+    - {path: "{{ dagster_config_directory }}", mode: '0755'}
+    - {path: "{{ dagster_app_directory }}", mode: '0755'}
+    - {path: "{{ dagster_state_directory }}", mode: '0700'}
+    - {path: "{{ dagster_local_directory }}", mode: '0700'}
+  tags: [dagster]
+
+- name: Deploy protected Dagster runtime environment
+  ansible.builtin.copy:
+    content: |-
+      DAGSTER_HOME=/opt/dagster/dagster_home
+      DAGSTER_POSTGRES_HOST=postgres
+      DAGSTER_POSTGRES_PORT=5432
+      DAGSTER_POSTGRES_DB=dagster
+      DAGSTER_POSTGRES_USER=dagster
+      DAGSTER_POSTGRES_PASSWORD={{ lookup('ansible.builtin.env', 'DAGSTER_POSTGRES_PASSWORD') }}
+      MACBOOK_DAGSTER_HOST={{ lookup('ansible.builtin.env', 'MACBOOK_DAGSTER_HOST') }}
+    dest: "{{ dagster_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [dagster]
+
+- name: Deploy Dagster Compose environment
+  ansible.builtin.copy:
+    content: |-
+      DAGSTER_PROJECT_NAME={{ dagster_project_name }}
+      DAGSTER_IMAGE={{ dagster_image }}
+      DAGSTER_VERSION={{ dagster_version }}
+      DAGSTER_LIB_VERSION={{ dagster_lib_version }}
+      PYTHON_VERSION={{ dagster_python_version }}
+      DAGSTER_RUNTIME_ENV_FILE={{ dagster_env_file }}
+      DAGSTER_CONFIG_PATH={{ dagster_config_directory }}
+      DAGSTER_LOCAL_PATH={{ dagster_local_directory }}
+      DAGSTER_POSTGRES_NETWORK={{ dagster_postgres_network }}
+      DAGSTER_PROXY_NETWORK={{ dagster_proxy_network }}
+    dest: "{{ dagster_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [dagster]
+
+- name: Deploy canonical Dagster payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/dagster/{{ item }}"
+    dest: "{{ dagster_compose_directory }}/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: [compose.yml, Dockerfile]
+  tags: [dagster]
+
+- name: Deploy Dagster configuration and application
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/dagster/{{ item.source }}/"
+    dest: "{{ item.destination }}/"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - {source: config, destination: "{{ dagster_config_directory }}"}
+    - {source: app, destination: "{{ dagster_app_directory }}"}
+  tags: [dagster]
+
+- name: Check for the Dagster database role
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ dagster_postgres_container }}"
+      - psql
+      - -U
+      - postgres
+      - -d
+      - postgres
+      - -At
+      - "--command=SELECT 1 FROM pg_roles WHERE rolname = 'dagster';"
+  register: dagster_role
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+  tags: [dagster]
+
+- name: Create the non-superuser Dagster database role
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ dagster_postgres_container }}"
+      - psql
+      - -U
+      - postgres
+      - -d
+      - postgres
+      - --set=ON_ERROR_STOP=1
+      - >-
+        --command=CREATE ROLE dagster LOGIN NOSUPERUSER NOCREATEDB
+        NOCREATEROLE NOINHERIT PASSWORD
+        '{{ lookup('ansible.builtin.env', 'DAGSTER_POSTGRES_PASSWORD') | replace("'", "''") }}';
+  changed_when: true
+  no_log: true
+  when:
+    - not ansible_check_mode
+    - dagster_role.stdout | trim != '1'
+  tags: [dagster]
+
+- name: Check for the target Dagster database
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ dagster_postgres_container }}"
+      - psql
+      - -U
+      - postgres
+      - -d
+      - postgres
+      - -At
+      - "--command=SELECT 1 FROM pg_database WHERE datname = 'dagster';"
+  register: dagster_database
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+  tags: [dagster]
+
+- name: Create the target Dagster database
+  ansible.builtin.command:
+    argv: [docker, exec, "{{ dagster_postgres_container }}", createdb, -U, postgres, -O, dagster, dagster]
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - dagster_database.stdout | trim != '1'
+  tags: [dagster]
+
+- name: Check for completed Dagster database restore
+  ansible.builtin.stat:
+    path: "{{ dagster_restore_marker }}"
+  register: dagster_restore
+  changed_when: false
+  tags: [dagster]
+
+- name: Require final Dagster backup before first startup
+  ansible.builtin.stat:
+    path: "{{ dagster_restore_backup_path }}"
+  register: dagster_backup
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - not dagster_restore.stat.exists
+  tags: [dagster]
+
+- name: Assert final Dagster backup exists
+  ansible.builtin.assert:
+    that: dagster_backup.stat.exists
+    fail_msg: Dagster startup is blocked until the final source backup exists.
+  when:
+    - not ansible_check_mode
+    - not dagster_restore.stat.exists
+  tags: [dagster]
+
+- name: Copy final Dagster backup into target Postgres
+  ansible.builtin.command:
+    argv: [docker, cp, "{{ dagster_restore_backup_path }}", "{{ dagster_postgres_container }}:/tmp/dagster-final.dump"]
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - not dagster_restore.stat.exists
+  tags: [dagster]
+
+- name: Restore final Dagster backup once
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ dagster_postgres_container }}"
+      - pg_restore
+      - -U
+      - postgres
+      - -d
+      - dagster
+      - --exit-on-error
+      - /tmp/dagster-final.dump
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - not dagster_restore.stat.exists
+  tags: [dagster]
+
+- name: Record completed Dagster restore
+  ansible.builtin.copy:
+    content: "{{ dagster_restore_backup_path }}\n"
+    dest: "{{ dagster_restore_marker }}"
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - not dagster_restore.stat.exists
+  tags: [dagster]
+
+- name: Validate rendered Dagster Compose configuration
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ dagster_compose_env_file }}
+      -f {{ dagster_compose_directory }}/compose.yml config --quiet
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [dagster]
+
+- name: Start selected Dagster services after attended database restore
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ dagster_compose_env_file }}
+      -f {{ dagster_compose_directory }}/compose.yml up -d --build
+  register: dagster_up
+  changed_when: dagster_up.stdout is search('Created|Started|Recreated|Built')
+  when: not ansible_check_mode
+  tags: [dagster]

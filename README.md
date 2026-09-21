@@ -26,8 +26,8 @@ terraform/            Future cloud-infrastructure ownership
 
 ## Environments and secrets
 
-`dev` enables the standalone PostgreSQL and Caddy components; `prod` explicitly
-disables both and contains no host. Production services are opt-in through
+`dev` enables the standalone PostgreSQL, Caddy, and Dagster components; `prod` explicitly
+disables all three and contains no host. Production services are opt-in through
 reviewed changes.
 direnv loads one untracked local file:
 `~/.config/wood/infrastructure/dev.env` by default, or `prod.env` when
@@ -53,8 +53,18 @@ its LAN `:80/:443` bindings and `proxy` network. Infrastructure Caddy owns only
 its alternate ports and `infrastructure-dev-proxy`; the networks are never
 shared and no compatibility bridge exists. Future services join that network and
 receive one Caddy route fragment only when they migrate. Development URLs use
-`http://service-dev.<domain>:8080` (and, after TLS is configured,
-`https://service-dev.<domain>:8443`); DNS does not hide these alternate ports.
+`http://dev-<service>.woodhost.cloud:8080` (and, after TLS is configured,
+`https://dev-<service>.woodhost.cloud:8443`); DNS does not hide these alternate ports.
+
+## Dagster dev migration
+
+Dagster's canonical dev runtime is `compose/dagster/` (webserver, daemon, and
+the existing gRPC user-code server). Its webserver alone joins
+`infrastructure-dev-proxy` and is reached at
+`http://dev-dagster.woodhost.cloud:8080`; the other services use only
+`infrastructure-dev-postgres`. The legacy runtime and source database remain
+available for rollback until the attended database restore and cutover are
+completed.
 
 ## Validation
 

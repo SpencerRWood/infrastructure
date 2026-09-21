@@ -1,0 +1,19 @@
+---
+dagster_compose_directory: "{{ host_infrastructure_compose_root }}/dagster"
+dagster_config_directory: "{{ dagster_compose_directory }}/config"
+dagster_app_directory: "{{ dagster_compose_directory }}/app"
+dagster_state_directory: "{{ host_infrastructure_state_root }}/dagster"
+dagster_local_directory: "{{ dagster_state_directory }}/local"
+dagster_restore_marker: "{{ dagster_state_directory }}/database-restored"
+dagster_env_file: "{{ host_infrastructure_secrets_root }}/dagster.env"
+dagster_compose_env_file: "{{ host_infrastructure_secrets_root }}/dagster-compose.env"
+dagster_postgres_container: "infrastructure-{{ infrastructure_environment }}-postgres-postgres-1"
+dagster_postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
+dagster_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
+dagster_project_name: "infrastructure-{{ infrastructure_environment }}-dagster"
+dagster_image: local/infrastructure-dagster:1.13.16
+dagster_version: 1.13.16
+dagster_lib_version: 0.29.16
+dagster_python_version: 3.12-slim
+dagster_restore_backup_path: ''
+dagster_required_environment: [DAGSTER_POSTGRES_PASSWORD, MACBOOK_DAGSTER_HOST]

@@ -1,0 +1,6 @@
+load_from:
+  - grpc_server: {host: dagster-user-code, port: 4000, location_name: wood-data-platform}
+  - grpc_server:
+      host: {env: MACBOOK_DAGSTER_HOST}
+      port: 4000
+      location_name: synthetic_website_poc

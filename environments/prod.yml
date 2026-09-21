@@ -6,6 +6,7 @@ caddy_bind_address: 0.0.0.0
 caddy_http_port: 80
 caddy_https_port: 443
 caddy_allowed_cidrs: []
+dagster_restore_backup_path: ''
 services:
   postgres: false
   caddy: false
