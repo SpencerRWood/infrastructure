@@ -11,8 +11,11 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
     expose:
       - "5432"
+    ports:
+      - "${POSTGRES_LAN_BIND:?POSTGRES_LAN_BIND is required}:${POSTGRES_LAN_PORT:?POSTGRES_LAN_PORT is required}:5432"
     networks:
       - postgres
+      - lan
     secrets:
       - postgres_password
     volumes:
@@ -32,3 +35,5 @@ networks:
   postgres:
     name: ${POSTGRES_NETWORK:?POSTGRES_NETWORK is required}
     internal: true
+  lan:
+    name: ${POSTGRES_LAN_NETWORK:?POSTGRES_LAN_NETWORK is required}

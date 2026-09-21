@@ -26,7 +26,10 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
     'POSTGRES_PASSWORD_FILE=/tmp/postgres-password' \
     'POSTGRES_DATA_PATH=/srv/infrastructure/state/postgres/data' \
     'POSTGRES_NETWORK=infrastructure-dev-postgres' \
-    'POSTGRES_PROJECT_NAME=infrastructure-dev-postgres' >"$postgres_validation_env"
+    'POSTGRES_LAN_NETWORK=infrastructure-dev-postgres-lan' \
+    'POSTGRES_PROJECT_NAME=infrastructure-dev-postgres' \
+    'POSTGRES_LAN_BIND=192.168.1.21' \
+    'POSTGRES_LAN_PORT=25433' >"$postgres_validation_env"
   printf '%s\n' \
     'CADDY_PROJECT_NAME=infrastructure-dev-caddy' \
     'CADDY_HTTP_BIND=192.168.1.21:8080' \

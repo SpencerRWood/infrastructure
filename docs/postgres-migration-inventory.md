@@ -1,26 +1,56 @@
-# PostgreSQL migration boundary and next-release inventory
+# Legacy PostgreSQL remainder inventory
 
-Dagster, Open WebUI, Keycloak, and Infisical are completed infrastructure-dev
-database migrations. Their shared source databases and legacy runtimes are
-retained exclusively as rollback material.
-Homelab databases are already separate and must not be copied into
-infrastructure-dev. Website-portfolio migration is deferred; RudderStack is out
-of scope.
+Live audit: Beelink `wood-data-postgres`, 2026-09-21. Runtime state, not the
+old planning inventory, is authoritative. The legacy server had no active
+application sessions during the audit.
 
-| Database | Owning service | Classification | Current role | Extensions | Current host/storage | Priority | Target action | Rollback |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `synthetic_website_data` | Synthetic Website Analytics | infrastructure-dev | application data | verify before migration | shared wood-data-platform / legacy bind mount | candidate | assess export/import and service cutover | retain source; tested restore |
-| `dagster` | Dagster | infrastructure-dev | orchestration metadata | `plpgsql` | infrastructure-dev Postgres; legacy source retained | migrated | final custom-format backup restored; 9 runs and 179 event logs verified | stop infrastructure runtime; restart retained legacy project/database |
-| `openwebui` | Open WebUI | infrastructure-dev | application state | `plpgsql` | infrastructure-dev Postgres; legacy source retained | migrated | logical backup restored; 43 public tables verified | stop infrastructure runtime; restart retained legacy container/database |
-| `infisical` | Infisical | infrastructure-dev | system/internal | `plpgsql` | infrastructure-dev Postgres; legacy source retained | migrated | logical backup restored; 752 public tables verified | stop infrastructure runtime; restart retained legacy container/database |
-| `keycloak` | Keycloak | infrastructure-dev | system/internal identity state | `plpgsql` | infrastructure-dev Postgres; legacy source retained | migrated | logical backup restored; 88 public tables verified | stop infrastructure runtime; restart retained legacy container/database |
-| `wood_data` | unknown | unknown | historical default or application state | verify before migration | shared wood-data-platform / legacy bind mount | low | inspect ownership; do not delete | no action until identified |
-| `portfolio_website` | website-portfolio | deferred | application data | out of scope | shared wood-data-platform / legacy bind mount | none | no action | preserve source |
-| `postgres` | PostgreSQL | system/internal | administrative default database | `plpgsql` | shared wood-data-platform / legacy bind mount | none | do not migrate as app data | n/a |
+| Database | Owner | Size | User tables | Disposition | Active consumers | Retention / deletion blocker |
+| --- | --- | ---: | ---: | --- | --- | --- |
+| `dagster` | `dagster` | 9.6 MB | 22 | rollback-only copy | none | retain through approved rollback period |
+| `infisical` | `infisical` | 66 MB | 752 | rollback-only copy | none | retain through approved rollback period |
+| `keycloak` | `keycloak` | 12 MB | 88 | rollback-only copy | none | retain through approved rollback period |
+| `openwebui` | `openwebui` | 10 MB | 43 | rollback-only copy | none | retain through approved rollback period |
+| `synthetic_website_data` | `wood` | 388 MB | 15 | rollback-only copy | none on legacy after restore | retain source and final backup |
+| `portfolio_website` | `portfolio_migrator` | 7.6 MB | 0 | deferred | website-portfolio | explicitly out of scope |
+| `wood_data` | `wood` | 7.5 MB | 0 | administrative/bootstrap artifact | none | future deletion candidate; do not delete now |
+| `postgres` | `wood` | 7.5 MB | 0 | administrative | PostgreSQL administration | required while cluster exists |
+| `template1` | `wood` | 7.6 MB | 0 | administrative template | PostgreSQL administration | required while cluster exists |
 
-The observed shared cluster also contains service databases outside this release,
-including Grafana, Mealie, OpenProject, Vaultwarden, and Vikunja. They are
-system/internal or unknown pending an owning-service decision. Before a candidate
-migration, record owner, role grants, extensions, hostname, storage source, size,
-backup/restore proof, dependencies, and tested rollback. Do not infer that every
-remaining database belongs in infrastructure-dev.
+All databases have only `plpgsql`. `pg_tables` reports 68 PostgreSQL-system
+tables in an empty database; the figures above subtract that baseline. No
+Grafana, Mealie, OpenProject, Vaultwarden, or Vikunja database exists on this
+cluster. Those running services are homelab-owned and were not changed.
+
+## Synthetic Website Analytics migration record
+
+The source contract had login roles `synthetic_website_editor` and `dbt_editor`;
+schemas `raw`, `staging`, `intermediate`, and `marts`; 15 tables, 9 views, no
+materialized views or sequences. `synthetic_website_editor` owns `raw` and
+`dbt_editor` owns the transformation schemas. Both have required DML grants.
+
+A custom-format backup and globals capture were taken before restore at
+`/srv/infrastructure/backups/wood-data-platform/2026-09-21-synthetic-website-data/`.
+SHA-256: `0783aab8a7c297c76987baede2956c5928aa29d29ea2fe433704938c441d554f`
+for the dump and `40c85ffc6880fb1b8baceb53a056801d6ad067c820804af14994bdf684aead50`
+for globals. The restored target has 15 user tables, 9 user views, and zero
+sequences. The legacy source remains unchanged for rollback.
+
+## Consumer mapping
+
+| Consumer | Database | Host | State |
+| --- | --- | --- | --- |
+| infrastructure Dagster, Open WebUI, Keycloak, Infisical | named service database | `postgres:5432` on infrastructure-dev | active target |
+| synthetic data, analytics, and dbt local checkouts | `synthetic_website_data` | `192.168.1.21:25433` | active target; direct read and dbt validation passed |
+| website-portfolio | `portfolio_website` | legacy cluster | deferred |
+| migrated legacy copies | named above | legacy cluster | rollback only |
+
+## Next release: wood-data-platform runtime decommission
+
+1. Make a final full logical cluster backup and globals capture; checksum both.
+2. Re-run `pg_stat_activity` and prove no non-administrative legacy clients.
+3. Verify every migrated workload targets infrastructure Postgres.
+4. Confirm the portfolio disposition and `wood_data` deletion decision.
+5. Stop (do not delete) `wood-data-postgres`; observe jobs and logs.
+6. Roll back by starting the retained Compose service and restoring the final backup if needed.
+7. Retain legacy state and backups for the approved retention period.
+8. Remove obsolete Compose/configuration and storage only after all criteria are signed off.

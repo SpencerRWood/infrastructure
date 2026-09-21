@@ -21,9 +21,15 @@ Local secrets are names-only examples in `environments/dev.env.example` and
 `~/.config/wood/infrastructure/<environment>.env`, then Ansible deploys protected
 server-side files. Never commit credentials or print them in logs.
 
-The dev Postgres instance is intentionally empty except for standard PostgreSQL
-administrative databases. It is independent from the existing shared
-wood-data-platform cluster and has no application schema or bootstrap payload.
+The dev Postgres instance is independent from the shared wood-data-platform
+cluster. It owns the Dagster, Open WebUI, Keycloak, Infisical, and
+`synthetic_website_data` workloads; the legacy source remains online for
+rollback until its separately approved decommission release.
+
+Infrastructure Postgres also publishes a LAN-only development endpoint at
+`192.168.1.21:25433`. UFW restricts it to `192.168.1.0/24`; `25432` remains
+owned by the legacy rollback cluster. This is PostgreSQL TCP, not an HTTP Caddy
+route.
 
 Caddy requires no secrets for this initial internal health route. Its runtime
 configuration is still written as a protected host file, following the component

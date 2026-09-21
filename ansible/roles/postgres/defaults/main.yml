@@ -4,7 +4,11 @@ postgres_state_directory: "{{ host_infrastructure_state_root }}/postgres/data"
 postgres_env_file: "{{ host_infrastructure_secrets_root }}/postgres.env"
 postgres_password_file: "{{ host_infrastructure_secrets_root }}/postgres-password"
 postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
+postgres_lan_network: "infrastructure-{{ infrastructure_environment }}-postgres-lan"
 postgres_project_name: "infrastructure-{{ infrastructure_environment }}-postgres"
+postgres_lan_bind: "192.168.1.21"
+postgres_lan_port: 25433
+postgres_allowed_cidrs: ["192.168.1.0/24"]
 postgres_uid: '999'
 postgres_gid: '999'
 postgres_required_environment:
