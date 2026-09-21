@@ -2,7 +2,10 @@
 environment_name: prod
 # Component availability does not imply production deployment. Every production
 # service must be explicitly enabled here in a reviewed change.
+caddy_http_bind: 0.0.0.0:80
+caddy_https_bind: 0.0.0.0:443
 services:
   postgres: false
+  caddy: false
   dagster: false
   rudderstack: false

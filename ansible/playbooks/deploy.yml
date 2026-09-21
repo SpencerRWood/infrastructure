@@ -21,3 +21,9 @@
         name: postgres
       when: services.postgres | bool
       tags: [postgres]
+
+    - name: Deploy selected Caddy component
+      ansible.builtin.include_role:
+        name: caddy
+      when: services.caddy | bool
+      tags: [caddy]

@@ -17,7 +17,7 @@ components run. Repository component availability != production deployment.
 
 ```text
 ansible/              Inventory, environment playbooks, and implemented roles
-compose/postgres/     Canonical standalone PostgreSQL Compose component
+compose/              Canonical reusable Compose components
 environments/*.yml    Explicit dev/prod service-selection manifests
 environments/*.env.example  Names-only local secret contracts
 docs/                 Ownership, environment, and migration guidance
@@ -26,8 +26,9 @@ terraform/            Future cloud-infrastructure ownership
 
 ## Environments and secrets
 
-`dev` enables the standalone PostgreSQL component; `prod` explicitly disables
-it and contains no host. Production services are opt-in through reviewed changes.
+`dev` enables the standalone PostgreSQL and Caddy components; `prod` explicitly
+disables both and contains no host. Production services are opt-in through
+reviewed changes.
 direnv loads one untracked local file:
 `~/.config/wood/infrastructure/dev.env` by default, or `prod.env` when
 `INFRASTRUCTURE_ENV=prod`. Ansible writes server-side values under
@@ -36,6 +37,23 @@ direnv loads one untracked local file:
 Website-portfolio and RudderStack are out of scope. No application database was
 migrated; the existing shared wood-data-platform PostgreSQL remains the migration
 source and rollback instance.
+
+## Development ingress
+
+The reusable Caddy component runs in dev with loopback-only bindings
+`127.0.0.1:8080` and `127.0.0.1:8443`. It serves only HTTP `GET /healthz`; the
+reserved HTTPS binding has no route until a future reviewed TLS configuration.
+No application is behind it.
+Its state lives below `/srv/infrastructure/state/caddy/`, and it owns the
+isolated `infrastructure-dev-proxy` Docker network.
+
+Homelab Caddy remains the Beelink edge proxy and exclusively owns its LAN
+`:80/:443` bindings and `proxy` network. Future infrastructure services opt in
+to the infrastructure proxy network when individually migrated. A temporary
+homelab route may forward a development hostname to infrastructure Caddy, but
+that edge routing is deliberately not part of this release. On a dedicated prod
+host, the same component's reviewed environment configuration can bind
+`:80/:443` directly.
 
 ## Validation
 

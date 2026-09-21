@@ -1,0 +1,5 @@
+# This component deliberately exposes only a verification route. Infrastructure
+# services join the proxy network explicitly when they are migrated later.
+http://:80 {
+	respond /healthz "infrastructure caddy ok" 200
+}

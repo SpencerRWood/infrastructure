@@ -1,0 +1,20 @@
+---
+name: ${CADDY_PROJECT_NAME:?CADDY_PROJECT_NAME is required}
+
+services:
+  caddy:
+    image: caddy:2.11.2-alpine
+    restart: unless-stopped
+    ports:
+      - "${CADDY_HTTP_BIND:?CADDY_HTTP_BIND is required}:80"
+      - "${CADDY_HTTPS_BIND:?CADDY_HTTPS_BIND is required}:443"
+    volumes:
+      - ${CADDYFILE_PATH:?CADDYFILE_PATH is required}:/etc/caddy/Caddyfile:ro
+      - ${CADDY_DATA_PATH:?CADDY_DATA_PATH is required}:/data
+      - ${CADDY_CONFIG_PATH:?CADDY_CONFIG_PATH is required}:/config
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    name: ${CADDY_PROXY_NETWORK:?CADDY_PROXY_NETWORK is required}

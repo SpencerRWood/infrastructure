@@ -1,0 +1,99 @@
+---
+- name: Create Caddy component and persistent-state directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ caddy_compose_directory }}"
+      mode: '0755'
+    - path: "{{ caddy_state_directory }}"
+      mode: '0700'
+    - path: "{{ caddy_data_directory }}"
+      mode: '0700'
+    - path: "{{ caddy_config_directory }}"
+      mode: '0700'
+  tags: [caddy]
+
+- name: Deploy Caddy runtime environment
+  ansible.builtin.copy:
+    content: |-
+      CADDY_PROJECT_NAME={{ caddy_project_name }}
+      CADDY_HTTP_BIND={{ caddy_http_bind }}
+      CADDY_HTTPS_BIND={{ caddy_https_bind }}
+      CADDYFILE_PATH={{ caddy_caddyfile_path }}
+      CADDY_DATA_PATH={{ caddy_data_directory }}
+      CADDY_CONFIG_PATH={{ caddy_config_directory }}
+      CADDY_PROXY_NETWORK={{ caddy_network }}
+    dest: "{{ caddy_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [caddy]
+
+- name: Deploy canonical Caddy Compose payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/caddy/compose.yml"
+    dest: "{{ caddy_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [caddy]
+
+- name: Deploy canonical Caddyfile
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/caddy/Caddyfile"
+    dest: "{{ caddy_caddyfile_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  register: caddy_caddyfile
+  tags: [caddy]
+
+- name: Validate rendered Caddy Compose configuration
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ caddy_env_file }}
+      -f {{ caddy_compose_directory }}/compose.yml config --quiet
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [caddy]
+
+- name: Validate Caddy configuration
+  ansible.builtin.command:
+    cmd: >-
+      docker run --rm
+      -v {{ caddy_caddyfile_path }}:/etc/caddy/Caddyfile:ro
+      caddy:2.11.2-alpine caddy validate
+      --config /etc/caddy/Caddyfile --adapter caddyfile
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+  tags: [caddy]
+
+- name: Start selected Caddy service
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ caddy_env_file }}
+      -f {{ caddy_compose_directory }}/compose.yml up -d caddy
+  register: caddy_compose_up
+  changed_when: caddy_compose_up.stdout is search('Created|Started|Recreated')
+  when: not ansible_check_mode
+  tags: [caddy]
+
+- name: Reload Caddy after Caddyfile changes
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ caddy_env_file }}
+      -f {{ caddy_compose_directory }}/compose.yml exec -T caddy
+      caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - caddy_caddyfile.changed
+  tags: [caddy]
