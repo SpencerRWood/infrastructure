@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.6.0 (2026-09-21)
+
+### Features
+
+- Drain remaining legacy postgres workload
+  ([`fa1df2d`](https://github.com/SpencerRWood/infrastructure/commit/fa1df2ddf914f3ca6d59e9cb58af57b599f3e071))
+
+
 ## v0.5.0 (2026-09-21)
 
 ### Features
