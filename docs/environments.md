@@ -26,6 +26,10 @@ cluster. It owns the Dagster, Open WebUI, Keycloak, Infisical, and
 `synthetic_website_data` workloads; the legacy source remains online for
 rollback until its separately approved decommission release.
 
+`portfolio_website` also runs on this Postgres instance. Its website runtime is
+not infrastructure-owned and was not moved; only its database connection uses
+the LAN ingress.
+
 Infrastructure Postgres also publishes a LAN-only development endpoint at
 `192.168.1.21:25433`. UFW restricts it to `192.168.1.0/24`; `25432` remains
 owned by the legacy rollback cluster. This is PostgreSQL TCP, not an HTTP Caddy

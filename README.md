@@ -34,10 +34,11 @@ direnv loads one untracked local file:
 `INFRASTRUCTURE_ENV=prod`. Ansible writes server-side values under
 `/srv/infrastructure/secrets/<environment>/` as `root:root` mode `0600`.
 
-Website-portfolio and RudderStack are out of scope. Dagster, Open WebUI,
-Keycloak, Infisical, and Synthetic Website Analytics run on infrastructure-dev
-PostgreSQL. The shared wood-data-platform PostgreSQL remains online solely for
-the deferred portfolio database, administrative databases, and rollback copies.
+RudderStack is out of scope. Dagster, Open WebUI, Keycloak, Infisical, Synthetic
+Website Analytics, and the portfolio database run on infrastructure-dev
+PostgreSQL. The website runtime itself remains independently owned. The shared
+wood-data-platform PostgreSQL remains online only for administrative databases
+and rollback copies; it has no active application workloads.
 
 ## Development ingress
 
