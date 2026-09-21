@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.7.0 (2026-09-21)
+
+### Features
+
+- Migrate portfolio database to infrastructure dev
+  ([`61a9f93`](https://github.com/SpencerRWood/infrastructure/commit/61a9f93ff91360acb797db4a203a230c2cf6e268))
+
+
 ## v0.6.0 (2026-09-21)
 
 ### Features
