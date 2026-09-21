@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.4.0 (2026-09-21)
+
+### Features
+
+- Migrate dagster to infrastructure dev
+  ([`c58b8f8`](https://github.com/SpencerRWood/infrastructure/commit/c58b8f82b1abad2b0148bebf0939ad7b74f80716))
+
+
 ## v0.3.0 (2026-09-21)
 
 ### Features
