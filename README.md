@@ -6,19 +6,20 @@ their source code, Dockerfiles, tests, migrations, and application releases.
 
 ## Scope
 
-This Step 6 foundation is intentionally documentation and validation only. It
-does not provision DigitalOcean resources, contact a server, create databases,
-or contain real credentials.
+This repository owns the standalone PostgreSQL runtime definition and its
+minimal Ansible deployment path. It does not contain real credentials.
 
 The repository owns:
 
-- Docker Compose topology for `dev` and `prod`
+- Docker Compose topology for `dev` and `prod`, including canonical PostgreSQL
+- Ansible deployment and validation of the PostgreSQL runtime
 - shared PostgreSQL provisioning conventions
 - deployment-facing environment contracts
 - future Terraform configuration and state conventions
 - infrastructure validation
 
 It does not own application source code or application-specific migrations.
+Website-portfolio and RudderStack remain out of scope.
 
 ## Layout
 
@@ -28,6 +29,8 @@ environments/dev/     Local/home-server Compose topology and placeholders
 environments/prod/    Future DigitalOcean Compose topology and placeholders
 postgres/             Parameterized, least-privilege database bootstrap scripts
 services/postgres/    Shared PostgreSQL service ownership notes
+compose/postgres/     Canonical PostgreSQL Docker Compose payload
+ansible/              Minimal host deployment and validation for PostgreSQL
 scripts/validate.sh   Lightweight repository validation
 terraform/            Future Terraform ownership and state conventions
 ```
@@ -59,9 +62,10 @@ production source of truth.
 
 ## Secrets
 
-Only placeholder `.env.example` files are committed. See
-[docs/secrets.md](docs/secrets.md) for the credential timing and handling
-contract.
+Only names-only examples are committed. `~/.config/wood/dev.env` and
+`~/.config/wood/prod.env` are loaded locally with direnv; Ansible writes only the
+required PostgreSQL values to `/srv/infrastructure/secrets/postgres.env` as root
+mode `0600`. See [the migration runbook](docs/postgres-ownership-migration.md).
 
 ## Validation
 

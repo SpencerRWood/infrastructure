@@ -1,0 +1,8 @@
+---
+all:
+  children:
+    postgres_hosts:
+      hosts:
+        swood-server:
+          ansible_host: swood-server
+          ansible_user: spencerwood

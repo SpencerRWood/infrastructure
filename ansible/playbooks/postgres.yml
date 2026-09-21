@@ -1,0 +1,7 @@
+---
+- name: Deploy the infrastructure-owned PostgreSQL runtime
+  hosts: postgres_hosts
+  become: true
+  gather_facts: false
+  roles:
+    - role: postgres

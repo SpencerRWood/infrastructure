@@ -1,0 +1,124 @@
+---
+- name: Require the locally loaded PostgreSQL runtime contract
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', item) | length > 0
+    fail_msg: "{{ item }} must be set by dev.env or prod.env before deployment."
+  loop: "{{ postgres_required_environment }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true
+  tags: [postgres]
+
+- name: Check existing PostgreSQL storage before deployment
+  ansible.builtin.stat:
+    path: "{{ postgres_data_path }}"
+  register: postgres_storage
+  changed_when: false
+  tags: [postgres]
+
+- name: Require the existing initialized PostgreSQL cluster
+  ansible.builtin.assert:
+    that:
+      - postgres_storage.stat.exists
+      - postgres_storage.stat.isdir
+      - postgres_storage.stat.mode == '0700'
+    fail_msg: >-
+      Refusing to deploy PostgreSQL because {{ postgres_data_path }} is not the
+      audited existing cluster directory with mode 0700. Do not initialize or
+      relocate state as part of this ownership transfer.
+  tags: [postgres]
+
+- name: Check existing PostgreSQL major version marker
+  ansible.builtin.slurp:
+    src: "{{ postgres_data_path }}/PG_VERSION"
+  register: postgres_pg_version
+  changed_when: false
+  no_log: true
+  tags: [postgres]
+
+- name: Require the audited PostgreSQL major version
+  ansible.builtin.assert:
+    that:
+      - (postgres_pg_version.content | b64decode | trim) == postgres_expected_major
+    fail_msg: >-
+      Refusing to deploy PostgreSQL because the existing cluster major version
+      does not match {{ postgres_expected_major }}. Major upgrades are out of scope.
+  no_log: true
+  tags: [postgres]
+
+- name: Require the existing PostgreSQL networks
+  ansible.builtin.command:
+    cmd: "docker network inspect {{ lookup('ansible.builtin.env', item) }}"
+  loop:
+    - POSTGRES_INTERNAL_NETWORK
+    - POSTGRES_LAN_NETWORK
+  changed_when: false
+  check_mode: false
+  no_log: true
+  tags: [postgres]
+
+- name: Create the canonical PostgreSQL Compose directory
+  ansible.builtin.file:
+    path: "{{ postgres_compose_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [postgres]
+
+- name: Create the protected PostgreSQL environment directory
+  ansible.builtin.file:
+    path: "{{ postgres_env_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  tags: [postgres]
+
+- name: Deploy the protected PostgreSQL environment file
+  ansible.builtin.copy:
+    content: |-
+      {% for key in postgres_required_environment %}
+      {{ key }}={{ lookup('ansible.builtin.env', key) }}
+      {% endfor %}
+    dest: "{{ postgres_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [postgres]
+
+- name: Deploy the canonical PostgreSQL Compose payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/postgres/compose.yml"
+    dest: "{{ postgres_compose_root }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [postgres]
+
+- name: Validate protected PostgreSQL environment file permissions
+  ansible.builtin.stat:
+    path: "{{ postgres_env_file }}"
+  register: postgres_deployed_env
+  changed_when: false
+  tags: [postgres]
+
+- name: Require protected PostgreSQL environment file permissions
+  ansible.builtin.assert:
+    that:
+      - postgres_deployed_env.stat.pw_name == 'root'
+      - postgres_deployed_env.stat.gr_name == 'root'
+      - postgres_deployed_env.stat.mode == '0600'
+  tags: [postgres]
+
+- name: Render the canonical PostgreSQL Compose configuration
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ postgres_env_file }}
+      -f {{ postgres_compose_root }}/compose.yml config --quiet
+  changed_when: false
+  check_mode: false
+  tags: [postgres]

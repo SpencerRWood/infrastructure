@@ -1,9 +1,9 @@
 # Shared PostgreSQL service
 
-This directory reserves ownership for the shared PostgreSQL runtime service.
-The initial Compose topology intentionally starts no services. When PostgreSQL
-is introduced, its Compose definition belongs in the relevant environment and
-uses the least-privilege bootstrap model in `../../postgres/`.
+The shared PostgreSQL runtime is defined by
+[`../../compose/postgres/compose.yml`](../../compose/postgres/compose.yml) and
+deployed by the `postgres` Ansible role. This is an ownership transfer of the
+existing PostgreSQL 16 cluster, not a bootstrap or rebuild.
 
 Normal applications use their runtime role; migrations use their migration
 role; neither receives PostgreSQL superuser credentials.
