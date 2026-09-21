@@ -1,40 +1,19 @@
 # Architecture and ownership
 
-## Ownership boundaries
-
-| Owner | Responsibilities |
+| Owner | Responsibility |
 | --- | --- |
-| Application repositories | Source code, Dockerfiles, tests, migrations, application releases |
-| `workflows` | Reusable GitHub release automation |
-| `infrastructure` | Environment topology, Compose composition, shared PostgreSQL, future Terraform, deployment-facing configuration, provisioning scripts, and infrastructure validation |
+| Terraform | Cloud hosts, volumes, DNS, firewall/network primitives, future DigitalOcean resources |
+| Ansible | Host configuration, canonical directories, protected environment files, Compose payloads, validation |
+| Docker Compose | Portable platform-service lifecycle |
+| Environment manifests | Explicit per-environment service selection |
+| Application repositories | Source, migrations, tests, and releases |
 
-Application source code is never copied into this repository. Applications
-publish immutable images; infrastructure later selects the image digest or
-version to run in each environment.
+Components are a shared catalog, not a stack promotion mechanism. `dev` and
+`prod` separately declare services in `environments/dev.yml` and
+`environments/prod.yml`; production is opt-in. The canonical Postgres component
+is present in the catalog, but only dev enables it.
 
-## Runtime model
-
-Docker Compose is the runtime composition mechanism for both environments.
-`dev` targets the local/home-server environment and `prod` targets future
-DigitalOcean hosts. Kubernetes is not part of this platform architecture.
-
-Shared PostgreSQL is infrastructure, not an application-private sidecar. Each
-application receives its own database and least-privilege runtime and migration
-roles through the provisioning process described in
-[database-provisioning.md](database-provisioning.md).
-
-## Future deployment boundary
-
-```text
-application release
-  -> immutable container image
-  -> deployment workflow
-  -> runtime host (/srv/wood)
-  -> docker compose update
-  -> health check
-  -> success or rollback
-```
-
-The image version or digest is the deployment input. Do not use `latest` as a
-production source of truth. Deployment automation, health checks, and rollback
-are deliberately deferred beyond this foundation.
+The dev Postgres state path is `/srv/infrastructure/state/postgres/data`; it uses
+the internal-only `infrastructure-dev-postgres` network and restart policy
+`unless-stopped`. It has no published host port. Future production Postgres will
+be a fresh independent cluster—dev database state is never promoted to prod.

@@ -1,29 +1,18 @@
 # Environments
 
-## dev
+`ansible/playbooks/dev.yml` targets `ansible/inventory/dev` and loads
+`environments/dev.yml`. It explicitly enables Postgres. `ansible/playbooks/prod.yml`
+targets the separate, currently empty `ansible/inventory/prod` and loads
+`environments/prod.yml`, where Postgres is false.
 
-`environments/dev` represents the current local/home-server environment. It
-will eventually compose shared services and development/staging workloads.
-Its Compose file is a deliberately empty topology scaffold: no services are
-started or provisioned by this repository initialization.
+Adding a component definition does not deploy it to production. A production host,
+secret contract, and `services.<name>: true` are all deliberate future work.
 
-Use `environments/dev/.env.example` as the shape for a local, untracked
-`environments/dev/.env` only when a service is intentionally introduced.
+Local secrets are names-only examples in `environments/dev.env.example` and
+`environments/prod.env.example`. direnv loads one untracked file from
+`~/.config/wood/infrastructure/<environment>.env`, then Ansible deploys protected
+server-side files. Never commit credentials or print them in logs.
 
-## prod
-
-`environments/prod` represents the future DigitalOcean production environment.
-It will eventually compose production shared services and application
-workloads. The planned host root is `/srv/wood`; this repository does not
-create or modify that directory in Step 6.
-
-Use `environments/prod/.env.example` only as a placeholder contract. The
-actual production credentials are created when a service is onboarded.
-
-## Shared principles
-
-- Docker Compose is the runtime composition model in both environments.
-- Configuration and credentials are environment-specific and never committed.
-- Production consumes immutable image versions or digests, never `latest`.
-- CloudBeaver is not part of either environment topology.
-- Terraform implementation and cloud resources are deferred to Step 7.
+The dev Postgres instance is intentionally empty except for standard PostgreSQL
+administrative databases. It is independent from the existing shared
+wood-data-platform cluster and has no application schema or bootstrap payload.

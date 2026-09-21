@@ -1,26 +1,12 @@
 # Secrets and credentials
 
-No real secrets are stored in this repository. `.env.example` files document
-names only, and `.env` files are ignored by Git.
+Real secrets stay outside Git. Create `~/.config/wood/infrastructure/dev.env` or
+`prod.env` from the names-only examples and let direnv load exactly the selected
+environment. `POSTGRES_PASSWORD` is never stored in Compose or output by Ansible.
 
-## Credential timing
+Ansible writes a root-owned environment file and a separate root-owned password
+file under `/srv/infrastructure/secrets/<environment>/`, both mode `0600`; secret
+tasks use `no_log`. Docker Compose reads the password through a Compose secret.
 
-1. **GitHub auth** — required now to create and push this repository.
-2. **DigitalOcean API token** — create before Step 7 when Terraform begins to
-   manage or import infrastructure.
-3. **SSH deployment identity** — create later, before automated host
-   deployment.
-4. **PostgreSQL bootstrap/admin credential** — create when shared PostgreSQL
-   is actually deployed.
-5. **Application runtime/migration credentials** — create during each
-   service/database onboarding.
-6. **Cloudflare token** — create only if DNS is later managed through
-   Terraform or automation.
-
-## Handling rules
-
-- Keep real values in an untracked environment file or approved secret store.
-- Never place credentials in Compose YAML, docs, scripts, Git history, or
-  Terraform variables files.
-- Give runtime applications and migrations distinct database credentials.
-- Rotate a credential if it is ever accidentally committed or exposed.
+Do not put credentials in documentation, CI logs, pull requests, Terraform state,
+or application configuration. Rotate any credential that is exposed.

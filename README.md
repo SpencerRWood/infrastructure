@@ -1,86 +1,49 @@
 # infrastructure
 
-Infrastructure topology and runtime composition for Wood environments. This
-repository owns environment-level configuration; application repositories keep
-their source code, Dockerfiles, tests, migrations, and application releases.
+Infrastructure topology and portable runtime components for Wood environments.
+Application repositories keep source code, migrations, and releases.
 
-## Scope
+## Ownership
 
-This repository owns the standalone PostgreSQL runtime definition and its
-minimal Ansible deployment path. It does not contain real credentials.
+Terraform provisions cloud infrastructure: hosts, volumes, DNS, firewall/network
+primitives, and future DigitalOcean resources. Ansible configures hosts, creates
+canonical directories, deploys protected environment files and Compose payloads,
+and validates configuration. Docker Compose owns portable service lifecycle.
 
-The repository owns:
-
-- Docker Compose topology for `dev` and `prod`, including canonical PostgreSQL
-- Ansible deployment and validation of the PostgreSQL runtime
-- shared PostgreSQL provisioning conventions
-- deployment-facing environment contracts
-- future Terraform configuration and state conventions
-- infrastructure validation
-
-It does not own application source code or application-specific migrations.
-Website-portfolio and RudderStack remain out of scope.
+Components are a shared catalog. Environment manifests explicitly select which
+components run. Repository component availability != production deployment.
 
 ## Layout
 
 ```text
-docs/                 Architecture, environment, secret, and database guidance
-environments/dev/     Local/home-server Compose topology and placeholders
-environments/prod/    Future DigitalOcean Compose topology and placeholders
-postgres/             Parameterized, least-privilege database bootstrap scripts
-services/postgres/    Shared PostgreSQL service ownership notes
-compose/postgres/     Canonical PostgreSQL Docker Compose payload
-ansible/              Minimal host deployment and validation for PostgreSQL
-scripts/validate.sh   Lightweight repository validation
-terraform/            Future Terraform ownership and state conventions
+ansible/              Inventory, environment playbooks, and implemented roles
+compose/postgres/     Canonical standalone PostgreSQL Compose component
+environments/*.yml    Explicit dev/prod service-selection manifests
+environments/*.env.example  Names-only local secret contracts
+docs/                 Ownership, environment, and migration guidance
+terraform/            Future cloud-infrastructure ownership
 ```
 
-## Environments
+## Environments and secrets
 
-- `dev` is the current local/home-server environment. It will eventually host
-  shared services and development/staging workloads.
-- `prod` is the future DigitalOcean environment. It will eventually host
-  production shared services and application workloads.
+`dev` enables the standalone PostgreSQL component; `prod` explicitly disables
+it and contains no host. Production services are opt-in through reviewed changes.
+direnv loads one untracked local file:
+`~/.config/wood/infrastructure/dev.env` by default, or `prod.env` when
+`INFRASTRUCTURE_ENV=prod`. Ansible writes server-side values under
+`/srv/infrastructure/secrets/<environment>/` as `root:root` mode `0600`.
 
-Both environments use Docker Compose as the runtime composition model. This
-repository deliberately does not introduce Kubernetes or CloudBeaver.
-
-## Future deployment boundary
-
-```text
-application release
-  -> immutable container image
-  -> deployment workflow
-  -> runtime host (/srv/wood)
-  -> docker compose update
-  -> health check
-  -> success or rollback
-```
-
-Production deployments will use immutable image references; `latest` is not a
-production source of truth.
-
-## Secrets
-
-Only names-only examples are committed. `~/.config/wood/dev.env` and
-`~/.config/wood/prod.env` are loaded locally with direnv; Ansible writes only the
-required PostgreSQL values to `/srv/infrastructure/secrets/postgres.env` as root
-mode `0600`. See [the migration runbook](docs/postgres-ownership-migration.md).
+Website-portfolio and RudderStack are out of scope. No application database was
+migrated; the existing shared wood-data-platform PostgreSQL remains the migration
+source and rollback instance.
 
 ## Validation
 
-Run the repository checks locally:
-
 ```sh
 bash scripts/validate.sh
+ANSIBLE_CONFIG=ansible/ansible.cfg ansible-inventory -i ansible/inventory/dev --graph
+ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook -i ansible/inventory/dev ansible/playbooks/dev.yml --syntax-check
 ```
 
-## Release workflow
-
-`workflows@v1` is intentionally not adopted in this initial repository. Its
-current contract is for repositories with an established release configuration
-and validation toolchain. This repository currently contains Compose, shell,
-and documentation scaffolding only; adding a synthetic Python or
-semantic-release configuration would be misleading. Re-evaluate adoption when
-this repository gains a clean, supported release configuration without
-special-casing the centralized workflow.
+See [environment ownership](docs/environments.md) and the
+[next-release migration inventory](docs/postgres-migration-inventory.md).

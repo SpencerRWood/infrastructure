@@ -1,9 +1,10 @@
 # Shared PostgreSQL service
 
-The shared PostgreSQL runtime is defined by
+The standalone PostgreSQL component is defined by
 [`../../compose/postgres/compose.yml`](../../compose/postgres/compose.yml) and
-deployed by the `postgres` Ansible role. This is an ownership transfer of the
-existing PostgreSQL 16 cluster, not a bootstrap or rebuild.
+deployed only when selected by an environment manifest. In this release it is
+enabled for `dev` and creates a fresh, independent PostgreSQL 16 cluster.
 
-Normal applications use their runtime role; migrations use their migration
-role; neither receives PostgreSQL superuser credentials.
+No application database is provisioned or migrated by this component. The
+existing shared wood-data-platform PostgreSQL server remains the source and
+rollback instance for the next migration phase.
