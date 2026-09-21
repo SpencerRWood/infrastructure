@@ -8,7 +8,29 @@ name: Release
 
 permissions:
   contents: write
+  deployments: write
 
 jobs:
   release:
     uses: SpencerRWood/workflows/.github/workflows/release.yml@v1
+
+  deploy-dev:
+    needs: release
+    if: ${{ needs.release.outputs.released == 'true' }}
+    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@v1
+    with:
+      repository: ${{ github.repository }}
+      ref: ${{ needs.release.outputs.release_tag }}
+      inventory_path: ansible/inventory/dev
+      playbook_path: ansible/playbooks/dev.yml
+      environment_name: infrastructure-dev
+      deployment_working_directory: .
+      concurrency_group: deploy-infrastructure-dev
+      runner: self-hosted
+      secrets_file: /Users/spencerwood/.config/wood/infrastructure/dev.env
+      validation_command: bash scripts/validate.sh
+      check_command: >-
+        ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
+        -i ansible/inventory/dev
+        ansible/playbooks/dev.yml --tags host --check --diff
+      health_check_command: bash scripts/health-check-dev.sh

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["docker-compose", "custom.regex"],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "fix",
+  "semanticCommitScope": "deps",
+  "pinDigests": true,
+  "platformAutomerge": true,
+  "automergeStrategy": "squash",
+  "vulnerabilityAlerts": {
+    "automerge": true,
+    "semanticCommitType": "fix",
+    "semanticCommitScope": "deps"
+  },
+  "packageRules": [
+    {
+      "description": "Only patch image updates are automatically merged in infrastructure.",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "groupName": "{{depName}} patch update"
+    },
+    {
+      "description": "PostgreSQL compatibility-major transitions require explicit review.",
+      "matchPackageNames": ["pgvector/pgvector"],
+      "matchNewValue": "/-pg(?:17|[2-9][0-9]+)-/",
+      "automerge": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^ansible/roles/keycloak/defaults/main\\.yml$"],
+      "matchStrings": ["keycloak_image_tag: (?<currentValue>[^\\s]+)"],
+      "depNameTemplate": "quay.io/keycloak/keycloak",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^ansible/roles/infisical/defaults/main\\.yml$"],
+      "matchStrings": ["infisical_image_tag: (?<currentValue>[^\\s]+)"],
+      "depNameTemplate": "infisical/infisical",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^ansible/roles/openwebui/defaults/main\\.yml$"],
+      "matchStrings": ["openwebui_image_tag: (?<currentValue>[^\\s]+)"],
+      "depNameTemplate": "ghcr.io/open-webui/open-webui",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^ansible/roles/dagster/defaults/main\\.yml$"],
+      "matchStrings": ["dagster_version: (?<currentValue>[^\\s]+)"],
+      "depNameTemplate": "dagster/dagster",
+      "datasourceTemplate": "docker"
+    }
+  ]
+}
