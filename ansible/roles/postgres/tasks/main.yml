@@ -37,12 +37,26 @@
       POSTGRES_PASSWORD_FILE={{ postgres_password_file }}
       POSTGRES_DATA_PATH={{ postgres_state_directory }}
       POSTGRES_NETWORK={{ postgres_network }}
+      POSTGRES_LAN_NETWORK={{ postgres_lan_network }}
       POSTGRES_PROJECT_NAME={{ postgres_project_name }}
+      POSTGRES_LAN_BIND={{ postgres_lan_bind }}
+      POSTGRES_LAN_PORT={{ postgres_lan_port }}
     dest: "{{ postgres_env_file }}"
     owner: root
     group: root
     mode: '0600'
   no_log: true
+  tags: [postgres]
+
+- name: Allow infrastructure PostgreSQL from trusted LAN networks
+  community.general.ufw:
+    rule: allow
+    direction: in
+    proto: tcp
+    from_ip: "{{ item }}"
+    port: "{{ postgres_lan_port }}"
+  loop: "{{ postgres_allowed_cidrs }}"
+  when: postgres_allowed_cidrs | length > 0
   tags: [postgres]
 
 - name: Deploy protected PostgreSQL password file

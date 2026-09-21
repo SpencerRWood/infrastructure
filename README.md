@@ -34,9 +34,10 @@ direnv loads one untracked local file:
 `INFRASTRUCTURE_ENV=prod`. Ansible writes server-side values under
 `/srv/infrastructure/secrets/<environment>/` as `root:root` mode `0600`.
 
-Website-portfolio and RudderStack are out of scope. No application database was
-migrated; the existing shared wood-data-platform PostgreSQL remains the migration
-source and rollback instance.
+Website-portfolio and RudderStack are out of scope. Dagster, Open WebUI,
+Keycloak, Infisical, and Synthetic Website Analytics run on infrastructure-dev
+PostgreSQL. The shared wood-data-platform PostgreSQL remains online solely for
+the deferred portfolio database, administrative databases, and rollback copies.
 
 ## Development ingress
 
