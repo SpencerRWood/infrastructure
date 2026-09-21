@@ -1,0 +1,122 @@
+---
+- name: Require the local Open WebUI secret contract
+  ansible.builtin.assert:
+    that: "lookup('ansible.builtin.env', item) | length > 0"
+  loop: "{{ openwebui_required_environment }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true
+  tags: [openwebui]
+
+- name: Create Open WebUI directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  loop: ["{{ openwebui_compose_directory }}", "{{ openwebui_state_directory }}"]
+  tags: [openwebui]
+
+- name: Check for an existing Open WebUI runtime environment
+  ansible.builtin.stat:
+    path: "{{ openwebui_env_file }}"
+  register: openwebui_existing_env
+  changed_when: false
+  tags: [openwebui]
+
+- name: Read the legacy Open WebUI signing key for the one-time migration
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      docker inspect openwebui
+      --format '{{ '{{' }}range .Config.Env{{ '}}' }}{{ '{{' }}println .{{ '}}' }}{{ '{{' }}end{{ '}}' }}'
+      | sed -n 's/^WEBUI_SECRET_KEY=//p'
+    executable: /bin/bash
+  register: openwebui_legacy_secret
+  changed_when: false
+  no_log: true
+  when: not openwebui_existing_env.stat.exists
+  tags: [openwebui]
+
+- name: Generate an Open WebUI signing key when the legacy runtime has none
+  ansible.builtin.command:
+    cmd: openssl rand -hex 32
+  register: openwebui_generated_secret
+  changed_when: true
+  no_log: true
+  when:
+    - not openwebui_existing_env.stat.exists
+    - openwebui_legacy_secret.stdout | default('') | length == 0
+  tags: [openwebui]
+
+- name: Select the Open WebUI signing key for first startup
+  ansible.builtin.set_fact:
+    openwebui_signing_key: >-
+      {{ openwebui_legacy_secret.stdout | default(openwebui_generated_secret.stdout | default(''), true) }}
+  no_log: true
+  when: not openwebui_existing_env.stat.exists
+  tags: [openwebui]
+
+- name: Deploy protected Open WebUI runtime environment
+  ansible.builtin.copy:
+    content: |-
+      DATABASE_URL=postgresql://openwebui:{{ openwebui_database_password }}@postgres:5432/openwebui
+      WEBUI_SECRET_KEY={{ openwebui_signing_key }}
+      OPENAI_API_BASE_URL={{ lookup('ansible.builtin.env', 'OPENWEBUI_OPENAI_API_BASE_URL') }}
+      OPENAI_API_KEY={{ lookup('ansible.builtin.env', 'OPENWEBUI_OPENAI_API_KEY') }}
+      OLLAMA_BASE_URL={{ lookup('ansible.builtin.env', 'OPENWEBUI_OLLAMA_BASE_URL') }}
+    dest: "{{ openwebui_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  when: not openwebui_existing_env.stat.exists
+  tags: [openwebui]
+
+- name: Deploy Open WebUI Compose environment
+  ansible.builtin.copy:
+    content: |-
+      OPENWEBUI_PROJECT_NAME={{ openwebui_project_name }}
+      OPENWEBUI_IMAGE_TAG={{ openwebui_image_tag }}
+      OPENWEBUI_RUNTIME_ENV_FILE={{ openwebui_env_file }}
+      OPENWEBUI_DATA_PATH={{ openwebui_state_directory }}
+      OPENWEBUI_POSTGRES_NETWORK={{ openwebui_postgres_network }}
+      OPENWEBUI_PROXY_NETWORK={{ openwebui_proxy_network }}
+    dest: "{{ openwebui_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [openwebui]
+
+- name: Deploy canonical Open WebUI Compose payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/openwebui/compose.yml"
+    dest: "{{ openwebui_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [openwebui]
+
+- name: Validate rendered Open WebUI Compose configuration
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ openwebui_compose_env_file }}
+      -f {{ openwebui_compose_directory }}/compose.yml config --quiet
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [openwebui]
+
+- name: Start selected Open WebUI service
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ openwebui_compose_env_file }}
+      -f {{ openwebui_compose_directory }}/compose.yml up -d openwebui
+  register: openwebui_up
+  changed_when: openwebui_up.stdout is search('Created|Started|Recreated')
+  when: not ansible_check_mode
+  tags: [openwebui]

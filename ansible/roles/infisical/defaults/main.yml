@@ -1,0 +1,15 @@
+---
+infisical_compose_directory: "{{ host_infrastructure_compose_root }}/infisical"
+infisical_redis_directory: "{{ host_infrastructure_state_root }}/infisical/redis"
+infisical_env_file: "{{ host_infrastructure_secrets_root }}/infisical.env"
+infisical_compose_env_file: "{{ host_infrastructure_secrets_root }}/infisical-compose.env"
+infisical_project_name: "infrastructure-{{ infrastructure_environment }}-infisical"
+infisical_image_tag: v0.162.21
+infisical_postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
+infisical_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
+infisical_required_environment:
+  - INFISICAL_POSTGRES_PASSWORD
+  - INFISICAL_ENCRYPTION_KEY
+  - INFISICAL_AUTH_SECRET
+  - INFISICAL_SITE_URL
+infisical_postgres_password: "{{ lookup('ansible.builtin.env', 'INFISICAL_POSTGRES_PASSWORD') }}"

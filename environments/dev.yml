@@ -5,9 +5,16 @@ caddy_http_port: 8080
 caddy_https_port: 8443
 caddy_allowed_cidrs:
   - 192.168.1.0/24
+  # The edge Caddy container reaches this isolated listener over the host LAN
+  # address, enabling normal HTTPS dev hostnames without joining Docker networks.
+  - 172.27.0.0/16
 dagster_restore_backup_path: /srv/infrastructure/backups/dagster/dagster-final.dump
+keycloak_hostname: dev-keycloak.woodhost.cloud
 services:
   postgres: true
   caddy: true
   dagster: true
+  openwebui: true
+  keycloak: true
+  infisical: true
   rudderstack: false

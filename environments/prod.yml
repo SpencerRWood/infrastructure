@@ -11,4 +11,7 @@ services:
   postgres: false
   caddy: false
   dagster: false
+  openwebui: false
+  keycloak: false
+  infisical: false
   rudderstack: false

@@ -1,0 +1,11 @@
+---
+openwebui_compose_directory: "{{ host_infrastructure_compose_root }}/openwebui"
+openwebui_state_directory: "{{ host_infrastructure_state_root }}/openwebui/data"
+openwebui_env_file: "{{ host_infrastructure_secrets_root }}/openwebui.env"
+openwebui_compose_env_file: "{{ host_infrastructure_secrets_root }}/openwebui-compose.env"
+openwebui_project_name: "infrastructure-{{ infrastructure_environment }}-openwebui"
+openwebui_image_tag: main
+openwebui_postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
+openwebui_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
+openwebui_required_environment: [OPENWEBUI_DATABASE_PASSWORD]
+openwebui_database_password: "{{ lookup('ansible.builtin.env', 'OPENWEBUI_DATABASE_PASSWORD') }}"

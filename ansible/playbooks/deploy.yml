@@ -33,3 +33,21 @@
         name: dagster
       when: services.dagster | bool
       tags: [dagster]
+
+    - name: Deploy selected Open WebUI component
+      ansible.builtin.include_role:
+        name: openwebui
+      when: services.openwebui | bool
+      tags: [openwebui]
+
+    - name: Deploy selected Keycloak component
+      ansible.builtin.include_role:
+        name: keycloak
+      when: services.keycloak | bool
+      tags: [keycloak]
+
+    - name: Deploy selected Infisical component
+      ansible.builtin.include_role:
+        name: infisical
+      when: services.infisical | bool
+      tags: [infisical]

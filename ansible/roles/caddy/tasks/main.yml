@@ -66,6 +66,16 @@
   register: caddy_routes
   tags: [caddy]
 
+- name: Deploy edge Caddy routes for infrastructure development services
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/caddy/edge-routes/"
+    dest: "{{ caddy_edge_routes_directory }}/"
+    owner: root
+    group: root
+    mode: '0644'
+  register: caddy_edge_routes
+  tags: [caddy]
+
 - name: Allow Caddy ports from trusted networks
   community.general.ufw:
     rule: allow
@@ -121,4 +131,26 @@
   when:
     - not ansible_check_mode
     - caddy_caddyfile.changed or caddy_routes.changed
+  tags: [caddy]
+
+- name: Validate edge Caddy configuration after edge-route changes
+  ansible.builtin.command:
+    cmd: >-
+      docker exec {{ caddy_edge_container }} caddy validate
+      --config /etc/caddy/Caddyfile --adapter caddyfile
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - caddy_edge_routes.changed
+  tags: [caddy]
+
+- name: Reload edge Caddy after edge-route changes
+  ansible.builtin.command:
+    cmd: >-
+      docker exec {{ caddy_edge_container }} caddy reload
+      --config /etc/caddy/Caddyfile --adapter caddyfile
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - caddy_edge_routes.changed
   tags: [caddy]
