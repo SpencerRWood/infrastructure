@@ -1,0 +1,6 @@
+---
+environment_name: dev
+services:
+  postgres: true
+  dagster: false
+  rudderstack: false

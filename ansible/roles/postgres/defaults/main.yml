@@ -1,15 +1,13 @@
 ---
-postgres_compose_root: /srv/infrastructure/compose/postgres
-postgres_env_file: /srv/infrastructure/secrets/postgres.env
-postgres_data_path: "{{ lookup('ansible.builtin.env', 'POSTGRES_DATA_PATH') }}"
-postgres_expected_major: "16"
+postgres_compose_directory: "{{ host_infrastructure_compose_root }}/postgres"
+postgres_state_directory: "{{ host_infrastructure_state_root }}/postgres/data"
+postgres_env_file: "{{ host_infrastructure_secrets_root }}/postgres.env"
+postgres_password_file: "{{ host_infrastructure_secrets_root }}/postgres-password"
+postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
+postgres_project_name: "infrastructure-{{ infrastructure_environment }}-postgres"
+postgres_uid: '999'
+postgres_gid: '999'
 postgres_required_environment:
   - POSTGRES_DB
   - POSTGRES_USER
-  - POSTGRES_PASSWORD_FILE
-  - POSTGRES_DATA_PATH
-  - POSTGRES_INIT_PATH
-  - POSTGRES_INTERNAL_NETWORK
-  - POSTGRES_LAN_NETWORK
-  - POSTGRES_BIND_ADDRESS
-  - POSTGRES_PORT
+  - POSTGRES_PASSWORD

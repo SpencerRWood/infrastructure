@@ -1,0 +1,23 @@
+---
+- name: Configure an explicitly selected infrastructure environment
+  hosts: infrastructure_hosts
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir }}/../../environments/{{ infrastructure_environment }}.yml"
+  pre_tasks:
+    - name: Require a known environment manifest
+      ansible.builtin.assert:
+        that:
+          - infrastructure_environment in ['dev', 'prod']
+          - environment_name == infrastructure_environment
+        fail_msg: Environment manifest and selected target must agree.
+      tags: [always]
+  roles:
+    - role: host
+  tasks:
+    - name: Deploy selected PostgreSQL component
+      ansible.builtin.include_role:
+        name: postgres
+      when: services.postgres | bool
+      tags: [postgres]

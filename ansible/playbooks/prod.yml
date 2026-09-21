@@ -1,0 +1,5 @@
+---
+- name: Deploy production infrastructure
+  import_playbook: deploy.yml
+  vars:
+    infrastructure_environment: prod

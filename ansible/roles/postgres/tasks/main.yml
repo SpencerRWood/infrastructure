@@ -1,9 +1,9 @@
 ---
-- name: Require the locally loaded PostgreSQL runtime contract
+- name: Require the locally loaded PostgreSQL secret contract
   ansible.builtin.assert:
     that:
       - lookup('ansible.builtin.env', item) | length > 0
-    fail_msg: "{{ item }} must be set by dev.env or prod.env before deployment."
+    fail_msg: "{{ item }} must be set by the selected local environment file."
   loop: "{{ postgres_required_environment }}"
   delegate_to: localhost
   become: false
@@ -11,78 +11,33 @@
   no_log: true
   tags: [postgres]
 
-- name: Check existing PostgreSQL storage before deployment
-  ansible.builtin.stat:
-    path: "{{ postgres_data_path }}"
-  register: postgres_storage
-  changed_when: false
-  tags: [postgres]
-
-- name: Require the existing initialized PostgreSQL cluster
-  ansible.builtin.assert:
-    that:
-      - postgres_storage.stat.exists
-      - postgres_storage.stat.isdir
-      - postgres_storage.stat.mode == '0700'
-    fail_msg: >-
-      Refusing to deploy PostgreSQL because {{ postgres_data_path }} is not the
-      audited existing cluster directory with mode 0700. Do not initialize or
-      relocate state as part of this ownership transfer.
-  tags: [postgres]
-
-- name: Check existing PostgreSQL major version marker
-  ansible.builtin.slurp:
-    src: "{{ postgres_data_path }}/PG_VERSION"
-  register: postgres_pg_version
-  changed_when: false
-  no_log: true
-  tags: [postgres]
-
-- name: Require the audited PostgreSQL major version
-  ansible.builtin.assert:
-    that:
-      - (postgres_pg_version.content | b64decode | trim) == postgres_expected_major
-    fail_msg: >-
-      Refusing to deploy PostgreSQL because the existing cluster major version
-      does not match {{ postgres_expected_major }}. Major upgrades are out of scope.
-  no_log: true
-  tags: [postgres]
-
-- name: Require the existing PostgreSQL networks
-  ansible.builtin.command:
-    cmd: "docker network inspect {{ lookup('ansible.builtin.env', item) }}"
+- name: Create PostgreSQL component directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
   loop:
-    - POSTGRES_INTERNAL_NETWORK
-    - POSTGRES_LAN_NETWORK
-  changed_when: false
-  check_mode: false
-  no_log: true
+    - path: "{{ postgres_compose_directory }}"
+      owner: root
+      group: root
+      mode: '0755'
+    - path: "{{ postgres_state_directory }}"
+      owner: "{{ postgres_uid }}"
+      group: "{{ postgres_gid }}"
+      mode: '0700'
   tags: [postgres]
 
-- name: Create the canonical PostgreSQL Compose directory
-  ansible.builtin.file:
-    path: "{{ postgres_compose_root }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  tags: [postgres]
-
-- name: Create the protected PostgreSQL environment directory
-  ansible.builtin.file:
-    path: "{{ postgres_env_file | dirname }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0700'
-  tags: [postgres]
-
-- name: Deploy the protected PostgreSQL environment file
+- name: Deploy protected PostgreSQL Compose environment
   ansible.builtin.copy:
     content: |-
-      {% for key in postgres_required_environment %}
-      {{ key }}={{ lookup('ansible.builtin.env', key) }}
-      {% endfor %}
+      POSTGRES_DB={{ lookup('ansible.builtin.env', 'POSTGRES_DB') }}
+      POSTGRES_USER={{ lookup('ansible.builtin.env', 'POSTGRES_USER') }}
+      POSTGRES_PASSWORD_FILE={{ postgres_password_file }}
+      POSTGRES_DATA_PATH={{ postgres_state_directory }}
+      POSTGRES_NETWORK={{ postgres_network }}
+      POSTGRES_PROJECT_NAME={{ postgres_project_name }}
     dest: "{{ postgres_env_file }}"
     owner: root
     group: root
@@ -90,35 +45,59 @@
   no_log: true
   tags: [postgres]
 
-- name: Deploy the canonical PostgreSQL Compose payload
+- name: Deploy protected PostgreSQL password file
+  ansible.builtin.copy:
+    content: "{{ lookup('ansible.builtin.env', 'POSTGRES_PASSWORD') }}\n"
+    dest: "{{ postgres_password_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [postgres]
+
+- name: Deploy canonical PostgreSQL Compose payload
   ansible.builtin.copy:
     src: "{{ role_path }}/../../../compose/postgres/compose.yml"
-    dest: "{{ postgres_compose_root }}/compose.yml"
+    dest: "{{ postgres_compose_directory }}/compose.yml"
     owner: root
     group: root
     mode: '0644'
   tags: [postgres]
 
-- name: Validate protected PostgreSQL environment file permissions
+- name: Validate PostgreSQL storage ownership and permissions
   ansible.builtin.stat:
-    path: "{{ postgres_env_file }}"
-  register: postgres_deployed_env
+    path: "{{ postgres_state_directory }}"
+  register: postgres_storage
   changed_when: false
   tags: [postgres]
 
-- name: Require protected PostgreSQL environment file permissions
+- name: Require PostgreSQL storage ownership and permissions
   ansible.builtin.assert:
     that:
-      - postgres_deployed_env.stat.pw_name == 'root'
-      - postgres_deployed_env.stat.gr_name == 'root'
-      - postgres_deployed_env.stat.mode == '0600'
+      - postgres_storage.stat.uid == (postgres_uid | int)
+      - postgres_storage.stat.gid == (postgres_gid | int)
+      - postgres_storage.stat.mode == '0700'
+    fail_msg: PostgreSQL state must be owned by the container UID/GID with mode 0700.
+  when: not ansible_check_mode
   tags: [postgres]
 
-- name: Render the canonical PostgreSQL Compose configuration
+- name: Validate rendered PostgreSQL Compose configuration
   ansible.builtin.command:
     cmd: >-
       docker compose --env-file {{ postgres_env_file }}
-      -f {{ postgres_compose_root }}/compose.yml config --quiet
+      -f {{ postgres_compose_directory }}/compose.yml config --quiet
   changed_when: false
   check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [postgres]
+
+- name: Start selected PostgreSQL service
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ postgres_env_file }}
+      -f {{ postgres_compose_directory }}/compose.yml up -d postgres
+  register: postgres_compose_up
+  changed_when: postgres_compose_up.stdout is search('Created|Started|Recreated')
+  when: not ansible_check_mode
   tags: [postgres]

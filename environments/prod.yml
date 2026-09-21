@@ -1,0 +1,8 @@
+---
+environment_name: prod
+# Component availability does not imply production deployment. Every production
+# service must be explicitly enabled here in a reviewed change.
+services:
+  postgres: false
+  dagster: false
+  rudderstack: false

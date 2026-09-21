@@ -1,0 +1,18 @@
+---
+- name: Create canonical infrastructure directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ host_infrastructure_root }}"
+      mode: '0755'
+    - path: "{{ host_infrastructure_compose_root }}"
+      mode: '0755'
+    - path: "{{ host_infrastructure_state_root }}"
+      mode: '0755'
+    - path: "{{ host_infrastructure_secrets_root }}"
+      mode: '0700'
+  tags: [host]

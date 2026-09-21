@@ -1,0 +1,5 @@
+---
+host_infrastructure_root: /srv/infrastructure
+host_infrastructure_compose_root: "{{ host_infrastructure_root }}/compose"
+host_infrastructure_secrets_root: "{{ host_infrastructure_root }}/secrets/{{ infrastructure_environment }}"
+host_infrastructure_state_root: "{{ host_infrastructure_root }}/state"
