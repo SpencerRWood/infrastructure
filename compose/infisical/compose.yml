@@ -1,0 +1,28 @@
+---
+name: ${INFISICAL_PROJECT_NAME:?required}
+
+services:
+  redis:
+    image: redis:8.10.0-alpine
+    restart: unless-stopped
+    command: [redis-server, --appendonly, 'yes']
+    volumes: ["${INFISICAL_REDIS_PATH:?required}:/data"]
+    networks: [internal]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  infisical:
+    image: infisical/infisical:${INFISICAL_IMAGE_TAG:?required}
+    restart: unless-stopped
+    command: [./standalone-entrypoint.sh]
+    depends_on: {redis: {condition: service_healthy}}
+    env_file: ["${INFISICAL_RUNTIME_ENV_FILE:?required}"]
+    expose: ['8080']
+    networks: [internal, postgres, proxy]
+
+networks:
+  internal: {internal: true}
+  postgres: {external: true, name: "${INFISICAL_POSTGRES_NETWORK:?required}"}
+  proxy: {external: true, name: "${INFISICAL_PROXY_NETWORK:?required}"}

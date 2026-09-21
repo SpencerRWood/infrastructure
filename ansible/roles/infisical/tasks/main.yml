@@ -1,0 +1,90 @@
+---
+- name: Require the local Infisical secret contract
+  ansible.builtin.assert:
+    that: "lookup('ansible.builtin.env', item) | length > 0"
+  loop: "{{ infisical_required_environment }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true
+  tags: [infisical]
+
+- name: Deploy Infisical Compose environment
+  ansible.builtin.copy:
+    content: |-
+      INFISICAL_PROJECT_NAME={{ infisical_project_name }}
+      INFISICAL_IMAGE_TAG={{ infisical_image_tag }}
+      INFISICAL_RUNTIME_ENV_FILE={{ infisical_env_file }}
+      INFISICAL_REDIS_PATH={{ infisical_redis_directory }}
+      INFISICAL_POSTGRES_NETWORK={{ infisical_postgres_network }}
+      INFISICAL_PROXY_NETWORK={{ infisical_proxy_network }}
+    dest: "{{ infisical_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [infisical]
+
+- name: Create Infisical component directory
+  ansible.builtin.file:
+    path: "{{ infisical_compose_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  tags: [infisical]
+
+- name: Create Infisical Redis state directory
+  ansible.builtin.file:
+    path: "{{ infisical_redis_directory }}"
+    state: directory
+    owner: '999'
+    group: '999'
+    mode: '0700'
+  tags: [infisical]
+
+- name: Deploy protected Infisical runtime environment
+  ansible.builtin.copy:
+    content: |-
+      NODE_ENV=production
+      SITE_URL={{ lookup('ansible.builtin.env', 'INFISICAL_SITE_URL') }}
+      DB_CONNECTION_URI=postgres://infisical:{{ infisical_postgres_password }}@postgres:5432/infisical
+      REDIS_URL=redis://redis:6379
+      ENCRYPTION_KEY={{ lookup('ansible.builtin.env', 'INFISICAL_ENCRYPTION_KEY') }}
+      AUTH_SECRET={{ lookup('ansible.builtin.env', 'INFISICAL_AUTH_SECRET') }}
+    dest: "{{ infisical_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [infisical]
+
+- name: Deploy canonical Infisical Compose payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/infisical/compose.yml"
+    dest: "{{ infisical_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [infisical]
+
+- name: Validate rendered Infisical Compose configuration
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ infisical_compose_env_file }}
+      -f {{ infisical_compose_directory }}/compose.yml config --quiet
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [infisical]
+
+- name: Start selected Infisical services
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ infisical_compose_env_file }}
+      -f {{ infisical_compose_directory }}/compose.yml up -d
+  register: infisical_up
+  changed_when: infisical_up.stdout is search('Created|Started|Recreated')
+  when: not ansible_check_mode
+  tags: [infisical]

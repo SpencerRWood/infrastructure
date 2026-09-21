@@ -1,0 +1,88 @@
+---
+- name: Require the local Keycloak secret contract
+  ansible.builtin.assert:
+    that: "lookup('ansible.builtin.env', item) | length > 0"
+  loop: "{{ keycloak_required_environment }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true
+  tags: [keycloak]
+
+- name: Create Keycloak directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  loop: ["{{ keycloak_compose_directory }}", "{{ keycloak_data_directory }}"]
+  tags: [keycloak]
+
+- name: Deploy protected Keycloak environment
+  ansible.builtin.copy:
+    content: |-
+      KC_DB=postgres
+      KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME=keycloak
+      KC_DB_PASSWORD={{ lookup('ansible.builtin.env', 'KEYCLOAK_DB_PASSWORD') }}
+      KC_HOSTNAME={{ keycloak_hostname }}
+      KC_HOSTNAME_STRICT=true
+      KC_PROXY_HEADERS=xforwarded
+      KC_HTTP_ENABLED=true
+      KC_HEALTH_ENABLED=true
+      KC_METRICS_ENABLED=true
+      KEYCLOAK_ADMIN=admin
+      KEYCLOAK_ADMIN_PASSWORD={{ lookup('ansible.builtin.env', 'KEYCLOAK_ADMIN_PASSWORD') }}
+    dest: "{{ keycloak_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [keycloak]
+
+- name: Deploy Keycloak Compose environment
+  ansible.builtin.copy:
+    content: |-
+      KEYCLOAK_PROJECT_NAME={{ keycloak_project_name }}
+      KEYCLOAK_IMAGE_TAG={{ keycloak_image_tag }}
+      KEYCLOAK_RUNTIME_ENV_FILE={{ keycloak_env_file }}
+      KEYCLOAK_DATA_PATH={{ keycloak_data_directory }}
+      KEYCLOAK_POSTGRES_NETWORK={{ keycloak_postgres_network }}
+      KEYCLOAK_PROXY_NETWORK={{ keycloak_proxy_network }}
+    dest: "{{ keycloak_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [keycloak]
+
+- name: Deploy Keycloak Compose payload and environment
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/keycloak/compose.yml"
+    dest: "{{ keycloak_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [keycloak]
+
+- name: Validate rendered Keycloak Compose configuration
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ keycloak_compose_env_file }}
+      -f {{ keycloak_compose_directory }}/compose.yml config --quiet
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [keycloak]
+
+- name: Start selected Keycloak service
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ keycloak_compose_env_file }}
+      -f {{ keycloak_compose_directory }}/compose.yml up -d keycloak
+  register: keycloak_up
+  changed_when: keycloak_up.stdout is search('Created|Started|Recreated')
+  when: not ansible_check_mode
+  tags: [keycloak]

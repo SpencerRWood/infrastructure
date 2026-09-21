@@ -1,0 +1,23 @@
+---
+name: ${KEYCLOAK_PROJECT_NAME:?required}
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_IMAGE_TAG:?required}
+    restart: unless-stopped
+    command: [start]
+    env_file: ["${KEYCLOAK_RUNTIME_ENV_FILE:?required}"]
+    expose: ['8080', '9000']
+    volumes:
+      - "${KEYCLOAK_DATA_PATH:?required}:/opt/keycloak/data"
+    healthcheck:
+      test: [CMD-SHELL, "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks: [postgres, proxy]
+
+networks:
+  postgres: {external: true, name: "${KEYCLOAK_POSTGRES_NETWORK:?required}"}
+  proxy: {external: true, name: "${KEYCLOAK_PROXY_NETWORK:?required}"}

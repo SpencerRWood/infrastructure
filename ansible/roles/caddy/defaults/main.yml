@@ -6,6 +6,8 @@ caddy_config_directory: "{{ caddy_state_directory }}/config"
 caddy_env_file: "{{ host_infrastructure_secrets_root }}/caddy.env"
 caddy_caddyfile_path: "{{ caddy_compose_directory }}/Caddyfile"
 caddy_routes_directory: "{{ caddy_compose_directory }}/routes"
+caddy_edge_routes_directory: /srv/docker/proxy/config/sites
+caddy_edge_container: caddy
 caddy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
 caddy_project_name: "infrastructure-{{ infrastructure_environment }}-caddy"
 # Dev binds to the Beelink LAN address on alternate ports. Homelab Caddy retains
