@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.3.0 (2026-09-21)
+
+### Features
+
+- Expose infrastructure caddy on dev lan ports
+  ([`ba3681c`](https://github.com/SpencerRWood/infrastructure/commit/ba3681cf3147593e2ce973485549985f25bda270))
+
+
 ## v0.2.0 (2026-09-21)
 
 ### Features
