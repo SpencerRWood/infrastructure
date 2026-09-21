@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.5.0 (2026-09-21)
+
+### Features
+
+- Migrate remaining dev services
+  ([`8666703`](https://github.com/SpencerRWood/infrastructure/commit/86667034513d897f46c1c30f69ca70e415e8ddbb))
+
+
 ## v0.4.0 (2026-09-21)
 
 ### Features
