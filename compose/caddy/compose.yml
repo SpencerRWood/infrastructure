@@ -10,6 +10,7 @@ services:
       - "${CADDY_HTTPS_BIND:?CADDY_HTTPS_BIND is required}:443"
     volumes:
       - ${CADDYFILE_PATH:?CADDYFILE_PATH is required}:/etc/caddy/Caddyfile:ro
+      - ${CADDY_ROUTES_PATH:?CADDY_ROUTES_PATH is required}:/etc/caddy/routes:ro
       - ${CADDY_DATA_PATH:?CADDY_DATA_PATH is required}:/data
       - ${CADDY_CONFIG_PATH:?CADDY_CONFIG_PATH is required}:/config
     networks:

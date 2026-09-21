@@ -1,0 +1,4 @@
+# The only initial route; application routes are added with their service migration.
+http://:80 {
+	respond /healthz "infrastructure caddy ok" 200
+}

@@ -1,7 +1,10 @@
 ---
 environment_name: dev
-caddy_http_bind: 127.0.0.1:8080
-caddy_https_bind: 127.0.0.1:8443
+caddy_bind_address: 192.168.1.21
+caddy_http_port: 8080
+caddy_https_port: 8443
+caddy_allowed_cidrs:
+  - 192.168.1.0/24
 services:
   postgres: true
   caddy: true

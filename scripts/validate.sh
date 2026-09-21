@@ -29,15 +29,18 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
     'POSTGRES_PROJECT_NAME=infrastructure-dev-postgres' >"$postgres_validation_env"
   printf '%s\n' \
     'CADDY_PROJECT_NAME=infrastructure-dev-caddy' \
-    'CADDY_HTTP_BIND=127.0.0.1:8080' \
-    'CADDY_HTTPS_BIND=127.0.0.1:8443' \
+    'CADDY_HTTP_BIND=192.168.1.21:8080' \
+    'CADDY_HTTPS_BIND=192.168.1.21:8443' \
     'CADDYFILE_PATH=/srv/infrastructure/compose/caddy/Caddyfile' \
+    'CADDY_ROUTES_PATH=/srv/infrastructure/compose/caddy/routes' \
     'CADDY_DATA_PATH=/srv/infrastructure/state/caddy/data' \
     'CADDY_CONFIG_PATH=/srv/infrastructure/state/caddy/config' \
     'CADDY_PROXY_NETWORK=infrastructure-dev-proxy' >"$caddy_validation_env"
   docker compose --env-file "$postgres_validation_env" -f compose/postgres/compose.yml config --quiet
   docker compose --env-file "$caddy_validation_env" -f compose/caddy/compose.yml config --quiet
-  docker run --rm -v "$repository_root/compose/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+  docker run --rm \
+    -v "$repository_root/compose/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+    -v "$repository_root/compose/caddy/routes:/etc/caddy/routes:ro" \
     caddy:2.11.2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 else
   echo 'Docker Compose is unavailable; Compose and Caddy validation skipped.'

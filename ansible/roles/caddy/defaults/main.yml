@@ -5,11 +5,14 @@ caddy_data_directory: "{{ caddy_state_directory }}/data"
 caddy_config_directory: "{{ caddy_state_directory }}/config"
 caddy_env_file: "{{ host_infrastructure_secrets_root }}/caddy.env"
 caddy_caddyfile_path: "{{ caddy_compose_directory }}/Caddyfile"
+caddy_routes_directory: "{{ caddy_compose_directory }}/routes"
 caddy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
 caddy_project_name: "infrastructure-{{ infrastructure_environment }}-caddy"
-# Dev is intentionally loopback-only: homelab Caddy retains Beelink :80/:443.
-# A future dedicated production host can use :80/:443 without changing the
-# component lifecycle or network boundary. The initial Caddyfile is HTTP-only,
-# so the dev :8443 mapping is reserved for future reviewed TLS configuration.
-caddy_http_bind: "127.0.0.1:8080"
-caddy_https_bind: "127.0.0.1:8443"
+# Dev binds to the Beelink LAN address on alternate ports. Homelab Caddy retains
+# :80/:443. Production can use direct :80/:443 only when explicitly enabled.
+caddy_bind_address: "127.0.0.1"
+caddy_http_port: 8080
+caddy_https_port: 8443
+caddy_http_bind: "{{ caddy_bind_address }}:{{ caddy_http_port }}"
+caddy_https_bind: "{{ caddy_bind_address }}:{{ caddy_https_port }}"
+caddy_allowed_cidrs: []

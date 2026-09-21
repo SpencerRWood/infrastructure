@@ -40,20 +40,21 @@ source and rollback instance.
 
 ## Development ingress
 
-The reusable Caddy component runs in dev with loopback-only bindings
-`127.0.0.1:8080` and `127.0.0.1:8443`. It serves only HTTP `GET /healthz`; the
+The reusable infrastructure Caddy runs on the Beelink LAN address at
+`192.168.1.21:8080` and `192.168.1.21:8443`, restricted by the host firewall to
+the trusted `192.168.1.0/24` LAN. It serves only HTTP `GET /healthz`; the
 reserved HTTPS binding has no route until a future reviewed TLS configuration.
 No application is behind it.
 Its state lives below `/srv/infrastructure/state/caddy/`, and it owns the
 isolated `infrastructure-dev-proxy` Docker network.
 
-Homelab Caddy remains the Beelink edge proxy and exclusively owns its LAN
-`:80/:443` bindings and `proxy` network. Future infrastructure services opt in
-to the infrastructure proxy network when individually migrated. A temporary
-homelab route may forward a development hostname to infrastructure Caddy, but
-that edge routing is deliberately not part of this release. On a dedicated prod
-host, the same component's reviewed environment configuration can bind
-`:80/:443` directly.
+Homelab Caddy remains the independent Beelink edge proxy and exclusively owns
+its LAN `:80/:443` bindings and `proxy` network. Infrastructure Caddy owns only
+its alternate ports and `infrastructure-dev-proxy`; the networks are never
+shared and no compatibility bridge exists. Future services join that network and
+receive one Caddy route fragment only when they migrate. Development URLs use
+`http://service-dev.<domain>:8080` (and, after TLS is configured,
+`https://service-dev.<domain>:8443`); DNS does not hide these alternate ports.
 
 ## Validation
 

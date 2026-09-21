@@ -9,6 +9,8 @@
   loop:
     - path: "{{ caddy_compose_directory }}"
       mode: '0755'
+    - path: "{{ caddy_routes_directory }}"
+      mode: '0755'
     - path: "{{ caddy_state_directory }}"
       mode: '0700'
     - path: "{{ caddy_data_directory }}"
@@ -24,6 +26,7 @@
       CADDY_HTTP_BIND={{ caddy_http_bind }}
       CADDY_HTTPS_BIND={{ caddy_https_bind }}
       CADDYFILE_PATH={{ caddy_caddyfile_path }}
+      CADDY_ROUTES_PATH={{ caddy_routes_directory }}
       CADDY_DATA_PATH={{ caddy_data_directory }}
       CADDY_CONFIG_PATH={{ caddy_config_directory }}
       CADDY_PROXY_NETWORK={{ caddy_network }}
@@ -53,6 +56,27 @@
   register: caddy_caddyfile
   tags: [caddy]
 
+- name: Deploy canonical Caddy route fragments
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/caddy/routes/"
+    dest: "{{ caddy_routes_directory }}/"
+    owner: root
+    group: root
+    mode: '0644'
+  register: caddy_routes
+  tags: [caddy]
+
+- name: Allow Caddy ports from trusted networks
+  community.general.ufw:
+    rule: allow
+    direction: in
+    proto: tcp
+    from_ip: "{{ item.0 }}"
+    port: "{{ item.1 }}"
+  loop: "{{ caddy_allowed_cidrs | product([caddy_http_port, caddy_https_port]) | list }}"
+  when: caddy_allowed_cidrs | length > 0
+  tags: [caddy]
+
 - name: Validate rendered Caddy Compose configuration
   ansible.builtin.command:
     cmd: >-
@@ -69,6 +93,7 @@
     cmd: >-
       docker run --rm
       -v {{ caddy_caddyfile_path }}:/etc/caddy/Caddyfile:ro
+      -v {{ caddy_routes_directory }}:/etc/caddy/routes:ro
       caddy:2.11.2-alpine caddy validate
       --config /etc/caddy/Caddyfile --adapter caddyfile
   changed_when: false
@@ -95,5 +120,5 @@
   changed_when: true
   when:
     - not ansible_check_mode
-    - caddy_caddyfile.changed
+    - caddy_caddyfile.changed or caddy_routes.changed
   tags: [caddy]
