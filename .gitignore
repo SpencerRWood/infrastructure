@@ -3,6 +3,16 @@
 .env.*
 !.env.example
 !**/.env.example
+*.env
+!*.env.example
+secrets/
+ansible/**/*.vault
+ansible/**/vault.yml
+ansible/**/secrets.yml
+*.pem
+*.key
+id_rsa*
+*.retry
 dev.env
 prod.env
 
@@ -28,3 +38,11 @@ Thumbs.db
 *.log
 *.tmp
 *.temp
+
+# Local tooling
+.venv/
+uv.lock.bak
+.ruff_cache/
+.pytest_cache/
+__pycache__/
+*.py[cod]
