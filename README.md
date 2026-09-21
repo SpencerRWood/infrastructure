@@ -47,3 +47,15 @@ ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook -i ansible/inventory/dev ans
 
 See [environment ownership](docs/environments.md) and the
 [next-release migration inventory](docs/postgres-migration-inventory.md).
+
+## Repository workflow
+
+Run `uv sync --group dev` once, then `uv run pre-commit install`. Pre-commit blocks
+local commits directly to `main` and validates YAML, secrets/private keys,
+Ansible inventories and syntax, Ansible lint, and Compose configuration. Work on
+a branch and merge through a reviewed pull request; local hooks complement, but
+do not replace, GitHub branch protection.
+
+The pull-request workflow runs the same pre-commit suite in GitHub Actions. The
+shared release workflow runs only after changes reach `main`. It creates semantic
+releases from conventional commits; it does not deploy infrastructure.

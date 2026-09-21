@@ -1,0 +1,52 @@
+---
+default_language_version:
+  python: python3.13
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: no-commit-to-branch
+        args: [--branch, main]
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: yamllint
+        name: YAML lint
+        entry: uv run yamllint .
+        language: system
+        pass_filenames: false
+      - id: ansible-inventory
+        name: Ansible inventory validation
+        entry: >-
+          sh -c 'ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-inventory
+          -i ansible/inventory/dev --graph && ANSIBLE_CONFIG=ansible/ansible.cfg
+          uv run ansible-inventory -i ansible/inventory/prod --graph'
+        language: system
+        pass_filenames: false
+      - id: ansible-syntax
+        name: Ansible playbook syntax
+        entry: >-
+          sh -c 'ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
+          -i ansible/inventory/dev ansible/playbooks/dev.yml --syntax-check &&
+          ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
+          -i ansible/inventory/prod ansible/playbooks/prod.yml --syntax-check'
+        language: system
+        pass_filenames: false
+      - id: ansible-lint
+        name: Ansible lint
+        entry: >-
+          sh -c 'ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-lint ansible'
+        language: system
+        pass_filenames: false
+      - id: infrastructure-validation
+        name: Infrastructure validation
+        entry: bash scripts/validate.sh
+        language: system
+        pass_filenames: false

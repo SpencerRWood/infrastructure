@@ -1,0 +1,10 @@
+version = 1
+
+[python]
+version = "3.13"
+
+[validation]
+checks = ["pre-commit"]
+
+[release]
+semantic_release = true
