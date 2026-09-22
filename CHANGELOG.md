@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.8.4 (2026-09-22)
+
+### Bug Fixes
+
+- **deps**: Allow digest pinning automerge
+  ([`b27b222`](https://github.com/SpencerRWood/infrastructure/commit/b27b2222b4e48d03a403c41f560cddff33cd4953))
+
+- **deps**: Make infrastructure automerge conservative
+  ([`ffca92e`](https://github.com/SpencerRWood/infrastructure/commit/ffca92e8507f754dadac09885b519c365b6068a1))
+
+
 ## v0.8.3 (2026-09-22)
 
 ### Bug Fixes
