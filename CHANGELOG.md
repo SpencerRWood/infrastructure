@@ -2,6 +2,20 @@
 
 <!-- version list -->
 
+## v0.8.7 (2026-09-22)
+
+### Bug Fixes
+
+- **deploy**: Wait for application readiness
+  ([`2af7332`](https://github.com/SpencerRWood/infrastructure/commit/2af7332c436f154bccff11ed37be6b2fb65bcbe4))
+
+### Chores
+
+- **deps**: Update redis docker tag to v8.10.2
+  ([#15](https://github.com/SpencerRWood/infrastructure/pull/15),
+  [`8d3d466`](https://github.com/SpencerRWood/infrastructure/commit/8d3d466e50d4b2a3849674723e9f67e4897fcfba))
+
+
 ## v0.8.6 (2026-09-22)
 
 ### Chores
