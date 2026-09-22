@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.8.3 (2026-09-22)
+
+### Bug Fixes
+
+- Use deployed Caddy endpoint for health checks
+  ([`686f011`](https://github.com/SpencerRWood/infrastructure/commit/686f0111af4bd54595c12edf01202080ed3d473b))
+
+
 ## v0.8.2 (2026-09-22)
 
 ### Bug Fixes
