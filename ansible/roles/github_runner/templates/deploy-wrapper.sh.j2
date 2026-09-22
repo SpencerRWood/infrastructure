@@ -27,8 +27,14 @@ case "$operation" in
   check)
     exec /usr/bin/ansible-playbook -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --check --diff {{ github_runner_ansible_extra_args }}
     ;;
+  validate)
+    export GIT_CONFIG_COUNT=1
+    export GIT_CONFIG_KEY_0=safe.directory
+    export GIT_CONFIG_VALUE_0="$workspace"
+    exec bash scripts/validate.sh
+    ;;
   health)
     exec {{ github_runner_health_command }}
     ;;
-  *) echo 'operation must be apply, check, or health' >&2; exit 64 ;;
+  *) echo 'operation must be apply, check, validate, or health' >&2; exit 64 ;;
 esac

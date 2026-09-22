@@ -19,6 +19,14 @@
     group: "{{ github_runner_group }}"
     mode: '0755'
 
+- name: Create shared deployment state root
+  ansible.builtin.file:
+    path: "{{ github_runner_deployment_state_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0751'
+
 - name: Create infrastructure runner secret and metadata directories
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -38,6 +46,7 @@
       - curl
       - git
       - libicu74
+      - ripgrep
     state: present
     update_cache: true
 

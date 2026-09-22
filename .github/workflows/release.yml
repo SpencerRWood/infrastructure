@@ -30,7 +30,9 @@ jobs:
       concurrency_group: deploy-infrastructure-dev
       runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure"]'
       secrets_file: /home/github-runner-infrastructure/.secrets/dev.env
-      validation_command: bash scripts/validate.sh
+      validation_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+        "$GITHUB_WORKSPACE" validate
       check_command: >-
         ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
         -i ansible/inventory/dev

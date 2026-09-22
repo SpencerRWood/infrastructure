@@ -16,6 +16,7 @@ github_runner_label_contract_file: "/etc/github-actions-runners/{{ github_runner
 # separate from the root-owned per-component environment files Ansible writes.
 github_runner_secret_source: /home/spencerwood/.config/wood/infrastructure/dev.env
 github_runner_secret_file: "/home/{{ github_runner_user }}/.secrets/dev.env"
+github_runner_deployment_state_root: /var/lib/github-actions-deployments
 github_runner_deployment_state_dir: "/var/lib/github-actions-deployments/{{ github_runner_name }}"
 github_runner_deployment_wrapper: "/usr/local/sbin/{{ github_runner_name }}-deploy"
 github_runner_inventory_path: ansible/inventory/dev
