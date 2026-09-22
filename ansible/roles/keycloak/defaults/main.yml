@@ -4,7 +4,7 @@ keycloak_data_directory: "{{ host_infrastructure_state_root }}/keycloak/data"
 keycloak_env_file: "{{ host_infrastructure_secrets_root }}/keycloak.env"
 keycloak_compose_env_file: "{{ host_infrastructure_secrets_root }}/keycloak-compose.env"
 keycloak_project_name: "infrastructure-{{ infrastructure_environment }}-keycloak"
-keycloak_image_tag: 26.2.4
+keycloak_image_tag: 26.7.4
 keycloak_postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
 keycloak_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
 keycloak_hostname: dev-keycloak.woodhost.cloud
