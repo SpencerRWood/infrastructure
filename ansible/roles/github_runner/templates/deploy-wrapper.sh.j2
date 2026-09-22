@@ -15,6 +15,7 @@ test -d "$workspace/.git"
 cd "$workspace"
 
 export ANSIBLE_CONNECTION=local
+export ANSIBLE_CONFIG="$workspace/{{ github_runner_ansible_config_path }}"
 set -a
 # The file is protected, runner-local, and never printed by this wrapper.
 test -r "{{ github_runner_secret_file }}"

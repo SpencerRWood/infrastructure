@@ -19,12 +19,13 @@ jobs:
     if: ${{ needs.release.outputs.released == 'true' }}
     # v1 currently predates the privileged-wrapper inputs.  Pin the published
     # contract revision until its next immutable release tag is available.
-    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@bc80970cc423ce3d8db471278a0c1c6d6d896f89
+    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@a77f968af74493d4cf07ec420cf158b60cc51661
     with:
       repository: ${{ github.repository }}
       ref: ${{ needs.release.outputs.release_tag }}
       inventory_path: ansible/inventory/dev
       playbook_path: ansible/playbooks/dev.yml
+      ansible_config_path: ansible/ansible.cfg
       environment_name: infrastructure-dev
       deployment_working_directory: .
       concurrency_group: deploy-infrastructure-dev

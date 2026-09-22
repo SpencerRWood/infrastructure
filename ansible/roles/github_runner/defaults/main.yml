@@ -21,5 +21,6 @@ github_runner_deployment_state_dir: "/var/lib/github-actions-deployments/{{ gith
 github_runner_deployment_wrapper: "/usr/local/sbin/{{ github_runner_name }}-deploy"
 github_runner_inventory_path: ansible/inventory/dev
 github_runner_playbook_path: ansible/playbooks/dev.yml
+github_runner_ansible_config_path: ansible/ansible.cfg
 github_runner_health_command: bash scripts/health-check-dev.sh
 github_runner_ansible_extra_args: ''
