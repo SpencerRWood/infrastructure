@@ -3,14 +3,14 @@
   "extends": ["config:recommended"],
   "enabledManagers": ["docker-compose", "custom.regex"],
   "semanticCommits": "enabled",
-  "semanticCommitType": "fix",
+  "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
   "pinDigests": true,
   "platformAutomerge": true,
   "automergeStrategy": "squash",
   "vulnerabilityAlerts": {
     "automerge": true,
-    "semanticCommitType": "fix",
+    "semanticCommitType": "chore",
     "semanticCommitScope": "deps"
   },
   "packageRules": [

@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   release:
-    uses: SpencerRWood/workflows/.github/workflows/release.yml@v1
+    uses: SpencerRWood/workflows/.github/workflows/release.yml@55a49edf811e7a94f58a6b757efd4d9a2a92bd21
 
   deploy-dev:
     needs: release
