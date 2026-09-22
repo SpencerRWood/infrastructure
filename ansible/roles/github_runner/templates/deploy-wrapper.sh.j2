@@ -15,6 +15,7 @@ test -d "$workspace/.git"
 cd "$workspace"
 
 export ANSIBLE_CONNECTION=local
+export ANSIBLE_CONFIG="$workspace/{{ github_runner_ansible_config_path }}"
 set -a
 # The file is protected, runner-local, and never printed by this wrapper.
 test -r "{{ github_runner_secret_file }}"
@@ -22,13 +23,19 @@ source "{{ github_runner_secret_file }}"
 set +a
 case "$operation" in
   apply)
-    exec /usr/bin/ansible-playbook -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" {{ github_runner_ansible_extra_args }}
+    exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" {{ github_runner_ansible_extra_args }}
     ;;
   check)
-    exec /usr/bin/ansible-playbook -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --check --diff {{ github_runner_ansible_extra_args }}
+    exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --check --diff {{ github_runner_ansible_extra_args }}
+    ;;
+  validate)
+    export GIT_CONFIG_COUNT=1
+    export GIT_CONFIG_KEY_0=safe.directory
+    export GIT_CONFIG_VALUE_0="$workspace"
+    exec bash scripts/validate.sh
     ;;
   health)
     exec {{ github_runner_health_command }}
     ;;
-  *) echo 'operation must be apply, check, or health' >&2; exit 64 ;;
+  *) echo 'operation must be apply, check, validate, or health' >&2; exit 64 ;;
 esac

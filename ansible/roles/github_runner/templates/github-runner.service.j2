@@ -10,7 +10,7 @@ WorkingDirectory={{ github_runner_root }}
 ExecStart={{ github_runner_root }}/run.sh
 Restart=always
 RestartSec=10
-KillMode=process
+KillMode=control-group
 
 [Install]
 WantedBy=multi-user.target
