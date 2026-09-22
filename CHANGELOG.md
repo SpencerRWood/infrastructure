@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.8.5 (2026-09-22)
+
+### Bug Fixes
+
+- **release**: Deploy Renovate dependency patches
+  ([`e436d36`](https://github.com/SpencerRWood/infrastructure/commit/e436d36d04bfa036be7ec897eb1d0fb625a93878))
+
+### Chores
+
+- **deps**: Pin dependencies ([#9](https://github.com/SpencerRWood/infrastructure/pull/9),
+  [`054bf6c`](https://github.com/SpencerRWood/infrastructure/commit/054bf6c45d4aea2523fd9d2e8f5641a04c32aef6))
+
+
 ## v0.8.4 (2026-09-22)
 
 ### Bug Fixes
