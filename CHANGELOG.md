@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.8.2 (2026-09-22)
+
+### Bug Fixes
+
+- Run deployment health checks without uv
+  ([`417e4ce`](https://github.com/SpencerRWood/infrastructure/commit/417e4ce45573efca426398f4564613397d45d07c))
+
+
 ## v0.8.1 (2026-09-22)
 
 ### Bug Fixes
