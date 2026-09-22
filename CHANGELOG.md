@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v0.8.0 (2026-09-22)
+
+### Bug Fixes
+
+- Complete isolated infrastructure runner deployment
+  ([`0713ff8`](https://github.com/SpencerRWood/infrastructure/commit/0713ff8d01c063216d22039bb35cbf7e0f79a602))
+
+- Run infrastructure health checks remotely
+  ([`ad75fe0`](https://github.com/SpencerRWood/infrastructure/commit/ad75fe0e3b78be213a0152e54a61a56b3f1c68bf))
+
+### Features
+
+- Deploy released infrastructure dev configuration
+  ([`27cd4ce`](https://github.com/SpencerRWood/infrastructure/commit/27cd4cebef3b7a6be428d0a2cee03282eeb9439a))
+
+- Provision isolated Beelink infrastructure runner
+  ([`7de024a`](https://github.com/SpencerRWood/infrastructure/commit/7de024ad1bfb0a895c50c0205082bc82c02f4582))
+
+
 ## v0.7.0 (2026-09-21)
 
 ### Features
