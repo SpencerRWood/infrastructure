@@ -45,11 +45,18 @@ jobs:
       environment_name: infrastructure-dev
       deployment_working_directory: .
       concurrency_group: deploy-infrastructure-dev
-      runner: self-hosted
-      secrets_file: /Users/spencerwood/.config/wood/infrastructure/dev.env
+      runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure-dev"]'
+      secrets_file: /home/github-runner-infrastructure/.secrets/dev.env
       validation_command: bash scripts/validate.sh
       check_command: >-
         ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
         -i ansible/inventory/dev
         ansible/playbooks/dev.yml --tags host --check --diff
+      privileged_check_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE" check
       health_check_command: bash scripts/health-check-dev.sh
+      privileged_deploy_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE" apply
+      privileged_health_check_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE" health
+      deployment_state_file: /var/lib/github-actions-deployments/github-runner-infrastructure/infrastructure-dev.json

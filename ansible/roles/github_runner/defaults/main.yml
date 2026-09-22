@@ -1,0 +1,19 @@
+---
+github_runner_name: github-runner-infrastructure
+github_runner_user: github-runner-infrastructure
+github_runner_group: github-runner-infrastructure
+github_runner_root: "/opt/{{ github_runner_name }}"
+github_runner_version: 2.337.0
+github_runner_labels: beelink,infrastructure-dev
+github_runner_repository: SpencerRWood/infrastructure
+github_runner_registration_token: "{{ lookup('ansible.builtin.env', 'GITHUB_RUNNER_INFRASTRUCTURE_TOKEN') }}"
+# This is a protected runner-local control-node input.  It is intentionally
+# separate from the root-owned per-component environment files Ansible writes.
+github_runner_secret_source: /srv/infrastructure/secrets/dev.env
+github_runner_secret_file: "/home/{{ github_runner_user }}/.secrets/dev.env"
+github_runner_deployment_state_dir: "/var/lib/github-actions-deployments/{{ github_runner_name }}"
+github_runner_deployment_wrapper: "/usr/local/sbin/{{ github_runner_name }}-deploy"
+github_runner_inventory_path: ansible/inventory/dev
+github_runner_playbook_path: ansible/playbooks/dev.yml
+github_runner_health_command: bash scripts/health-check-dev.sh
+github_runner_ansible_extra_args: ''

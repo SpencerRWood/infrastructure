@@ -1,0 +1,16 @@
+[Unit]
+Description=GitHub Actions runner {{ github_runner_name }}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User={{ github_runner_user }}
+Group={{ github_runner_group }}
+WorkingDirectory={{ github_runner_root }}
+ExecStart={{ github_runner_root }}/run.sh
+Restart=always
+RestartSec=10
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

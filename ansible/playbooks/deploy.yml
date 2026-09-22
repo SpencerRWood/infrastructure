@@ -15,6 +15,7 @@
       tags: [always]
   roles:
     - role: host
+    - role: github_runner
   tasks:
     - name: Deploy selected PostgreSQL component
       ansible.builtin.include_role:

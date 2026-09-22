@@ -1,0 +1,132 @@
+---
+- name: Create dedicated infrastructure runner group
+  ansible.builtin.group:
+    name: "{{ github_runner_group }}"
+    system: true
+
+- name: Create dedicated infrastructure runner account
+  ansible.builtin.user:
+    name: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    system: true
+    create_home: true
+
+- name: Create infrastructure runner directory
+  ansible.builtin.file:
+    path: "{{ github_runner_root }}"
+    state: directory
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    mode: '0755'
+
+- name: Create infrastructure runner secret and metadata directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "/home/{{ github_runner_user }}/.secrets", mode: '0700'}
+    - {path: "{{ github_runner_deployment_state_dir }}", mode: '0750'}
+
+- name: Install local Ansible control dependencies
+  ansible.builtin.apt:
+    name:
+      - ansible
+      - ca-certificates
+      - curl
+      - git
+      - libicu74
+    state: present
+    update_cache: true
+
+- name: Check infrastructure runner registration
+  ansible.builtin.stat:
+    path: "{{ github_runner_root }}/.runner"
+  register: github_runner_registration
+
+- name: Install infrastructure runner archive
+  ansible.builtin.unarchive:
+    # yamllint disable rule:line-length
+    src: "https://github.com/actions/runner/releases/download/v{{ github_runner_version }}/actions-runner-linux-x64-{{ github_runner_version }}.tar.gz"
+    # yamllint enable rule:line-length
+    dest: "{{ github_runner_root }}"
+    remote_src: true
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    creates: "{{ github_runner_root }}/run.sh"
+
+- name: Require registration token only for first bootstrap
+  ansible.builtin.assert:
+    that: github_runner_registration_token | length > 0
+  when: not github_runner_registration.stat.exists
+  no_log: true
+
+- name: Register infrastructure runner once
+  ansible.builtin.command:
+    argv:
+      - "{{ github_runner_root }}/config.sh"
+      - --unattended
+      - --url
+      - "https://github.com/{{ github_runner_repository }}"
+      - --token
+      - "{{ github_runner_registration_token }}"
+      - --name
+      - "{{ github_runner_name }}"
+      - --labels
+      - "{{ github_runner_labels }}"
+      - --work
+      - _work
+  become: true
+  become_user: "{{ github_runner_user }}"
+  when: not github_runner_registration.stat.exists
+  no_log: true
+  changed_when: true
+
+- name: Require protected infrastructure deployment input
+  ansible.builtin.stat:
+    path: "{{ github_runner_secret_source }}"
+  register: github_runner_secret_source_stat
+
+- name: Copy runner-only infrastructure deployment input
+  ansible.builtin.copy:
+    src: "{{ github_runner_secret_source }}"
+    dest: "{{ github_runner_secret_file }}"
+    remote_src: true
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    mode: '0600'
+  when: github_runner_secret_source_stat.stat.exists
+  no_log: true
+
+- name: Install the root-owned canonical deployment wrapper
+  ansible.builtin.template:
+    src: deploy-wrapper.sh.j2
+    dest: "{{ github_runner_deployment_wrapper }}"
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Permit only the canonical deployment wrapper through sudo
+  ansible.builtin.copy:
+    # noqa yaml[line-length]
+    content: "{{ github_runner_user }} ALL=(root) NOPASSWD: {{ github_runner_deployment_wrapper }}\n"
+    dest: "/etc/sudoers.d/{{ github_runner_name }}"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Install infrastructure runner systemd unit
+  ansible.builtin.template:
+    src: github-runner.service.j2
+    dest: "/etc/systemd/system/{{ github_runner_name }}.service"
+    mode: '0644'
+
+- name: Enable infrastructure runner
+  ansible.builtin.systemd_service:
+    name: "{{ github_runner_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
