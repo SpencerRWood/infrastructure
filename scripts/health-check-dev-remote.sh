@@ -16,9 +16,14 @@ for project in infrastructure-dev-postgres infrastructure-dev-caddy infrastructu
   echo "OK $project"
 done
 
-curl --fail --silent --show-error http://127.0.0.1:8080/healthz >/dev/null
+caddy_env_file=/srv/infrastructure/secrets/dev/caddy.env
+caddy_http_bind=$(sed -n 's/^CADDY_HTTP_BIND=//p' "$caddy_env_file")
+test -n "$caddy_http_bind"
+caddy_endpoint="http://${caddy_http_bind}"
+
+curl --fail --silent --show-error "$caddy_endpoint/healthz" >/dev/null
 echo "OK infrastructure Caddy /healthz"
 for host in dev-dagster.woodhost.cloud dev-openwebui.woodhost.cloud dev-keycloak.woodhost.cloud dev-infisical.woodhost.cloud; do
-  curl --fail --silent --show-error -H "Host: $host" http://127.0.0.1:8080/ >/dev/null
+  curl --fail --silent --show-error -H "Host: $host" "$caddy_endpoint/" >/dev/null
   echo "OK infrastructure Caddy route $host"
 done
