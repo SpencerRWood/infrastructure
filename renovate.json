@@ -15,16 +15,39 @@
   },
   "packageRules": [
     {
-      "description": "Only patch image updates are automatically merged in infrastructure.",
+      "description": "Default Docker updates to manual review; later rules opt into safe maintenance only.",
+      "matchDatasources": ["docker"],
+      "automerge": false
+    },
+    {
+      "description": "Automatically merge Docker digest pinning updates.",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["digest"],
+      "automerge": true
+    },
+    {
+      "description": "Automatically merge Docker patch updates.",
       "matchDatasources": ["docker"],
       "matchUpdateTypes": ["patch"],
       "automerge": true,
       "groupName": "{{depName}} patch update"
     },
     {
-      "description": "PostgreSQL compatibility-major transitions require explicit review.",
+      "description": "Docker minor updates require explicit review, overriding broad Docker defaults.",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["minor"],
+      "automerge": false
+    },
+    {
+      "description": "Docker major updates require explicit review, overriding broad Docker defaults.",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
+      "description": "PostgreSQL compatibility-major transitions require explicit review, including digest pinning.",
       "matchPackageNames": ["pgvector/pgvector"],
-      "matchNewValue": "/-pg(?:17|[2-9][0-9]+)-/",
+      "matchNewValue": "/-pg(?:1[7-9]|[2-9][0-9]+)-/",
       "automerge": false
     }
   ],
