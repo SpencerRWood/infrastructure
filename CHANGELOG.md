@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.8.6 (2026-09-22)
+
+### Chores
+
+- **deps**: Update pgvector/pgvector docker tag to v0.8.6
+  ([#14](https://github.com/SpencerRWood/infrastructure/pull/14),
+  [`71119d0`](https://github.com/SpencerRWood/infrastructure/commit/71119d0ec77f05ab5f8eda9ebfc765b571abb0df))
+
+
 ## v0.8.5 (2026-09-22)
 
 ### Bug Fixes
