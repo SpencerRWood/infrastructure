@@ -3,7 +3,7 @@ name: ${INFISICAL_PROJECT_NAME:?required}
 
 services:
   redis:
-    image: redis:8.10.0-alpine@sha256:978f0e01593e65eed801f2402944efcd936d43b5027e4908a7897baf88ed6241
+    image: redis:8.10.2-alpine@sha256:72cedd9603038893af961e90ac5e1a1a0d8377d5e338dbdad8fe284ea25de18f
     restart: unless-stopped
     command: [redis-server, --appendonly, 'yes']
     volumes: ["${INFISICAL_REDIS_PATH:?required}:/data"]
