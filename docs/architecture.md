@@ -11,14 +11,15 @@
 ## Deployment control plane
 
 The always-on Beelink hosts two independent GitHub Actions runners. This repository owns
-`github-runner-infrastructure` (labels include `beelink` and `infrastructure-dev`); the
+`github-runner-infrastructure` (labels include `beelink` and `infrastructure`); the
 homelab repository independently owns `github-runner-homelab`. Each has a distinct
 non-root account, registration, work directory, systemd unit, local secret scope, and
 deployment concurrency group. The MacBook is not part of routine CI/CD execution.
 
 After a PR (including a Renovate PR) is merged, semantic-release publishes an immutable
-tag. The infrastructure runner checks out that tag, validates it, invokes the canonical
-local Ansible path for dev, and performs health checks. Failures reapply the previous
+tag. The infrastructure runner checks out that tag through the centralized reusable
+workflow contract, validates it, invokes the canonical local Ansible path for dev, and
+performs health checks. Failures reapply the previous
 successful configuration release once; database state is never blindly rolled back.
 Production is deliberately excluded from this automatic path. Co-locating runner and
 managed node is an intentional availability tradeoff, not a shared-runner model.

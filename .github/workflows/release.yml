@@ -17,7 +17,9 @@ jobs:
   deploy-dev:
     needs: release
     if: ${{ needs.release.outputs.released == 'true' }}
-    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@v1
+    # v1 currently predates the privileged-wrapper inputs.  Pin the published
+    # contract revision until its next immutable release tag is available.
+    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@bc80970cc423ce3d8db471278a0c1c6d6d896f89
     with:
       repository: ${{ github.repository }}
       ref: ${{ needs.release.outputs.release_tag }}
@@ -26,7 +28,7 @@ jobs:
       environment_name: infrastructure-dev
       deployment_working_directory: .
       concurrency_group: deploy-infrastructure-dev
-      runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure-dev"]'
+      runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure"]'
       secrets_file: /home/github-runner-infrastructure/.secrets/dev.env
       validation_command: bash scripts/validate.sh
       check_command: >-

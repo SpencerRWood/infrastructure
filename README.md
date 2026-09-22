@@ -33,6 +33,9 @@ direnv loads one untracked local file:
 `~/.config/wood/infrastructure/dev.env` by default, or `prod.env` when
 `INFRASTRUCTURE_ENV=prod`. Ansible writes server-side values under
 `/srv/infrastructure/secrets/<environment>/` as `root:root` mode `0600`.
+For runner bootstrap, the Beelink administrator keeps the same untracked dev
+input at `/home/spencerwood/.config/wood/infrastructure/dev.env`; Ansible copies
+it once to the dedicated runner account as mode `0600`.
 
 RudderStack is out of scope. Dagster, Open WebUI, Keycloak, Infisical, Synthetic
 Website Analytics, and the portfolio database run on infrastructure-dev
@@ -116,7 +119,9 @@ prior repository-defined runtime configuration only; it does not perform a blind
 database rollback. Use **Actions → Deploy released infrastructure development
 configuration → Run workflow** for a controlled redeploy of an existing release
 (or leave the input empty for the latest). The runner loads its protected local
-deployment input outside the Actions checkout; workflow YAML has no secrets.
+deployment input outside the Actions checkout; workflow YAML has no secrets. It
+has passwordless sudo only for its root-owned deployment wrapper, which accepts
+only that runner's workspaces and `apply`, `check`, or `health` operations.
 
 Automatic release deployment is dev-only. `prod.yml` is never called automatically
 and production remains an explicit/manual operation.

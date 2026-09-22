@@ -17,6 +17,7 @@ cd "$workspace"
 export ANSIBLE_CONNECTION=local
 set -a
 # The file is protected, runner-local, and never printed by this wrapper.
+test -r "{{ github_runner_secret_file }}"
 source "{{ github_runner_secret_file }}"
 set +a
 case "$operation" in

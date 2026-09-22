@@ -15,7 +15,10 @@
       tags: [always]
   roles:
     - role: host
+    # The always-on Beelink runner is a development control-plane component.
+    # Production hosts must not acquire its runner identity or credentials.
     - role: github_runner
+      when: infrastructure_environment == 'dev'
   tasks:
     - name: Deploy selected PostgreSQL component
       ansible.builtin.include_role:
