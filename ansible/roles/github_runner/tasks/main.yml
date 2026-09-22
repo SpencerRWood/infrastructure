@@ -46,6 +46,42 @@
     path: "{{ github_runner_root }}/.runner"
   register: github_runner_registration
 
+- name: Read the managed infrastructure runner label contract
+  ansible.builtin.slurp:
+    src: "{{ github_runner_label_contract_file }}"
+  register: github_runner_label_contract
+  failed_when: false
+  changed_when: false
+
+- name: Determine whether infrastructure runner reconfiguration is required
+  ansible.builtin.set_fact:
+    github_runner_reconfiguration_required: >-
+      {{
+        github_runner_registration.stat.exists
+        and (
+          github_runner_label_contract.content is not defined
+          or (github_runner_label_contract.content | b64decode | trim != github_runner_labels)
+        )
+      }}
+
+- name: Require explicit approval before reconfiguring infrastructure runner labels
+  ansible.builtin.assert:
+    that: github_runner_reconfigure | bool
+    fail_msg: >-
+      The registered runner labels differ from the managed label contract.
+      Confirm it is idle, then rerun with github_runner_reconfigure=true and
+      short-lived registration and removal tokens in the environment.
+  when: github_runner_reconfiguration_required
+  no_log: true
+
+- name: Require short-lived tokens for infrastructure runner reconfiguration
+  ansible.builtin.assert:
+    that:
+      - github_runner_registration_token | length > 0
+      - github_runner_removal_token | length > 0
+  when: github_runner_reconfiguration_required
+  no_log: true
+
 - name: Install infrastructure runner archive
   ansible.builtin.unarchive:
     # yamllint disable rule:line-length
@@ -60,8 +96,30 @@
 - name: Require registration token only for first bootstrap
   ansible.builtin.assert:
     that: github_runner_registration_token | length > 0
-  when: not github_runner_registration.stat.exists
+  when: >-
+    not github_runner_registration.stat.exists
+    and not github_runner_reconfiguration_required
   no_log: true
+
+- name: Stop infrastructure runner before controlled reconfiguration
+  ansible.builtin.systemd_service:
+    name: "{{ github_runner_name }}"
+    state: stopped
+  when: github_runner_reconfiguration_required
+
+- name: Remove the prior infrastructure runner registration
+  ansible.builtin.command:
+    argv:
+      - "{{ github_runner_root }}/config.sh"
+      - remove
+      - --unattended
+      - --token
+      - "{{ github_runner_removal_token }}"
+  become: true
+  become_user: "{{ github_runner_user }}"
+  when: github_runner_reconfiguration_required
+  no_log: true
+  changed_when: true
 
 - name: Register infrastructure runner once
   ansible.builtin.command:
@@ -80,9 +138,27 @@
       - _work
   become: true
   become_user: "{{ github_runner_user }}"
-  when: not github_runner_registration.stat.exists
+  when: >-
+    not github_runner_registration.stat.exists
+    or github_runner_reconfiguration_required
   no_log: true
   changed_when: true
+
+- name: Create managed infrastructure runner contract directory
+  ansible.builtin.file:
+    path: "{{ github_runner_label_contract_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Record the managed infrastructure runner label contract
+  ansible.builtin.copy:
+    content: "{{ github_runner_labels }}\n"
+    dest: "{{ github_runner_label_contract_file }}"
+    owner: root
+    group: root
+    mode: '0644'
 
 - name: Require protected infrastructure deployment input
   ansible.builtin.stat:

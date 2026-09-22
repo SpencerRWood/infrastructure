@@ -7,6 +7,11 @@ github_runner_version: 2.337.0
 github_runner_labels: beelink,infrastructure
 github_runner_repository: SpencerRWood/infrastructure
 github_runner_registration_token: "{{ lookup('ansible.builtin.env', 'GITHUB_RUNNER_INFRASTRUCTURE_TOKEN') }}"
+github_runner_removal_token: "{{ lookup('ansible.builtin.env', 'GITHUB_RUNNER_INFRASTRUCTURE_REMOVAL_TOKEN') }}"
+# Reconfiguration deliberately requires an explicit operator opt-in: stopping a
+# runner that is executing a deployment is unsafe.
+github_runner_reconfigure: false
+github_runner_label_contract_file: "/etc/github-actions-runners/{{ github_runner_name }}.labels"
 # This is a protected runner-local control-node input.  It is intentionally
 # separate from the root-owned per-component environment files Ansible writes.
 github_runner_secret_source: /home/spencerwood/.config/wood/infrastructure/dev.env
