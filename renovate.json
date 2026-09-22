@@ -22,7 +22,7 @@
     {
       "description": "Automatically merge Docker digest pinning updates.",
       "matchDatasources": ["docker"],
-      "matchUpdateTypes": ["digest"],
+      "matchUpdateTypes": ["digest", "pinDigest"],
       "automerge": true
     },
     {
