@@ -6,7 +6,10 @@ repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repository_root"
 
 echo 'Checking shell syntax...'
-bash -n scripts/validate.sh postgres/scripts/provision-database.sh
+bash -n scripts/validate.sh scripts/health-check-dev-remote.sh postgres/scripts/provision-database.sh
+
+echo 'Checking deployment readiness behavior...'
+python3 -m unittest discover -s tests
 
 echo 'Checking for tracked credential files...'
 tracked_credentials="$(git ls-files | rg '(^|/)(\.env($|\.)|id_rsa$|.*\.(pem|key)$|credentials(\.|$))' | rg -v '(^|/)\.env\.example$' || true)"
@@ -41,6 +44,14 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
     'CADDY_PROXY_NETWORK=infrastructure-dev-proxy' >"$caddy_validation_env"
   docker compose --env-file "$postgres_validation_env" -f compose/postgres/compose.yml config --quiet
   docker compose --env-file "$caddy_validation_env" -f compose/caddy/compose.yml config --quiet
+  env \
+    INFISICAL_PROJECT_NAME=infrastructure-dev-infisical \
+    INFISICAL_IMAGE_TAG=test \
+    INFISICAL_RUNTIME_ENV_FILE=/dev/null \
+    INFISICAL_REDIS_PATH=/tmp/infisical-redis \
+    INFISICAL_POSTGRES_NETWORK=infrastructure-dev-postgres \
+    INFISICAL_PROXY_NETWORK=infrastructure-dev-proxy \
+    docker compose -f compose/infisical/compose.yml config --quiet
   docker run --rm \
     -v "$repository_root/compose/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
     -v "$repository_root/compose/caddy/routes:/etc/caddy/routes:ro" \
