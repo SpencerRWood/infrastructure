@@ -21,6 +21,11 @@ Local secrets are names-only examples in `environments/dev.env.example` and
 `~/.config/wood/infrastructure/<environment>.env`, then Ansible deploys protected
 server-side files. Never commit credentials or print them in logs.
 
+For the always-on dev deployment runner, the Beelink administrator retains the
+same untracked `dev.env` at `/home/spencerwood/.config/wood/infrastructure/dev.env`.
+The `github_runner` role copies it into the runner account's private `.secrets`
+directory; production hosts do not receive this runner role.
+
 The dev Postgres instance is independent from the shared wood-data-platform
 cluster. It owns the Dagster, Open WebUI, Keycloak, Infisical, and
 `synthetic_website_data` workloads; the legacy source remains online for

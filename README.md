@@ -33,6 +33,9 @@ direnv loads one untracked local file:
 `~/.config/wood/infrastructure/dev.env` by default, or `prod.env` when
 `INFRASTRUCTURE_ENV=prod`. Ansible writes server-side values under
 `/srv/infrastructure/secrets/<environment>/` as `root:root` mode `0600`.
+For runner bootstrap, the Beelink administrator keeps the same untracked dev
+input at `/home/spencerwood/.config/wood/infrastructure/dev.env`; Ansible copies
+it once to the dedicated runner account as mode `0600`.
 
 RudderStack is out of scope. Dagster, Open WebUI, Keycloak, Infisical, Synthetic
 Website Analytics, and the portfolio database run on infrastructure-dev
@@ -104,4 +107,26 @@ do not replace, GitHub branch protection.
 
 The pull-request workflow runs the same pre-commit suite in GitHub Actions. The
 shared release workflow runs only after changes reach `main`. It creates semantic
-releases from conventional commits; it does not deploy infrastructure.
+releases from conventional commits. A published release invokes the shared
+deployment workflow on the dedicated Beelink infrastructure runner, checks out the exact
+tag, validates it, applies `ansible/playbooks/dev.yml`, and runs
+`scripts/health-check-dev.sh`. Deployments are serialized by
+`deploy-infrastructure-dev`; a newer run never interrupts an active apply.
+
+On deployment or health failure the workflow restores the prior successful
+`infrastructure-dev` Environment release once and validates it. Rollback restores
+prior repository-defined runtime configuration only; it does not perform a blind
+database rollback. Use **Actions → Deploy released infrastructure development
+configuration → Run workflow** for a controlled redeploy of an existing release
+(or leave the input empty for the latest). The runner loads its protected local
+deployment input outside the Actions checkout; workflow YAML has no secrets. It
+has passwordless sudo only for its root-owned deployment wrapper, which accepts
+only that runner's workspaces and `apply`, `check`, or `health` operations.
+
+Automatic release deployment is dev-only. `prod.yml` is never called automatically
+and production remains an explicit/manual operation.
+
+Renovate follows this same validated release path. Docker patch and vulnerability
+updates may auto-merge after GitHub's required checks pass; minor and major updates
+remain manual. PostgreSQL compatibility-major changes remain manual. Routine
+Renovate commits are `fix(deps)`, producing semantic-release patch releases.

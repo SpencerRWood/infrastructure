@@ -1,28 +1,47 @@
 ---
-name: Release
+name: Deploy released infrastructure development configuration
 
-'on':
-  push:
-    branches:
-      - main
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: >-
+          Existing release tag to deploy; leave empty to deploy the latest
+          release.
+        required: false
+        type: string
 
 permissions:
-  contents: write
+  contents: read
   deployments: write
 
 jobs:
-  release:
-    uses: SpencerRWood/workflows/.github/workflows/release.yml@v1
+  resolve-release:
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.release.outputs.ref }}
+    steps:
+      - id: release
+        env:
+          EVENT_RELEASE: ${{ github.event.release.tag_name }}
+          REQUESTED_RELEASE: ${{ inputs.release }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ref="${EVENT_RELEASE:-${REQUESTED_RELEASE:-}}"
+          if [[ -z "$ref" ]]; then
+            latest_endpoint="repos/${GITHUB_REPOSITORY}/releases/latest"
+            ref=$(gh api "$latest_endpoint" --jq .tag_name)
+          fi
+          printf 'ref=%s\n' "$ref" >> "$GITHUB_OUTPUT"
 
   deploy-dev:
-    needs: release
-    if: ${{ needs.release.outputs.released == 'true' }}
+    needs: resolve-release
     # v1 currently predates the privileged-wrapper inputs.  Pin the published
     # contract revision until its next immutable release tag is available.
     uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@bc80970cc423ce3d8db471278a0c1c6d6d896f89
     with:
       repository: ${{ github.repository }}
-      ref: ${{ needs.release.outputs.release_tag }}
+      ref: ${{ needs.resolve-release.outputs.ref }}
       inventory_path: ansible/inventory/dev
       playbook_path: ansible/playbooks/dev.yml
       environment_name: infrastructure-dev
