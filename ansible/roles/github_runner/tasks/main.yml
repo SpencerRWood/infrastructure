@@ -38,6 +38,16 @@
     - {path: "/home/{{ github_runner_user }}/.secrets", mode: '0700'}
     - {path: "{{ github_runner_deployment_state_dir }}", mode: '0750'}
 
+- name: Create infrastructure runner deployment state file
+  ansible.builtin.file:
+    path: "{{ github_runner_deployment_state_file }}"
+    state: touch
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    mode: '0600'
+    access_time: preserve
+    modification_time: preserve
+
 - name: Install local Ansible control dependencies
   ansible.builtin.apt:
     name:
@@ -190,6 +200,7 @@
     owner: "{{ github_runner_user }}"
     group: "{{ github_runner_group }}"
     mode: '0600'
+  when: github_runner_secret_source != github_runner_secret_file
   no_log: true
 
 - name: Install the root-owned canonical deployment wrapper

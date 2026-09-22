@@ -23,10 +23,10 @@ source "{{ github_runner_secret_file }}"
 set +a
 case "$operation" in
   apply)
-    exec /usr/bin/ansible-playbook -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" {{ github_runner_ansible_extra_args }}
+    exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" {{ github_runner_ansible_extra_args }}
     ;;
   check)
-    exec /usr/bin/ansible-playbook -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --check --diff {{ github_runner_ansible_extra_args }}
+    exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --check --diff {{ github_runner_ansible_extra_args }}
     ;;
   validate)
     export GIT_CONFIG_COUNT=1

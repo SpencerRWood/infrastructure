@@ -38,7 +38,7 @@ jobs:
     needs: resolve-release
     # v1 currently predates the privileged-wrapper inputs.  Pin the published
     # contract revision until its next immutable release tag is available.
-    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@a77f968af74493d4cf07ec420cf158b60cc51661
+    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@31068c989a127377b82e59d0c31a7c4b374ebcd8
     with:
       repository: ${{ github.repository }}
       ref: ${{ needs.resolve-release.outputs.ref }}

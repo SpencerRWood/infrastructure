@@ -18,9 +18,11 @@ github_runner_secret_source: /home/spencerwood/.config/wood/infrastructure/dev.e
 github_runner_secret_file: "/home/{{ github_runner_user }}/.secrets/dev.env"
 github_runner_deployment_state_root: /var/lib/github-actions-deployments
 github_runner_deployment_state_dir: "/var/lib/github-actions-deployments/{{ github_runner_name }}"
+github_runner_deployment_state_file: "{{ github_runner_deployment_state_dir }}/infrastructure-dev.json"
 github_runner_deployment_wrapper: "/usr/local/sbin/{{ github_runner_name }}-deploy"
 github_runner_inventory_path: ansible/inventory/dev
 github_runner_playbook_path: ansible/playbooks/dev.yml
 github_runner_ansible_config_path: ansible/ansible.cfg
 github_runner_health_command: bash scripts/health-check-dev.sh
-github_runner_ansible_extra_args: ''
+github_runner_ansible_extra_args: >-
+  --extra-vars github_runner_secret_source={{ github_runner_secret_file }}
