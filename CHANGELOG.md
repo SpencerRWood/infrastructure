@@ -2,6 +2,26 @@
 
 <!-- version list -->
 
+## v0.8.1 (2026-09-22)
+
+### Bug Fixes
+
+- Configure runner Ansible deployment
+  ([`ca4b834`](https://github.com/SpencerRWood/infrastructure/commit/ca4b8346411b49ade6eec9ed848b3a940de44240))
+
+- Harden infrastructure deployment state
+  ([`0bdaaee`](https://github.com/SpencerRWood/infrastructure/commit/0bdaaee324f3ab915fcf1fd140ca4f0e71b6320a))
+
+- Preserve runner-local deployment input
+  ([`83941d6`](https://github.com/SpencerRWood/infrastructure/commit/83941d6ef93d633c11d47c761877382f91a1c7b6))
+
+- Provision deployment state ownership
+  ([`0a96fd8`](https://github.com/SpencerRWood/infrastructure/commit/0a96fd8ef9f4782855f399499e9a212fa114ba71))
+
+- Reconcile infrastructure runner labels
+  ([`9b86e91`](https://github.com/SpencerRWood/infrastructure/commit/9b86e91b1e1a2dc0b63a85892c0bb3050e8fab9e))
+
+
 ## v0.8.0 (2026-09-22)
 
 ### Bug Fixes
