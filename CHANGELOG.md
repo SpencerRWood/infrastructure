@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.9.2 (2026-09-23)
+
+### Chores
+
+- **deps**: Update caddy:2.11.4-alpine docker digest to 6aeddd4
+  ([#23](https://github.com/SpencerRWood/infrastructure/pull/23),
+  [`b86e2fc`](https://github.com/SpencerRWood/infrastructure/commit/b86e2fcfea851918fc7303246e99c95f9da982b6))
+
+
 ## v0.9.1 (2026-09-23)
 
 ### Bug Fixes
