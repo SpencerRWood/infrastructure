@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.9.1 (2026-09-23)
+
+### Bug Fixes
+
+- **runner**: Avoid root-owned Python cache during validation
+  ([`36e20f8`](https://github.com/SpencerRWood/infrastructure/commit/36e20f8d5d1da5b3e0ebe788b061c3a67815c0ee))
+
+
 ## v0.9.0 (2026-09-23)
 
 ### Features
