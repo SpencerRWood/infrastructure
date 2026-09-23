@@ -113,6 +113,9 @@ can write its generated version commit back to `main`. `workflows/main` remains
 protected; see the [shared branch policy](https://github.com/SpencerRWood/workflows/blob/main/docs/branch-rules.md).
 
 The pull-request wrapper calls `validate.yml@v1` using `.github/release.toml`.
+It opts into the shared `infrastructure-validation` commit status on the PR head
+so the Website Portfolio dev promotion can read the result with a narrowly
+scoped token. The Actions check remains the normal CI result.
 The shared release workflow runs the same checks after changes reach `main`,
 then determines the next version from conventional commits. Its release job
 writes that version to `pyproject.toml`, commits
