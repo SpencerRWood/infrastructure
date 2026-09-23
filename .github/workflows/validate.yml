@@ -3,32 +3,11 @@ name: Validate
 
 'on':
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
   validation:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v9.0.0
-        with:
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            uv.lock
-      - name: Sync validation tools
-        run: uv sync --frozen --group dev
-      - name: Run repository validation
-        env:
-          SKIP: no-commit-to-branch
-        run: uv run pre-commit run --all-files
+    uses: SpencerRWood/workflows/.github/workflows/validate.yml@v1

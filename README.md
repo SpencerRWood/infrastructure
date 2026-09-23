@@ -109,13 +109,16 @@ Ansible inventories and syntax, Ansible lint, and Compose configuration. Work on
 a branch and merge through a reviewed pull request; local hooks complement, but
 do not replace, GitHub branch protection.
 
-The pull-request workflow runs the same pre-commit suite in GitHub Actions. The
-shared release workflow runs only after changes reach `main`. It creates semantic
-releases from conventional commits. A published release invokes the shared
+The pull-request wrapper calls `validate.yml@v1` using `.github/release.toml`.
+The shared release workflow runs the same checks after changes reach `main`,
+then creates semantic releases from conventional commits. A published release invokes the shared
 deployment workflow on the dedicated Beelink infrastructure runner, checks out the exact
 tag, validates it, applies `ansible/playbooks/dev.yml`, and runs
 `scripts/health-check-dev.sh`. Deployments are serialized by
 `deploy-infrastructure-dev`; a newer run never interrupts an active apply.
+Automatic and manual deployment entrypoints both use
+`.github/workflows/deploy-target.yml` for the target's inventory, runner,
+protected file path, health command, and durable state path.
 
 On deployment or health failure the workflow restores the prior successful
 `infrastructure-dev` Environment release once and validates it. Rollback restores
@@ -130,7 +133,8 @@ only that runner's workspaces and `apply`, `check`, or `health` operations.
 Automatic release deployment is dev-only. `prod.yml` is never called automatically
 and production remains an explicit/manual operation.
 
-Renovate follows this same validated release path. Docker patch and vulnerability
-updates may auto-merge after GitHub's required checks pass; minor and major updates
+Renovate follows this same release path. Docker patch and vulnerability
+updates are configured for auto-merge; `main` must require the `validation`
+check before GitHub can enforce check-gated merging. Minor and major updates
 remain manual. PostgreSQL compatibility-major changes remain manual. Routine
 Renovate commits are `fix(deps)`, producing semantic-release patch releases.
