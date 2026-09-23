@@ -10,7 +10,7 @@ bash -n scripts/validate.sh scripts/health-check-dev.sh \
   scripts/health-check-dev-remote.sh postgres/scripts/provision-database.sh
 
 echo 'Checking deployment readiness behavior...'
-python3 -m unittest discover -s tests
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests
 
 echo 'Checking for tracked credential files...'
 tracked_credentials="$(git ls-files | rg '(^|/)(\.env($|\.)|id_rsa$|.*\.(pem|key)$|credentials(\.|$))' | rg -v '(^|/)\.env\.example$' || true)"
