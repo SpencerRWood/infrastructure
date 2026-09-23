@@ -55,3 +55,9 @@
         name: infisical
       when: services.infisical | bool
       tags: [infisical]
+
+    - name: Deploy selected Website Portfolio component
+      ansible.builtin.include_role:
+        name: website_portfolio
+      when: services.website_portfolio | default(false) | bool
+      tags: [website_portfolio]

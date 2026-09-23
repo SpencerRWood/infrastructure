@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Project labels are the runtime contract written by the dev Ansible roles.
 # These checks establish container liveness; HTTP probes below establish application readiness.
-for project in infrastructure-dev-postgres infrastructure-dev-caddy infrastructure-dev-dagster infrastructure-dev-openwebui infrastructure-dev-keycloak infrastructure-dev-infisical; do
+for project in infrastructure-dev-postgres infrastructure-dev-caddy infrastructure-dev-dagster infrastructure-dev-openwebui infrastructure-dev-keycloak infrastructure-dev-infisical infrastructure-dev-website-portfolio; do
   ids=$(docker ps -q --filter "label=com.docker.compose.project=$project")
   test -n "$ids"
   while IFS= read -r id; do
@@ -53,3 +53,5 @@ wait_for_route dev-dagster.woodhost.cloud /server_info
 wait_for_route dev-openwebui.woodhost.cloud /health
 wait_for_route dev-keycloak.woodhost.cloud /realms/master/.well-known/openid-configuration
 wait_for_route dev-infisical.woodhost.cloud /api/status
+wait_for_route dev-website-portfolio.woodhost.cloud /health
+wait_for_route dev-website-portfolio.woodhost.cloud /

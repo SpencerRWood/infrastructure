@@ -1,0 +1,15 @@
+---
+website_portfolio_compose_directory: "{{ host_infrastructure_compose_root }}/website-portfolio"
+website_portfolio_state_directory: "{{ host_infrastructure_state_root }}/website-portfolio"
+website_portfolio_runtime_env_file: "{{ host_infrastructure_secrets_root }}/website-portfolio.env"
+website_portfolio_migration_env_file: "{{ host_infrastructure_secrets_root }}/website-portfolio-migration.env"
+website_portfolio_compose_env_file: "{{ host_infrastructure_secrets_root }}/website-portfolio-compose.env"
+website_portfolio_docker_config_directory: "{{ host_infrastructure_secrets_root }}/ghcr-docker"
+website_portfolio_project_name: "infrastructure-{{ infrastructure_environment }}-website-portfolio"
+website_portfolio_postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
+website_portfolio_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
+website_portfolio_ghcr_username: SpencerRWood
+website_portfolio_required_environment:
+  - WEBSITE_PORTFOLIO_DATABASE_URL
+  - WEBSITE_PORTFOLIO_MIGRATION_DATABASE_URL
+  - WEBSITE_PORTFOLIO_GHCR_TOKEN

@@ -27,8 +27,9 @@ terraform/            Future cloud-infrastructure ownership
 ## Environments and secrets
 
 `dev` enables the standalone PostgreSQL, Caddy, Dagster, Open WebUI, Keycloak,
-and Infisical components; `prod` explicitly disables every component and contains
-no host. Production services are opt-in through reviewed changes.
+Infisical, and Website Portfolio components; `prod` explicitly disables every
+component and contains no host. Production services are opt-in through reviewed
+changes.
 direnv loads one untracked local file:
 `~/.config/wood/infrastructure/dev.env` by default, or `prod.env` when
 `INFRASTRUCTURE_ENV=prod`. Ansible writes server-side values under
@@ -37,9 +38,9 @@ For runner bootstrap, the Beelink administrator keeps the same untracked dev
 input at `/home/spencerwood/.config/wood/infrastructure/dev.env`; Ansible copies
 it once to the dedicated runner account as mode `0600`.
 
-RudderStack is out of scope. Dagster, Open WebUI, Keycloak, Infisical, Synthetic
-Website Analytics, and the portfolio database run on infrastructure-dev
-PostgreSQL. The website runtime itself remains independently owned. The shared
+The RudderStack service is out of scope. Dagster, Open WebUI, Keycloak, Infisical, Synthetic
+Website Analytics, and Website Portfolio run on infrastructure-dev
+PostgreSQL. The shared
 wood-data-platform PostgreSQL remains online only for administrative databases
 and rollback copies; it has no active application workloads.
 
@@ -49,12 +50,13 @@ The reusable infrastructure Caddy runs on the Beelink LAN address at
 `192.168.1.21:8080` and `192.168.1.21:8443`, restricted by the host firewall to
 the trusted `192.168.1.0/24` LAN. It serves only HTTP `GET /healthz`; the
 reserved HTTPS binding has no route until a future reviewed TLS configuration.
-Dagster, Open WebUI, Keycloak, and Infisical are behind it. Their development
-URLs are `https://dev-dagster.woodhost.cloud`,
+Dagster, Open WebUI, Keycloak, Infisical, and Website Portfolio are behind it.
+Their development URLs are `https://dev-dagster.woodhost.cloud`,
 `https://dev-openwebui.woodhost.cloud`,
 `https://dev-keycloak.woodhost.cloud`, and
-`https://dev-infisical.woodhost.cloud`. Edge Caddy owns those normal HTTPS
-URLs and proxies their requests to the isolated infrastructure Caddy listener.
+`https://dev-infisical.woodhost.cloud`, and
+`https://dev-website-portfolio.woodhost.cloud`. Edge Caddy owns those normal
+HTTPS URLs and proxies their requests to the isolated infrastructure Caddy listener.
 Its state lives below `/srv/infrastructure/state/caddy/`, and it owns the
 isolated `infrastructure-dev-proxy` Docker network.
 
@@ -96,6 +98,8 @@ ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook -i ansible/inventory/dev ans
 
 See [environment ownership](docs/environments.md) and the
 [next-release migration inventory](docs/postgres-migration-inventory.md).
+The [Website Portfolio deployment contract](docs/website-portfolio-deployment.md)
+records the pinned artifact, protected inputs, migration, and route.
 
 ## Repository workflow
 

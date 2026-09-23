@@ -47,13 +47,14 @@ Its custom-format dump and globals capture are retained at
 `/srv/infrastructure/backups/wood-data-platform/2026-09-21-portfolio-website/`.
 SHA-256: `119f6796816b7d40d10e77c6d3ce78833c6cdad5188a4d69003478966b46c399`
 for the dump and `042e39350ebc437075af8c7f11f55ceeaeabb9c47895212583098d9386df486a`
-for globals. The independently owned website runtime now receives its
-`DATABASE_URL` from its existing local Compose configuration and targets
-`192.168.1.21:25433`. No website runtime migration occurred.
+for globals. The existing independently owned local website runtime receives its
+`DATABASE_URL` from its local Compose configuration and targets
+`192.168.1.21:25433`. The new infrastructure-owned runtime uses the same target
+database through the private `infrastructure-dev-postgres` network. Its first
+deployment applies the pending Alembic migration with `portfolio_migrator`.
 
-The contact endpoint correctly returns its pre-existing unavailable response
-until the application owner deliberately applies its pending Alembic migration;
-that schema change is outside this database-move release.
+The contact endpoint's existing unavailable response remains expected until the
+new infrastructure deployment applies that migration.
 
 ## Consumer mapping
 
@@ -61,7 +62,8 @@ that schema change is outside this database-move release.
 | --- | --- | --- | --- |
 | infrastructure Dagster, Open WebUI, Keycloak, Infisical | named service database | `postgres:5432` on infrastructure-dev | active target |
 | synthetic data, analytics, and dbt local checkouts | `synthetic_website_data` | `192.168.1.21:25433` | active target; direct read and dbt validation passed |
-| website-portfolio | `portfolio_website` | `192.168.1.21:25433` | active target; website runtime unchanged |
+| existing local website runtime | `portfolio_website` | `192.168.1.21:25433` | remains online during Beelink validation |
+| infrastructure Website Portfolio | `portfolio_website` | `postgres:5432` | selected dev target, migration before startup |
 | migrated legacy copies | named above | legacy cluster | rollback only |
 
 ## Next release: wood-data-platform runtime decommission

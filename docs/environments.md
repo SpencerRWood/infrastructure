@@ -31,18 +31,18 @@ cluster. It owns the Dagster, Open WebUI, Keycloak, Infisical, and
 `synthetic_website_data` workloads; the legacy source remains online for
 rollback until its separately approved decommission release.
 
-`portfolio_website` also runs on this Postgres instance. Its website runtime is
-not infrastructure-owned and was not moved; only its database connection uses
-the LAN ingress.
+`portfolio_website` also runs on this Postgres instance. The infrastructure-owned
+Website Portfolio container uses the private PostgreSQL Docker network; existing
+LAN database consumers continue using the restricted LAN endpoint.
 
 Infrastructure Postgres also publishes a LAN-only development endpoint at
 `192.168.1.21:25433`. UFW restricts it to `192.168.1.0/24`; `25432` remains
 owned by the legacy rollback cluster. This is PostgreSQL TCP, not an HTTP Caddy
 route.
 
-Caddy requires no secrets for this initial internal health route. Its runtime
-configuration is still written as a protected host file, following the component
-deployment convention. No application ingress route is created or migrated.
+Caddy's runtime configuration is written as a protected host file. Website
+Portfolio uses a service route on the isolated proxy network and the matching
+edge route for `dev-website-portfolio.woodhost.cloud`.
 Route fragments under `compose/caddy/routes/` are added only as part of an
 individual service migration, together with its Compose definition, database,
 secrets, `infrastructure-dev-proxy` membership, validation, legacy shutdown,
