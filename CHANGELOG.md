@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.9.4 (2026-09-23)
+
+### Chores
+
+- **deps**: Update website portfolio to v0.8.0
+  ([`c93f814`](https://github.com/SpencerRWood/infrastructure/commit/c93f814ccfd27766ac280ca790d0d2de31e86373))
+
+
 ## v0.9.3 (2026-09-23)
 
 ### Chores
