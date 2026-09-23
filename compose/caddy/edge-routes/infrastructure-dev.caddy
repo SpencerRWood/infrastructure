@@ -1,7 +1,7 @@
 # Edge Caddy owns public :80/:443.  It forwards dev hostnames to the isolated
 # infrastructure Caddy listener, preserving the original Host header for its
 # per-service route selection without sharing Docker networks.
-dev-dagster.woodhost.cloud, dev-openwebui.woodhost.cloud, dev-keycloak.woodhost.cloud, dev-infisical.woodhost.cloud, dev-website-portfolio.woodhost.cloud {
+dev-dagster.woodhost.cloud, dev-openwebui.woodhost.cloud, dev-keycloak.woodhost.cloud, dev-infisical.woodhost.cloud, dev-portfolio-website.woodhost.cloud, dev-website-portfolio.woodhost.cloud {
 	import cloudflare_tls
 	import security_headers
 	import admin_ip_allowlist

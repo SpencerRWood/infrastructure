@@ -2,7 +2,14 @@
 
 The `dev` manifest pins the previously validated GHCR artifact at
 `ghcr.io/spencerrwood/website-portfolio:v0.6.0@sha256:743d194b77a7f54e8a4f454a22b0cdf5a36113e10c455af0088658175970740e`.
-Change this checked-in value through an infrastructure PR for each future image.
+The canonical `portfolio_website_image_ref` key will accept the normalized
+`ghcr.io/spencerrwood/portfolio-website` repository on the next application
+release. The old image remains pinned until an infrastructure promotion PR
+supplies its new digest. Runtime `WEBSITE_PORTFOLIO_*`, Compose paths, and the
+old hostname remain temporary compatibility names while their protected
+inputs and DNS are migrated separately. Both dev hostnames route to the same
+service once DNS for `dev-portfolio-website.woodhost.cloud` is configured.
+Change the checked-in image value through an infrastructure PR for each future image.
 The Beelink never builds application source or looks up a moving tag.
 The existing local website containers remain untouched during this dev rollout;
 the new hostname validates the Beelink runtime separately.

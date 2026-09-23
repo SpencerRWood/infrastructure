@@ -2,7 +2,10 @@
 - name: Require the Website Portfolio artifact and protected input contract
   ansible.builtin.assert:
     that:
-      - website_portfolio_image_ref is match('^ghcr[.]io/spencerrwood/website-portfolio:v[0-9]+[.][0-9]+[.][0-9]+@')
+      - >-
+        website_portfolio_image_ref is match(
+        '^ghcr[.]io/spencerrwood/(website-portfolio|portfolio-website):v[0-9]+[.][0-9]+[.][0-9]+@'
+        )
       - website_portfolio_image_ref is search('@sha256:[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', item) | length > 0
     fail_msg: The pinned image and protected Website Portfolio inputs are required.
