@@ -13,3 +13,4 @@ website_portfolio_required_environment:
   - WEBSITE_PORTFOLIO_DATABASE_URL
   - WEBSITE_PORTFOLIO_MIGRATION_DATABASE_URL
   - WEBSITE_PORTFOLIO_GHCR_TOKEN
+website_portfolio_image_ref: "{{ portfolio_website_image_ref }}"
