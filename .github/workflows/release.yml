@@ -12,37 +12,11 @@ permissions:
 
 jobs:
   release:
-    uses: SpencerRWood/workflows/.github/workflows/release.yml@55a49edf811e7a94f58a6b757efd4d9a2a92bd21
+    uses: SpencerRWood/workflows/.github/workflows/release.yml@v1
 
   deploy-dev:
     needs: release
     if: ${{ needs.release.outputs.released == 'true' }}
-    # v1 currently predates the privileged-wrapper inputs.  Pin the published
-    # contract revision until its next immutable release tag is available.
-    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@31068c989a127377b82e59d0c31a7c4b374ebcd8
+    uses: ./.github/workflows/deploy-target.yml
     with:
-      repository: ${{ github.repository }}
       ref: ${{ needs.release.outputs.release_tag }}
-      inventory_path: ansible/inventory/dev
-      playbook_path: ansible/playbooks/dev.yml
-      ansible_config_path: ansible/ansible.cfg
-      environment_name: infrastructure-dev
-      deployment_working_directory: .
-      concurrency_group: deploy-infrastructure-dev
-      runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure"]'
-      secrets_file: /home/github-runner-infrastructure/.secrets/dev.env
-      validation_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
-        "$GITHUB_WORKSPACE" validate
-      check_command: >-
-        ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
-        -i ansible/inventory/dev
-        ansible/playbooks/dev.yml --tags host --check --diff
-      privileged_check_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE" check
-      health_check_command: bash scripts/health-check-dev.sh
-      privileged_deploy_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE" apply
-      privileged_health_check_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE" health
-      deployment_state_file: /var/lib/github-actions-deployments/github-runner-infrastructure/infrastructure-dev.json
