@@ -1,0 +1,3 @@
+http://dev-website-portfolio.woodhost.cloud:80 {
+	reverse_proxy website-portfolio:8000
+}

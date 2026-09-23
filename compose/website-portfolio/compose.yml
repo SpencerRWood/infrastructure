@@ -1,0 +1,30 @@
+name: ${WEBSITE_PORTFOLIO_PROJECT_NAME:?required}
+
+services:
+  website-portfolio:
+    image: ${WEBSITE_PORTFOLIO_IMAGE_REF:?required}
+    restart: unless-stopped
+    env_file: ["${WEBSITE_PORTFOLIO_RUNTIME_ENV_FILE:?required}"]
+    expose: ['8000']
+    networks: [postgres, proxy]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).close()"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  website-migrate:
+    profiles: [migration]
+    image: ${WEBSITE_PORTFOLIO_IMAGE_REF:?required}
+    env_file: ["${WEBSITE_PORTFOLIO_MIGRATION_ENV_FILE:?required}"]
+    command: [alembic, upgrade, head]
+    networks: [postgres]
+
+networks:
+  postgres: {external: true, name: "${WEBSITE_PORTFOLIO_POSTGRES_NETWORK:?required}"}
+  proxy: {external: true, name: "${WEBSITE_PORTFOLIO_PROXY_NETWORK:?required}"}

@@ -10,6 +10,10 @@ caddy_allowed_cidrs:
   - 172.27.0.0/16
 dagster_restore_backup_path: /srv/infrastructure/backups/dagster/dagster-final.dump
 keycloak_hostname: dev-keycloak.woodhost.cloud
+# The complete image reference is intentionally kept on one line for auditing.
+# yamllint disable rule:line-length
+website_portfolio_image_ref: ghcr.io/spencerrwood/website-portfolio:v0.6.0@sha256:743d194b77a7f54e8a4f454a22b0cdf5a36113e10c455af0088658175970740e
+# yamllint enable rule:line-length
 services:
   postgres: true
   caddy: true
@@ -17,4 +21,5 @@ services:
   openwebui: true
   keycloak: true
   infisical: true
+  website_portfolio: true
   rudderstack: false

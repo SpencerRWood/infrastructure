@@ -12,10 +12,13 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "health-check-dev-remote.sh"
 INFISICAL_ROUTE = "dev-infisical.woodhost.cloud/api/status"
+WEBSITE_ROUTE = "dev-website-portfolio.woodhost.cloud/health"
 
 
 class HealthCheckTests(unittest.TestCase):
-    def run_health_check(self, responses: str) -> tuple[subprocess.CompletedProcess[str], int]:
+    def run_health_check(
+        self, responses: str, target_host: str = "dev-infisical.woodhost.cloud"
+    ) -> tuple[subprocess.CompletedProcess[str], int]:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             bin_directory = root / "bin"
@@ -34,7 +37,7 @@ class HealthCheckTests(unittest.TestCase):
                 "import os, pathlib, sys\n"
                 "args = sys.argv[1:]\n"
                 "host = next(arg.removeprefix('Host: ') for arg in args if arg.startswith('Host: '))\n"
-                "if host != 'dev-infisical.woodhost.cloud':\n"
+                "if host != os.environ['FAKE_CURL_TARGET_HOST']:\n"
                 "    print('200', end='')\n"
                 "    sys.exit(0)\n"
                 "count_file = pathlib.Path(os.environ['FAKE_CURL_COUNT'])\n"
@@ -58,6 +61,7 @@ class HealthCheckTests(unittest.TestCase):
                 "HEALTH_CHECK_ROUTE_ATTEMPTS": "3",
                 "HEALTH_CHECK_RETRY_INTERVAL": "0",
                 "FAKE_CURL_RESPONSES": responses,
+                "FAKE_CURL_TARGET_HOST": target_host,
                 "FAKE_CURL_COUNT": str(count_file),
             }
             result = subprocess.run(
@@ -97,6 +101,15 @@ class HealthCheckTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(attempts, 3)
         self.assertIn("HTTP 404", result.stderr)
+
+    def test_website_route_failure_blocks_deployment_health(self) -> None:
+        result, attempts = self.run_health_check(
+            "502", target_host="dev-website-portfolio.woodhost.cloud"
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(attempts, 3)
+        self.assertIn(WEBSITE_ROUTE, result.stderr)
+        self.assertIn("HTTP 502", result.stderr)
 
 
 if __name__ == "__main__":

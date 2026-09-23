@@ -1,0 +1,162 @@
+---
+- name: Require the Website Portfolio artifact and protected input contract
+  ansible.builtin.assert:
+    that:
+      - website_portfolio_image_ref is match('^ghcr[.]io/spencerrwood/website-portfolio:v[0-9]+[.][0-9]+[.][0-9]+@')
+      - website_portfolio_image_ref is search('@sha256:[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', item) | length > 0
+    fail_msg: The pinned image and protected Website Portfolio inputs are required.
+  loop: "{{ website_portfolio_required_environment }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true
+  tags: [website_portfolio]
+
+- name: Create Website Portfolio component and protected registry directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ website_portfolio_compose_directory }}", mode: '0755'}
+    - {path: "{{ website_portfolio_state_directory }}", mode: '0700'}
+    - {path: "{{ website_portfolio_docker_config_directory }}", mode: '0700'}
+  tags: [website_portfolio]
+
+- name: Authenticate protected host Docker config to private GHCR
+  community.docker.docker_login:
+    registry_url: ghcr.io
+    username: "{{ website_portfolio_ghcr_username }}"
+    password: "{{ lookup('ansible.builtin.env', 'WEBSITE_PORTFOLIO_GHCR_TOKEN') }}"
+    config_path: "{{ website_portfolio_docker_config_directory }}/config.json"
+    reauthorize: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [website_portfolio]
+
+- name: Protect the host-side GHCR credential file
+  ansible.builtin.file:
+    path: "{{ website_portfolio_docker_config_directory }}/config.json"
+    state: file
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  when: not ansible_check_mode
+  tags: [website_portfolio]
+
+- name: Deploy protected Website Portfolio runtime environment
+  ansible.builtin.copy:
+    content: |-
+      WEBSITE_ENV=production
+      DATABASE_URL={{ lookup('ansible.builtin.env', 'WEBSITE_PORTFOLIO_DATABASE_URL') }}
+      RUDDERSTACK_WRITE_KEY={{ lookup('ansible.builtin.env', 'WEBSITE_PORTFOLIO_RUDDERSTACK_WRITE_KEY') }}
+      RUDDERSTACK_DATA_PLANE_URL={{ lookup('ansible.builtin.env', 'WEBSITE_PORTFOLIO_RUDDERSTACK_DATA_PLANE_URL') }}
+    dest: "{{ website_portfolio_runtime_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [website_portfolio]
+
+- name: Deploy protected Website Portfolio migration environment
+  ansible.builtin.copy:
+    content: |-
+      WEBSITE_ENV=production
+      DATABASE_URL={{ lookup('ansible.builtin.env', 'WEBSITE_PORTFOLIO_MIGRATION_DATABASE_URL') }}
+    dest: "{{ website_portfolio_migration_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [website_portfolio]
+
+- name: Deploy Website Portfolio Compose environment
+  ansible.builtin.copy:
+    content: |-
+      WEBSITE_PORTFOLIO_PROJECT_NAME={{ website_portfolio_project_name }}
+      WEBSITE_PORTFOLIO_IMAGE_REF={{ website_portfolio_image_ref }}
+      WEBSITE_PORTFOLIO_RUNTIME_ENV_FILE={{ website_portfolio_runtime_env_file }}
+      WEBSITE_PORTFOLIO_MIGRATION_ENV_FILE={{ website_portfolio_migration_env_file }}
+      WEBSITE_PORTFOLIO_POSTGRES_NETWORK={{ website_portfolio_postgres_network }}
+      WEBSITE_PORTFOLIO_PROXY_NETWORK={{ website_portfolio_proxy_network }}
+    dest: "{{ website_portfolio_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [website_portfolio]
+
+- name: Deploy canonical Website Portfolio Compose payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/website-portfolio/compose.yml"
+    dest: "{{ website_portfolio_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [website_portfolio]
+
+- name: Validate rendered Website Portfolio Compose configuration
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ website_portfolio_compose_env_file }}
+      -f {{ website_portfolio_compose_directory }}/compose.yml config --quiet
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [website_portfolio]
+
+- name: Pull the exact Website Portfolio release image
+  ansible.builtin.command:
+    argv: [docker, pull, "{{ website_portfolio_image_ref }}"]
+  environment:
+    DOCKER_CONFIG: "{{ website_portfolio_docker_config_directory }}"
+  register: website_portfolio_pull
+  changed_when: website_portfolio_pull.stdout is search('Downloaded newer image')
+  when: not ansible_check_mode
+  tags: [website_portfolio]
+
+- name: Apply Website Portfolio schema migrations with the pinned image
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ website_portfolio_compose_env_file }}"
+      - -f
+      - "{{ website_portfolio_compose_directory }}/compose.yml"
+      - --profile
+      - migration
+      - run
+      - --rm
+      - --no-deps
+      - website-migrate
+  environment:
+    DOCKER_CONFIG: "{{ website_portfolio_docker_config_directory }}"
+  changed_when: true
+  no_log: true
+  when: not ansible_check_mode
+  tags: [website_portfolio]
+
+- name: Start selected Website Portfolio service after migrations
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ website_portfolio_compose_env_file }}"
+      - -f
+      - "{{ website_portfolio_compose_directory }}/compose.yml"
+      - up
+      - -d
+      - website-portfolio
+  environment:
+    DOCKER_CONFIG: "{{ website_portfolio_docker_config_directory }}"
+  register: website_portfolio_up
+  changed_when: website_portfolio_up.stdout is search('Created|Started|Recreated')
+  when: not ansible_check_mode
+  tags: [website_portfolio]
