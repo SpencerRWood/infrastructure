@@ -48,6 +48,7 @@
       KEYCLOAK_IMAGE_TAG={{ keycloak_image_tag }}
       KEYCLOAK_RUNTIME_ENV_FILE={{ keycloak_env_file }}
       KEYCLOAK_DATA_PATH={{ keycloak_data_directory }}
+      KEYCLOAK_HEALTHCHECK_SCRIPT={{ keycloak_compose_directory }}/healthcheck.sh
       KEYCLOAK_POSTGRES_NETWORK={{ keycloak_postgres_network }}
       KEYCLOAK_PROXY_NETWORK={{ keycloak_proxy_network }}
     dest: "{{ keycloak_compose_env_file }}"
@@ -61,6 +62,15 @@
   ansible.builtin.copy:
     src: "{{ role_path }}/../../../compose/keycloak/compose.yml"
     dest: "{{ keycloak_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [keycloak]
+
+- name: Deploy Keycloak readiness probe
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/keycloak/healthcheck.sh"
+    dest: "{{ keycloak_compose_directory }}/healthcheck.sh"
     owner: root
     group: root
     mode: '0644'
