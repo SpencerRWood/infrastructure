@@ -5,9 +5,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:${KEYCLOAK_IMAGE_TAG:?required}
     restart: unless-stopped
-    # Upstream issue #52394: avoid stale realm cache adapters during the 26.7
-    # model migration. Remove this option in a follow-up release after success.
-    command: [start, --spi-realm-cache--default--enabled=false]
+    command: [start]
     env_file: ["${KEYCLOAK_RUNTIME_ENV_FILE:?required}"]
     expose: ['8080', '9000']
     volumes:
