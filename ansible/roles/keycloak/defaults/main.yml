@@ -4,10 +4,9 @@ keycloak_data_directory: "{{ host_infrastructure_state_root }}/keycloak/data"
 keycloak_env_file: "{{ host_infrastructure_secrets_root }}/keycloak.env"
 keycloak_compose_env_file: "{{ host_infrastructure_secrets_root }}/keycloak-compose.env"
 keycloak_project_name: "infrastructure-{{ infrastructure_environment }}-keycloak"
-# v26.7.4 fails migration of the existing woodhost realm with Keycloak's
-# RealmEntity.components LazyInitializationException (upstream issue #51304).
-# Keep the last successfully deployed image until an upstream fixed release is available.
-keycloak_image_tag: 26.2.4
+# v26.7.4 requires the temporary realm-cache-disabled migration startup in
+# compose/keycloak/compose.yml (upstream issues #51304 and #52394).
+keycloak_image_tag: 26.7.4
 keycloak_postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
 keycloak_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
 keycloak_hostname: dev-keycloak.woodhost.cloud
