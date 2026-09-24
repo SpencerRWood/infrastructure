@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.9.9 (2026-09-24)
+
+### Chores
+
+- **deps**: Update infisical/infisical docker tag to v0.165.16
+  ([#17](https://github.com/SpencerRWood/infrastructure/pull/17),
+  [`702b46c`](https://github.com/SpencerRWood/infrastructure/commit/702b46c7936de49511c8f90c5e6fc6d95f9d6791))
+
+
 ## v0.9.8 (2026-09-23)
 
 ### Chores
