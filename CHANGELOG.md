@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.9.13 (2026-09-24)
+
+### Bug Fixes
+
+- **keycloak**: Bypass realm cache during 26.7 migration
+  ([#38](https://github.com/SpencerRWood/infrastructure/pull/38),
+  [`22612bd`](https://github.com/SpencerRWood/infrastructure/commit/22612bd7cdb0c6bff70b41b0a72c9e4c54d9d808))
+
+
 ## v0.9.12 (2026-09-24)
 
 ### Bug Fixes
