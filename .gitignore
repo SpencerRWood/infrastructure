@@ -15,6 +15,7 @@ id_rsa*
 *.retry
 dev.env
 prod.env
+bootstrap/
 
 # Terraform state and local provider data
 .terraform/
