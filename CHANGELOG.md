@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.9.14 (2026-09-24)
+
+### Bug Fixes
+
+- **keycloak**: Restore normal startup after migration
+  ([#39](https://github.com/SpencerRWood/infrastructure/pull/39),
+  [`7ee5cd2`](https://github.com/SpencerRWood/infrastructure/commit/7ee5cd2a9eb568e9b0348c9414f4e2bcb03de28e))
+
+
 ## v0.9.13 (2026-09-24)
 
 ### Bug Fixes
