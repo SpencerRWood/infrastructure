@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.9.11 (2026-09-24)
+
+### Chores
+
+- **deps**: Update quay.io/keycloak/keycloak docker tag to v26.7.4
+  ([#21](https://github.com/SpencerRWood/infrastructure/pull/21),
+  [`181ae0c`](https://github.com/SpencerRWood/infrastructure/commit/181ae0caa56d8be81f289666bee343f53e390cb9))
+
+
 ## v0.9.10 (2026-09-24)
 
 ### Bug Fixes
