@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.9.12 (2026-09-24)
+
+### Bug Fixes
+
+- **keycloak**: Restore version before upstream migration bug
+  ([#36](https://github.com/SpencerRWood/infrastructure/pull/36),
+  [`040d700`](https://github.com/SpencerRWood/infrastructure/commit/040d7005301b6903d288782753209d175ef343b3))
+
+
 ## v0.9.11 (2026-09-24)
 
 ### Chores
