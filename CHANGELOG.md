@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.9.10 (2026-09-24)
+
+### Bug Fixes
+
+- **keycloak**: Verify readiness and retain failure diagnostics
+  ([#35](https://github.com/SpencerRWood/infrastructure/pull/35),
+  [`6e7cd45`](https://github.com/SpencerRWood/infrastructure/commit/6e7cd451fb3e5662ba75464f383bd04a763d638c))
+
+
 ## v0.9.9 (2026-09-24)
 
 ### Chores
