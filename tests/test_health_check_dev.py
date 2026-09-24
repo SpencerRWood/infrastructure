@@ -59,6 +59,7 @@ class HealthCheckTests(unittest.TestCase):
                 "PATH": f"{bin_directory}:{os.environ['PATH']}",
                 "HEALTH_CHECK_CADDY_ENV_FILE": str(root / "caddy.env"),
                 "HEALTH_CHECK_ROUTE_ATTEMPTS": "3",
+                "HEALTH_CHECK_KEYCLOAK_ROUTE_ATTEMPTS": "3",
                 "HEALTH_CHECK_RETRY_INTERVAL": "0",
                 "FAKE_CURL_RESPONSES": responses,
                 "FAKE_CURL_TARGET_HOST": target_host,
