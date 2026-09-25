@@ -21,6 +21,14 @@ set -a
 test -r "{{ github_runner_secret_file }}"
 source "{{ github_runner_secret_file }}"
 set +a
+# Resolve this deployment credential only for operations that consume it.
+# Clear the legacy value first so Infisical failure cannot fall back to it.
+unset WEBSITE_PORTFOLIO_GHCR_TOKEN
+if [[ "$operation" == apply || "$operation" == check ]]; then
+  WEBSITE_PORTFOLIO_GHCR_TOKEN=$(/usr/local/sbin/resolve-ci-ghcr)
+  test -n "$WEBSITE_PORTFOLIO_GHCR_TOKEN"
+  export WEBSITE_PORTFOLIO_GHCR_TOKEN
+fi
 case "$operation" in
   apply)
     exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" {{ github_runner_ansible_extra_args }}

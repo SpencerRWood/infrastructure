@@ -218,6 +218,14 @@
     group: root
     mode: '0750'
 
+- name: Install the root-owned CI GHCR secret resolver
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../scripts/resolve-ci-ghcr.py"
+    dest: /usr/local/sbin/resolve-ci-ghcr
+    owner: root
+    group: root
+    mode: '0750'
+
 - name: Permit only the canonical deployment wrapper through sudo
   ansible.builtin.copy:
     # noqa yaml[line-length]
