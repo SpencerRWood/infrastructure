@@ -7,6 +7,7 @@
   become: false
   run_once: true
   no_log: true
+  when: infrastructure_environment != 'dev'
   tags: [openwebui]
 
 - name: Create Open WebUI directories
@@ -37,7 +38,9 @@
   register: openwebui_legacy_secret
   changed_when: false
   no_log: true
-  when: not openwebui_existing_env.stat.exists
+  when:
+    - infrastructure_environment != 'dev'
+    - not openwebui_existing_env.stat.exists
   tags: [openwebui]
 
 - name: Generate an Open WebUI signing key when the legacy runtime has none
@@ -47,6 +50,7 @@
   changed_when: true
   no_log: true
   when:
+    - infrastructure_environment != 'dev'
     - not openwebui_existing_env.stat.exists
     - openwebui_legacy_secret.stdout | default('') | length == 0
   tags: [openwebui]
@@ -56,7 +60,9 @@
     openwebui_signing_key: >-
       {{ openwebui_legacy_secret.stdout | default(openwebui_generated_secret.stdout | default(''), true) }}
   no_log: true
-  when: not openwebui_existing_env.stat.exists
+  when:
+    - infrastructure_environment != 'dev'
+    - not openwebui_existing_env.stat.exists
   tags: [openwebui]
 
 - name: Deploy protected Open WebUI runtime environment
@@ -72,7 +78,28 @@
     group: root
     mode: '0600'
   no_log: true
-  when: not openwebui_existing_env.stat.exists
+  when:
+    - infrastructure_environment != 'dev'
+    - not openwebui_existing_env.stat.exists
+  tags: [openwebui]
+
+- name: Resolve Open WebUI Infisical runtime before Compose
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/resolve-infrastructure-infisical-env
+      - --environment
+      - dev
+      - --path
+      - /openwebui
+      - --output
+      - /srv/infrastructure/secrets/runtime/openwebui.env
+      - --require
+      - DATABASE_URL
+      - --require
+      - WEBUI_SECRET_KEY
+  changed_when: false
+  no_log: true
+  when: infrastructure_environment == 'dev' and not ansible_check_mode
   tags: [openwebui]
 
 - name: Deploy Open WebUI Compose environment
@@ -93,7 +120,10 @@
 
 - name: Deploy canonical Open WebUI Compose payload
   ansible.builtin.copy:
-    src: "{{ role_path }}/../../../compose/openwebui/compose.yml"
+    src: >-
+      {{ role_path }}/../../../compose/openwebui/{{
+         'compose.infisical.yml' if infrastructure_environment == 'dev'
+         else 'compose.yml' }}
     dest: "{{ openwebui_compose_directory }}/compose.yml"
     owner: root
     group: root

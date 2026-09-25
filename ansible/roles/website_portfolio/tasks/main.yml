@@ -9,7 +9,11 @@
       - website_portfolio_image_ref is search('@sha256:[0-9a-f]{64}$')
       - lookup('ansible.builtin.env', item) | length > 0
     fail_msg: The pinned image and protected Website Portfolio inputs are required.
-  loop: "{{ website_portfolio_required_environment }}"
+  loop: >-
+    {{ website_portfolio_required_environment |
+       reject('equalto', 'WEBSITE_PORTFOLIO_DATABASE_URL') | list
+       if infrastructure_environment == 'dev'
+       else website_portfolio_required_environment }}
   delegate_to: localhost
   become: false
   run_once: true
@@ -63,6 +67,24 @@
     group: root
     mode: '0600'
   no_log: true
+  when: infrastructure_environment != 'dev'
+  tags: [website_portfolio]
+
+- name: Resolve Website Portfolio Infisical runtime before Compose
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/resolve-infrastructure-infisical-env
+      - --environment
+      - dev
+      - --path
+      - /portfolio-website
+      - --output
+      - /srv/infrastructure/secrets/runtime/portfolio-website.env
+      - --require
+      - DATABASE_URL
+  changed_when: false
+  no_log: true
+  when: infrastructure_environment == 'dev' and not ansible_check_mode
   tags: [website_portfolio]
 
 - name: Deploy protected Website Portfolio migration environment
@@ -95,7 +117,10 @@
 
 - name: Deploy canonical Website Portfolio Compose payload
   ansible.builtin.copy:
-    src: "{{ role_path }}/../../../compose/website-portfolio/compose.yml"
+    src: >-
+      {{ role_path }}/../../../compose/website-portfolio/{{
+         'compose.infisical.yml' if infrastructure_environment == 'dev'
+         else 'compose.yml' }}
     dest: "{{ website_portfolio_compose_directory }}/compose.yml"
     owner: root
     group: root

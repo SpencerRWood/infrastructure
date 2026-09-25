@@ -7,6 +7,7 @@
   become: false
   run_once: true
   no_log: true
+  when: infrastructure_environment != 'dev'
   tags: [keycloak]
 
 - name: Create Keycloak directories
@@ -39,6 +40,28 @@
     group: root
     mode: '0600'
   no_log: true
+  when: infrastructure_environment != 'dev'
+  tags: [keycloak]
+
+- name: Resolve Keycloak Infisical runtime before Compose
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/resolve-infrastructure-infisical-env
+      - --environment
+      - dev
+      - --path
+      - /keycloak
+      - --output
+      - /srv/infrastructure/secrets/runtime/keycloak.env
+      - --require
+      - KC_DB_PASSWORD
+      - --require
+      - KC_DB_URL
+      - --require
+      - KEYCLOAK_ADMIN_PASSWORD
+  changed_when: false
+  no_log: true
+  when: infrastructure_environment == 'dev' and not ansible_check_mode
   tags: [keycloak]
 
 - name: Deploy Keycloak Compose environment
@@ -60,7 +83,10 @@
 
 - name: Deploy Keycloak Compose payload and environment
   ansible.builtin.copy:
-    src: "{{ role_path }}/../../../compose/keycloak/compose.yml"
+    src: >-
+      {{ role_path }}/../../../compose/keycloak/{{
+         'compose.infisical.yml' if infrastructure_environment == 'dev'
+         else 'compose.yml' }}
     dest: "{{ keycloak_compose_directory }}/compose.yml"
     owner: root
     group: root
