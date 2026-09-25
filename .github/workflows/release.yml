@@ -20,3 +20,4 @@ jobs:
     uses: ./.github/workflows/deploy-target.yml
     with:
       ref: ${{ needs.release.outputs.release_tag }}
+      skip_superseded: true

@@ -8,6 +8,11 @@ name: Deploy target configuration
         description: Immutable repository release tag.
         required: true
         type: string
+      skip_superseded:
+        description: Skip an automated deployment when a newer main commit exists.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,6 +24,7 @@ jobs:
     with:
       repository: ${{ github.repository }}
       ref: ${{ inputs.ref }}
+      skip_superseded: ${{ inputs.skip_superseded }}
       inventory_path: ansible/inventory/dev
       playbook_path: ansible/playbooks/dev.yml
       ansible_config_path: ansible/ansible.cfg
