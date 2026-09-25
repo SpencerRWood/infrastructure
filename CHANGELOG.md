@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.9.15 (2026-09-25)
+
+### Chores
+
+- **deps**: Update redis:8.10.2-alpine docker digest to 3811787
+  ([#40](https://github.com/SpencerRWood/infrastructure/pull/40),
+  [`90913c2`](https://github.com/SpencerRWood/infrastructure/commit/90913c2963505c48c42ddcb4157a99dfd7f5c7a5))
+
+
 ## v0.9.14 (2026-09-24)
 
 ### Bug Fixes
