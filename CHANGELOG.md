@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.9.16 (2026-09-25)
+
+### Bug Fixes
+
+- **ci**: Skip superseded infrastructure deployment
+  ([`8e9b8eb`](https://github.com/SpencerRWood/infrastructure/commit/8e9b8eb6bafbcf205b044d45efdfea3110ce69c5))
+
+
 ## v0.9.15 (2026-09-25)
 
 ### Chores
