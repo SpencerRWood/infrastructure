@@ -143,9 +143,15 @@ only that runner's workspaces and `apply`, `check`, or `health` operations.
 Automatic release deployment is dev-only. `prod.yml` is never called automatically
 and production remains an explicit/manual operation.
 
-Renovate follows this same release path. Docker patch and vulnerability
-updates are configured for auto-merge. Renovate itself waits for passing PR
-checks before merging because consumer `main` has no required GitHub check.
-Minor and major updates remain manual. PostgreSQL compatibility-major changes
-remain manual. Routine
-Renovate commits are `fix(deps)`, producing semantic-release patch releases.
+Renovate follows this same release path. Docker digest, pinDigest, patch, and
+vulnerability updates are configured for auto-merge. Renovate itself waits for
+passing PR checks before merging because consumer `main` has no required GitHub
+check. Minor and major updates remain manual unless covered by the security
+policy. PostgreSQL compatibility-major changes remain manual. Renovate commits
+are `chore(deps)`, producing semantic-release patch releases.
+
+The hourly `Alert on stale Renovate automerge` workflow opens one issue when an
+up-to-date, mergeable Renovate PR with automerge enabled has passed both
+infrastructure validation results for over six hours. It closes the issue when
+the PR closes. Inspect the linked Mend job log to identify the reason for the
+delay; the alert does not merge or rerun Renovate.
