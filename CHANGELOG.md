@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.9.17 (2026-09-26)
+
+### Chores
+
+- **deps**: Update portfolio-website to v0.9.0
+  ([`4efe77c`](https://github.com/SpencerRWood/infrastructure/commit/4efe77c7e43fe69613c67bb1186ced151b5743c7))
+
+
 ## v0.9.16 (2026-09-25)
 
 ### Bug Fixes
