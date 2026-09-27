@@ -217,6 +217,7 @@
     owner: root
     group: root
     mode: '0750'
+  tags: [phase6_ci]
 
 - name: Install the root-owned CI GHCR secret resolver
   ansible.builtin.copy:
@@ -225,6 +226,7 @@
     owner: root
     group: root
     mode: '0750'
+  tags: [phase6_ci]
 
 - name: Permit only the canonical deployment wrapper through sudo
   ansible.builtin.copy:
