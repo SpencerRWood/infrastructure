@@ -34,6 +34,7 @@ jobs:
       runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure"]'
       secrets_file: /home/github-runner-infrastructure/.secrets/dev.env
       validation_command: >-
+        uv sync --group dev &&
         sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
         "$GITHUB_WORKSPACE" validate
       check_command: >-
