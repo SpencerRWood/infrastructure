@@ -78,6 +78,9 @@ the existing gRPC user-code server). Its webserver alone joins
 available for rollback until the attended database restore and cutover are
 completed.
 
+The dev-only [Codex usage-window schedule](docs/codex-usage-schedule.md) runs
+from an infrastructure-owned Mac code location connected to this Dagster daemon.
+
 ## Remaining dev-service migration
 
 Open WebUI, Keycloak, and Infisical now run as infrastructure-owned dev

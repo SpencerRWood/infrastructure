@@ -6,11 +6,12 @@ repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repository_root"
 
 echo 'Checking shell syntax...'
-bash -n scripts/validate.sh scripts/health-check-dev.sh \
+bash -n scripts/validate.sh scripts/install-codex-usage-dagster \
+  scripts/install-codex-usage-dagster-agent scripts/health-check-dev.sh \
   scripts/health-check-dev-remote.sh postgres/scripts/provision-database.sh
 
 echo 'Checking deployment readiness behavior...'
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests
+PYTHONDONTWRITEBYTECODE=1 uv run python -m unittest discover -s tests
 
 echo 'Checking for tracked credential files...'
 tracked_credentials="$(git ls-files | rg '(^|/)(\.env($|\.)|id_rsa$|.*\.(pem|key)$|credentials(\.|$))' | rg -v '(^|/)\.env\.example$' || true)"
