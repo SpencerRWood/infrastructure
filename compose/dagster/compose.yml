@@ -30,10 +30,39 @@ services:
       timeout: 3s
       retries: 10
       start_period: 30s
+  dagster-codex-usage:
+    build: *build
+    image: ${DAGSTER_IMAGE:?required}
+    restart: unless-stopped
+    user: '1000:1000'
+    env_file: ["${DAGSTER_RUNTIME_ENV_FILE:?required}"]
+    environment:
+      HOME: /home/spencerwood
+      PYTHONPATH: /opt/dagster/app
+      CODEX_USAGE_HOME: /home/spencerwood
+      CODEX_USAGE_STATE_DIR: /opt/dagster/codex-usage-state
+      CODEX_USAGE_EXECUTABLE: /home/spencerwood/.codex/packages/standalone/current/bin/codex
+    command: [dagster, code-server, start, -h, 0.0.0.0, -p, '4002', -f, /opt/dagster/app/codex_definitions.py]
+    expose: ['4002']
+    volumes:
+      - "${DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
+      - "${DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
+      - "${DAGSTER_CODEX_STATE_PATH:?required}:/opt/dagster/codex-usage-state"
+      - "${DAGSTER_CODEX_HOME:?required}/.codex:/home/spencerwood/.codex"
+      - "${DAGSTER_CODEX_HOME:?required}/.codex-secondary:/home/spencerwood/.codex-secondary"
+    networks: [postgres, proxy]
+    healthcheck:
+      test: [CMD, dagster, api, grpc-health-check, -p, '4002']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
   dagster-webserver:
     image: ${DAGSTER_IMAGE:?required}
     restart: unless-stopped
-    depends_on: {dagster-user-code: {condition: service_healthy}}
+    depends_on:
+      dagster-user-code: {condition: service_healthy}
+      dagster-codex-usage: {condition: service_healthy}
     env_file: ["${DAGSTER_RUNTIME_ENV_FILE:?required}"]
     command: [dagster-webserver, -h, 0.0.0.0, -p, '3000', -w, /opt/dagster/dagster_home/workspace.yaml]
     expose: ['3000']
@@ -54,13 +83,21 @@ services:
   dagster-daemon:
     image: ${DAGSTER_IMAGE:?required}
     restart: unless-stopped
-    depends_on: {dagster-user-code: {condition: service_healthy}}
+    depends_on:
+      dagster-user-code: {condition: service_healthy}
+      dagster-codex-usage: {condition: service_healthy}
     env_file: ["${DAGSTER_RUNTIME_ENV_FILE:?required}"]
     command: [dagster-daemon, run]
     volumes:
       - "${DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
       - "${DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
-    networks: [postgres]
+    networks: [postgres, proxy]
+    healthcheck:
+      test: [CMD, dagster, api, grpc-health-check, -h, dagster-codex-usage, -p, '4002']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 networks:
   postgres: {external: true, name: "${DAGSTER_POSTGRES_NETWORK:?required}"}
   proxy: {external: true, name: "${DAGSTER_PROXY_NETWORK:?required}"}

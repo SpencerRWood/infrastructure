@@ -51,5 +51,7 @@ and rollback plan. Dev URLs explicitly include alternate ports, for example
 
 Dagster is selected only in `dev`; production remains disabled. Its protected
 runtime environment reads `DAGSTER_POSTGRES_PASSWORD` and
-`MACBOOK_DAGSTER_HOST` from the untracked dev environment. Its route moves only
+`MACBOOK_DAGSTER_HOST` from the untracked dev environment. The MacBook host is
+retained for the independent synthetic website code location on port 4000;
+the Codex usage location runs on Beelink. Its route moves only
 with the runtime and does not alter homelab Caddy.

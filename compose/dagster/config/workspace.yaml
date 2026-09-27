@@ -4,3 +4,7 @@ load_from:
       host: {env: MACBOOK_DAGSTER_HOST}
       port: 4000
       location_name: synthetic_website_poc
+  - grpc_server:
+      host: dagster-codex-usage
+      port: 4002
+      location_name: infrastructure_codex_usage

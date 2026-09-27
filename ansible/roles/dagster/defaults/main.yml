@@ -4,6 +4,8 @@ dagster_config_directory: "{{ dagster_compose_directory }}/config"
 dagster_app_directory: "{{ dagster_compose_directory }}/app"
 dagster_state_directory: "{{ host_infrastructure_state_root }}/dagster"
 dagster_local_directory: "{{ dagster_state_directory }}/local"
+dagster_codex_state_directory: "{{ dagster_state_directory }}/codex-usage"
+dagster_codex_host_home: /home/spencerwood
 dagster_restore_marker: "{{ dagster_state_directory }}/database-restored"
 dagster_env_file: "{{ host_infrastructure_secrets_root }}/dagster.env"
 dagster_compose_env_file: "{{ host_infrastructure_secrets_root }}/dagster-compose.env"

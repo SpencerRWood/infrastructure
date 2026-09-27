@@ -70,13 +70,16 @@ receive one Caddy route fragment only when they migrate. Development URLs use
 
 ## Dagster dev migration
 
-Dagster's canonical dev runtime is `compose/dagster/` (webserver, daemon, and
-the existing gRPC user-code server). Its webserver alone joins
+Dagster's canonical dev runtime is `compose/dagster/` (webserver, daemon, the
+existing gRPC user-code server, and the Codex usage code server). Its webserver alone joins
 `infrastructure-dev-proxy` and is reached at
 `http://dev-dagster.woodhost.cloud:8080`; the other services use only
 `infrastructure-dev-postgres`. The legacy runtime and source database remain
 available for rollback until the attended database restore and cutover are
 completed.
+
+The dev-only [Codex usage-window schedule](docs/codex-usage-schedule.md) runs
+from an infrastructure-owned Beelink code location connected to this Dagster daemon.
 
 ## Remaining dev-service migration
 
