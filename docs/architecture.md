@@ -61,12 +61,14 @@ deployment by itself.
 ## Dagster ownership
 
 Dagster is a dev-only infrastructure component. `compose/dagster/` owns its
-webserver, daemon, gRPC user-code server, workspace, and storage configuration.
+webserver, daemon, gRPC user-code servers, workspace, and storage configuration.
 The webserver alone joins `infrastructure-dev-proxy`; all services join the
 isolated infrastructure Postgres network. Its Caddy route is an infrastructure
 fragment and is independent of homelab Caddy. The external
 `synthetic_website_poc` gRPC location remains configuration-only and is not
-migrated in this release. The existing legacy database/runtime and a protected
+migrated in this release. The Codex usage location runs in a Beelink container
+with local profile mounts, an outbound proxy network route, and persistent slot
+claims. The existing legacy database/runtime and a protected
 custom-format backup are retained for rollback; do not run both daemons. The
 attended cutover restored the final backup to infrastructure-dev Postgres,
 stopped the legacy project, and verified 9 historical runs and 179 event logs

@@ -1,8 +1,9 @@
-"""Mac-hosted Codex activity location for the infrastructure Dagster instance."""
+"""Beelink-hosted Codex activity location for the infrastructure Dagster instance."""
 
 from __future__ import annotations
 
 import time
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -16,9 +17,9 @@ CRON_SCHEDULE = ["0 6 * * *", "5 11 * * *", "10 16 * * *"]
 
 
 def run_targets(scheduled_at: str, log) -> None:
-    home = Path.home()
-    state_dir = home / ".local/state/wood/infrastructure/codex-usage"
-    executable = home / ".local/bin/codex"
+    home = Path(os.environ.get("CODEX_USAGE_HOME", str(Path.home())))
+    state_dir = Path(os.environ.get("CODEX_USAGE_STATE_DIR", str(home / ".local/state/wood/infrastructure/codex-usage")))
+    executable = Path(os.environ.get("CODEX_USAGE_EXECUTABLE", str(home / ".local/bin/codex")))
     failed = []
     for target in TARGETS:
         started = time.monotonic()

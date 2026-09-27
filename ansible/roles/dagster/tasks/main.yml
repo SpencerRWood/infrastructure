@@ -23,7 +23,34 @@
     - {path: "{{ dagster_config_directory }}", mode: '0755'}
     - {path: "{{ dagster_app_directory }}", mode: '0755'}
     - {path: "{{ dagster_state_directory }}", mode: '0700'}
-    - {path: "{{ dagster_local_directory }}", mode: '0700'}
+    - {path: "{{ dagster_local_directory }}", mode: '0770'}
+  tags: [dagster]
+
+- name: Permit the Codex code server to write Dagster local artifacts
+  ansible.builtin.file:
+    path: "{{ dagster_local_directory }}"
+    state: directory
+    owner: spencerwood
+    group: spencerwood
+    mode: '0770'
+  tags: [dagster]
+
+- name: Permit the Codex code server to access existing Dagster compute logs
+  ansible.builtin.file:
+    path: "{{ dagster_local_directory }}"
+    state: directory
+    owner: spencerwood
+    group: spencerwood
+    recurse: true
+  tags: [dagster]
+
+- name: Create persistent Codex slot claim directory
+  ansible.builtin.file:
+    path: "{{ dagster_codex_state_directory }}"
+    state: directory
+    owner: spencerwood
+    group: spencerwood
+    mode: '0700'
   tags: [dagster]
 
 - name: Deploy protected Dagster runtime environment
@@ -72,6 +99,8 @@
       DAGSTER_RUNTIME_ENV_FILE={{ dagster_env_file }}
       DAGSTER_CONFIG_PATH={{ dagster_config_directory }}
       DAGSTER_LOCAL_PATH={{ dagster_local_directory }}
+      DAGSTER_CODEX_HOME={{ dagster_codex_host_home }}
+      DAGSTER_CODEX_STATE_PATH={{ dagster_codex_state_directory }}
       DAGSTER_POSTGRES_NETWORK={{ dagster_postgres_network }}
       DAGSTER_PROXY_NETWORK={{ dagster_proxy_network }}
     dest: "{{ dagster_compose_env_file }}"

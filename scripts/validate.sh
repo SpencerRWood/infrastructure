@@ -6,8 +6,7 @@ repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repository_root"
 
 echo 'Checking shell syntax...'
-bash -n scripts/validate.sh scripts/install-codex-usage-dagster \
-  scripts/install-codex-usage-dagster-agent scripts/health-check-dev.sh \
+bash -n scripts/validate.sh scripts/health-check-dev.sh \
   scripts/health-check-dev-remote.sh postgres/scripts/provision-database.sh
 
 echo 'Checking deployment readiness behavior...'

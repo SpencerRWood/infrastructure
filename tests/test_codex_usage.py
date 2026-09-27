@@ -1,4 +1,4 @@
-"""Focused safety and scheduling checks for the Mac Codex code location."""
+"""Focused safety and scheduling checks for the Beelink Codex code location."""
 
 from __future__ import annotations
 

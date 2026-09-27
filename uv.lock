@@ -757,7 +757,7 @@ wheels = [
 
 [[package]]
 name = "infrastructure"
-version = "0.9.15"
+version = "0.11.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]

@@ -83,7 +83,7 @@ def ping_target(
             completed = subprocess.run(
                 [
                     str(executable), "exec", "--ephemeral", "--sandbox", "read-only",
-                    "--skip-git-repo-check", "-C", "/private/tmp", PROMPT,
+                    "--skip-git-repo-check", "-C", "/tmp", PROMPT,
                 ],
                 env=environment,
                 stdout=subprocess.DEVNULL,
