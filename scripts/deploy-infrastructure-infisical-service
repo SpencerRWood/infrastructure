@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""Resolve and reconcile one declared Infrastructure Dev service group."""
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+
+CONFIG = pathlib.Path('/etc/infrastructure/infisical-runtime-services.json')
+
+
+def run():
+    if os.geteuid() != 0 or len(sys.argv) not in (2, 3) or (
+        len(sys.argv) == 3 and sys.argv[2] != '--recreate'
+    ):
+        raise ValueError('invalid invocation')
+    name = sys.argv[1]
+    if not re.fullmatch(r'[a-z][a-z0-9-]*', name):
+        raise ValueError('invalid service')
+    item = json.loads(CONFIG.read_text())[name]
+    args = ['/usr/local/sbin/resolve-infrastructure-infisical-env',
+            '--environment', item['environment'], '--path', item['path'],
+            '--output', item['output']]
+    for key in item['required_keys']:
+        args.extend(['--require', key])
+    subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    base = ['docker', 'compose', '--env-file', item['compose_env_file'],
+            '-f', item['compose_file']]
+    subprocess.run(base + ['config', '--quiet'], stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL, check=True)
+    up = base + ['up', '-d', '--no-deps']
+    if len(sys.argv) == 3:
+        up.append('--force-recreate')
+    subprocess.run(up + item['compose_services'], stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL, check=True)
+    print(name + ' reconciled')
+
+
+if __name__ == '__main__':
+    try:
+        run()
+    except Exception:
+        print('Infisical service reconciliation failed', file=sys.stderr)
+        sys.exit(1)

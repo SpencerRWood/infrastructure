@@ -1,0 +1,151 @@
+---
+- name: Install and reconcile selected Infrastructure Dev Infisical services
+  hosts: infrastructure_hosts
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir }}/../../environments/dev.yml"
+  vars:
+    source_root: "{{ playbook_dir }}/../.."
+    infrastructure_infisical_selected_services: []
+  tasks:
+    - name: Verify protected Infrastructure Dev deployer bootstrap
+      ansible.builtin.stat:
+        path: /srv/infrastructure/secrets/bootstrap/infisical-dev.json
+      register: dev_deployer_bootstrap
+      no_log: true
+    - name: Require protected Infrastructure Dev deployer bootstrap
+      ansible.builtin.assert:
+        that:
+          - dev_deployer_bootstrap.stat.exists
+          - dev_deployer_bootstrap.stat.isreg
+          - dev_deployer_bootstrap.stat.pw_name == 'root'
+          - dev_deployer_bootstrap.stat.gr_name == 'root'
+          - dev_deployer_bootstrap.stat.mode == '0600'
+      no_log: true
+    - name: Create infrastructure resolver configuration directory
+      ansible.builtin.file:
+        path: /etc/infrastructure
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Install infrastructure runtime service metadata
+      ansible.builtin.copy:
+        content: "{{ infrastructure_infisical_runtime_services | to_nice_json }}\n"
+        dest: /etc/infrastructure/infisical-runtime-services.json
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Install generic infrastructure resolver and reconciler
+      ansible.builtin.copy:
+        src: "{{ source_root }}/scripts/{{ item.src }}"
+        dest: "/usr/local/sbin/{{ item.dest }}"
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - {src: resolve-infisical-env.py, dest: resolve-infrastructure-infisical-env}
+        - {src: deploy-infrastructure-infisical-service, dest: deploy-infrastructure-infisical-service}
+        - {src: rollback-infrastructure-infisical-service, dest: rollback-infrastructure-infisical-service}
+    - name: Install templated infrastructure boot unit
+      ansible.builtin.copy:
+        src: "{{ source_root }}/systemd/infrastructure-infisical@.service"
+        dest: /etc/systemd/system/infrastructure-infisical@.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload infrastructure Infisical systemd
+    - name: Reload units before enabling selected services
+      ansible.builtin.meta: flush_handlers
+    - name: Validate selected services
+      ansible.builtin.assert:
+        that: item in infrastructure_infisical_runtime_services
+      loop: "{{ infrastructure_infisical_selected_services }}"
+    - name: Verify protected static and legacy sources
+      ansible.builtin.stat:
+        path: "{{ infrastructure_infisical_runtime_services[item.0][item.1] }}"
+      loop: >-
+        {{ infrastructure_infisical_selected_services |
+           product(['static_env_file', 'legacy_env_file']) | list }}
+      register: source_checks
+      no_log: true
+    - name: Require protected static and legacy sources
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg
+          - item.stat.pw_name == 'root'
+          - item.stat.gr_name == 'root'
+          - item.stat.mode == '0600'
+      loop: "{{ source_checks.results }}"
+      no_log: true
+    - name: Inspect retained previous Compose definitions
+      ansible.builtin.stat:
+        path: >-
+          {{ infrastructure_infisical_runtime_services[item].compose_file |
+             dirname }}/compose.pre-infisical.yml
+      loop: "{{ infrastructure_infisical_selected_services }}"
+      register: rollback_compose_files
+    - name: Retain previous Compose definitions for rollback
+      ansible.builtin.copy:
+        src: "{{ infrastructure_infisical_runtime_services[item.item].compose_file }}"
+        dest: >-
+          {{ infrastructure_infisical_runtime_services[item.item].compose_file |
+             dirname }}/compose.pre-infisical.yml
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      loop: "{{ rollback_compose_files.results }}"
+      when: not item.stat.exists
+    - name: Install selected Infisical Compose definitions
+      ansible.builtin.copy:
+        src: "{{ source_root }}/{{ infrastructure_infisical_runtime_services[item].source }}"
+        dest: "{{ infrastructure_infisical_runtime_services[item].compose_file }}"
+        owner: root
+        group: root
+        mode: '0644'
+      loop: "{{ infrastructure_infisical_selected_services }}"
+    - name: Resolve selected runtime files before Compose validation
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/local/sbin/resolve-infrastructure-infisical-env',
+              '--environment',
+              infrastructure_infisical_runtime_services[item].environment,
+              '--path', infrastructure_infisical_runtime_services[item].path,
+              '--output', infrastructure_infisical_runtime_services[item].output] +
+              (infrastructure_infisical_runtime_services[item].required_keys |
+               map('regex_replace', '^', '--require=') | list) }}
+      loop: "{{ infrastructure_infisical_selected_services }}"
+      no_log: true
+      changed_when: false
+    - name: Validate selected Compose definitions
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - --env-file
+          - "{{ infrastructure_infisical_runtime_services[item].compose_env_file }}"
+          - -f
+          - "{{ infrastructure_infisical_runtime_services[item].compose_file }}"
+          - config
+          - --quiet
+      loop: "{{ infrastructure_infisical_selected_services }}"
+      no_log: true
+      changed_when: false
+    - name: Resolve and reconcile selected services
+      ansible.builtin.command:
+        cmd: "/usr/local/sbin/deploy-infrastructure-infisical-service {{ item }} --recreate"
+      loop: "{{ infrastructure_infisical_selected_services }}"
+      no_log: true
+      changed_when: true
+    - name: Enable selected infrastructure boot units
+      ansible.builtin.systemd_service:
+        name: "infrastructure-infisical@{{ item }}.service"
+        enabled: true
+      loop: "{{ infrastructure_infisical_selected_services }}"
+  handlers:
+    - name: Reload infrastructure Infisical systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true

@@ -8,6 +8,7 @@
   become: false
   run_once: true
   no_log: true
+  when: infrastructure_environment != 'dev'
   tags: [dagster]
 
 - name: Create Dagster component directories
@@ -40,6 +41,24 @@
     group: root
     mode: '0600'
   no_log: true
+  when: infrastructure_environment != 'dev'
+  tags: [dagster]
+
+- name: Resolve Dagster Infisical runtime before Compose
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/resolve-infrastructure-infisical-env
+      - --environment
+      - dev
+      - --path
+      - /dagster
+      - --output
+      - /srv/infrastructure/secrets/runtime/dagster.env
+      - --require
+      - DAGSTER_POSTGRES_PASSWORD
+  changed_when: false
+  no_log: true
+  when: infrastructure_environment == 'dev' and not ansible_check_mode
   tags: [dagster]
 
 - name: Deploy Dagster Compose environment
@@ -64,7 +83,10 @@
 
 - name: Deploy canonical Dagster payload
   ansible.builtin.copy:
-    src: "{{ role_path }}/../../../compose/dagster/{{ item }}"
+    src: >-
+      {{ role_path }}/../../../compose/dagster/{{
+         'compose.infisical.yml' if item == 'compose.yml' and infrastructure_environment == 'dev'
+         else item }}
     dest: "{{ dagster_compose_directory }}/{{ item }}"
     owner: root
     group: root
@@ -124,6 +146,15 @@
   when:
     - not ansible_check_mode
     - dagster_role.stdout | trim != '1'
+    - infrastructure_environment != 'dev'
+  tags: [dagster]
+
+- name: Require existing Dagster role in Infisical-managed dev
+  ansible.builtin.assert:
+    that: dagster_role.stdout | trim == '1'
+  when:
+    - infrastructure_environment == 'dev'
+    - not ansible_check_mode
   tags: [dagster]
 
 - name: Check for the target Dagster database

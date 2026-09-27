@@ -15,6 +15,7 @@ id_rsa*
 *.retry
 dev.env
 prod.env
+bootstrap/
 
 # Terraform state and local provider data
 .terraform/
@@ -46,3 +47,5 @@ uv.lock.bak
 .pytest_cache/
 __pycache__/
 *.py[cod]
+
+AGENTS.md

@@ -23,3 +23,51 @@ services:
   infisical: true
   website_portfolio: true
   rudderstack: false
+
+# Root-owned deployment metadata. Application containers never receive the
+# machine-identity credential; only the resolver reads it.
+infrastructure_infisical_runtime_services:
+  dagster:
+    environment: dev
+    path: /dagster
+    output: /srv/infrastructure/secrets/runtime/dagster.env
+    required_keys: [DAGSTER_POSTGRES_PASSWORD]
+    compose_file: /srv/infrastructure/compose/dagster/compose.yml
+    compose_env_file: /srv/infrastructure/secrets/dev/dagster-compose.env
+    legacy_env_file: /srv/infrastructure/secrets/dev/dagster.env
+    static_env_file: /srv/infrastructure/secrets/static/dagster.env
+    compose_services: [dagster-user-code, dagster-webserver, dagster-daemon]
+    source: compose/dagster/compose.infisical.yml
+  keycloak:
+    environment: dev
+    path: /keycloak
+    output: /srv/infrastructure/secrets/runtime/keycloak.env
+    required_keys: [KC_DB_PASSWORD, KC_DB_URL, KEYCLOAK_ADMIN_PASSWORD]
+    compose_file: /srv/infrastructure/compose/keycloak/compose.yml
+    compose_env_file: /srv/infrastructure/secrets/dev/keycloak-compose.env
+    legacy_env_file: /srv/infrastructure/secrets/dev/keycloak.env
+    static_env_file: /srv/infrastructure/secrets/static/keycloak.env
+    compose_services: [keycloak]
+    source: compose/keycloak/compose.infisical.yml
+  openwebui:
+    environment: dev
+    path: /openwebui
+    output: /srv/infrastructure/secrets/runtime/openwebui.env
+    required_keys: [DATABASE_URL, WEBUI_SECRET_KEY]
+    compose_file: /srv/infrastructure/compose/openwebui/compose.yml
+    compose_env_file: /srv/infrastructure/secrets/dev/openwebui-compose.env
+    legacy_env_file: /srv/infrastructure/secrets/dev/openwebui.env
+    static_env_file: /srv/infrastructure/secrets/static/openwebui.env
+    compose_services: [openwebui]
+    source: compose/openwebui/compose.infisical.yml
+  portfolio-website:
+    environment: dev
+    path: /portfolio-website
+    output: /srv/infrastructure/secrets/runtime/portfolio-website.env
+    required_keys: [DATABASE_URL]
+    compose_file: /srv/infrastructure/compose/website-portfolio/compose.yml
+    compose_env_file: /srv/infrastructure/secrets/dev/website-portfolio-compose.env
+    legacy_env_file: /srv/infrastructure/secrets/dev/website-portfolio.env
+    static_env_file: /srv/infrastructure/secrets/static/portfolio-website.env
+    compose_services: [website-portfolio]
+    source: compose/website-portfolio/compose.infisical.yml

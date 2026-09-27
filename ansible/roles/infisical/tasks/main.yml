@@ -43,6 +43,15 @@
     mode: '0700'
   tags: [infisical]
 
+- name: Create protected Infisical bootstrap directory
+  ansible.builtin.file:
+    path: "{{ infisical_bootstrap_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  tags: [infisical]
+
 - name: Deploy protected Infisical runtime environment
   ansible.builtin.copy:
     content: |-
