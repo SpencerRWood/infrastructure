@@ -10,7 +10,14 @@ bash -n scripts/validate.sh scripts/health-check-dev.sh \
   scripts/health-check-dev-remote.sh postgres/scripts/provision-database.sh
 
 echo 'Checking deployment readiness behavior...'
-PYTHONDONTWRITEBYTECODE=1 uv run python -m unittest discover -s tests
+if command -v uv >/dev/null 2>&1; then
+  PYTHONDONTWRITEBYTECODE=1 uv run python -m unittest discover -s tests
+elif [[ -x .venv/bin/python ]]; then
+  PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest discover -s tests
+else
+  echo 'Validation requires uv or a synced .venv/bin/python.' >&2
+  exit 1
+fi
 
 echo 'Checking for tracked credential files...'
 tracked_credentials="$(git ls-files | rg '(^|/)(\.env($|\.)|id_rsa$|.*\.(pem|key)$|credentials(\.|$))' | rg -v '(^|/)\.env\.example$' || true)"
