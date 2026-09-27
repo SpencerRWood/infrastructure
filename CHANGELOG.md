@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.10.0 (2026-09-27)
+
+### Features
+
+- **infisical**: Establish external bootstrap path
+  ([`58f3431`](https://github.com/SpencerRWood/infrastructure/commit/58f343171cd0d4771f77f7dea3e75d27eff852ac))
+
+- **secrets**: Migrate dev runtime services to Infisical
+  ([`0e3fb93`](https://github.com/SpencerRWood/infrastructure/commit/0e3fb93c0d6fd2f51bf7de589545375133a6fd18))
+
+
 ## v0.9.17 (2026-09-26)
 
 ### Chores
