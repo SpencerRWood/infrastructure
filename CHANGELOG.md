@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.11.0 (2026-09-27)
+
+### Features
+
+- **ci**: Resolve GHCR deploy token from isolated Infisical identity
+  ([`f8404b1`](https://github.com/SpencerRWood/infrastructure/commit/f8404b1b2346ae30796332289c61d3e774892740))
+
+
 ## v0.10.0 (2026-09-27)
 
 ### Features
