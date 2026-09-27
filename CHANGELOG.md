@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.12.0 (2026-09-27)
+
+### Bug Fixes
+
+- **dagster**: Run Codex usage window on Beelink
+  ([`8110fc5`](https://github.com/SpencerRWood/infrastructure/commit/8110fc52ac6707fc6a7b66e54438abc4a5a203bc))
+
+### Features
+
+- **dagster**: Schedule Codex usage-window pings
+  ([`70f4e2f`](https://github.com/SpencerRWood/infrastructure/commit/70f4e2f49cd379f05c5c67580e9d1255b7b5db8c))
+
+
 ## v0.11.0 (2026-09-27)
 
 ### Features
