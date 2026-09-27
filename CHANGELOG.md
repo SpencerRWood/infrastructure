@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.12.1 (2026-09-27)
+
+### Bug Fixes
+
+- **ci**: Sync runner validation environment before privileged check
+  ([`7c168a4`](https://github.com/SpencerRWood/infrastructure/commit/7c168a472e87851b5a96f120060632014cfa6801))
+
+
 ## v0.12.0 (2026-09-27)
 
 ### Bug Fixes
