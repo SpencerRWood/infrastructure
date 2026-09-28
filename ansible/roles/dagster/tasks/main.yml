@@ -11,6 +11,16 @@
   when: infrastructure_environment != 'dev'
   tags: [dagster]
 
+- name: Require a pinned OpenProject Reports image in dev
+  ansible.builtin.assert:
+    that:
+      - >-
+        openproject_reports_image_ref is match(
+        '^ghcr[.]io/spencerrwood/openproject-reports:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
+        )
+  when: infrastructure_environment == 'dev'
+  tags: [dagster]
+
 - name: Create Dagster component directories
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -83,6 +93,14 @@
       - /srv/infrastructure/secrets/runtime/dagster.env
       - --require
       - DAGSTER_POSTGRES_PASSWORD
+      - --require
+      - OPENPROJECT_BASE_URL
+      - --require
+      - OPENPROJECT_API_TOKEN
+      - --require
+      - GOOGLE_DRIVE_CREDENTIALS_JSON
+      - --require
+      - GOOGLE_DRIVE_FOLDER_ID
   changed_when: false
   no_log: true
   when: infrastructure_environment == 'dev' and not ansible_check_mode
@@ -93,6 +111,7 @@
     content: |-
       DAGSTER_PROJECT_NAME={{ dagster_project_name }}
       DAGSTER_IMAGE={{ dagster_image }}
+      OPENPROJECT_REPORTS_IMAGE_REF={{ openproject_reports_image_ref }}
       DAGSTER_VERSION={{ dagster_version }}
       DAGSTER_LIB_VERSION={{ dagster_lib_version }}
       PYTHON_VERSION={{ dagster_python_version }}

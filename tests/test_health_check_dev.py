@@ -17,7 +17,11 @@ WEBSITE_ROUTE = "dev-website-portfolio.woodhost.cloud/health"
 
 class HealthCheckTests(unittest.TestCase):
     def run_health_check(
-        self, responses: str, target_host: str = "dev-infisical.woodhost.cloud"
+        self,
+        responses: str,
+        target_host: str = "dev-infisical.woodhost.cloud",
+        report_present: bool = True,
+        report_healthy: bool = True,
     ) -> tuple[subprocess.CompletedProcess[str], int]:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -27,7 +31,14 @@ class HealthCheckTests(unittest.TestCase):
             docker = bin_directory / "docker"
             docker.write_text(
                 '#!/usr/bin/env bash\n'
-                'if [[ "$1" == ps ]]; then echo container1; else echo \'{"Running": true, "Status": "healthy"}\'; fi\n',
+                'if [[ "$1" == ps ]]; then\n'
+                '  if [[ "$*" == *openproject-reports-code* ]]; then\n'
+                '    [[ "$FAKE_REPORT_PRESENT" == true ]] && echo report1\n'
+                '  else echo container1; fi\n'
+                '  exit 0\n'
+                'elif [[ "$2" == report1 && "$FAKE_REPORT_HEALTHY" != true ]]; then\n'
+                '  echo \'{"Running": true, "Status": "unhealthy"}\'\n'
+                'else echo \'{"Running": true, "Status": "healthy"}\'; fi\n',
                 encoding="utf-8",
             )
             docker.chmod(0o755)
@@ -64,6 +75,8 @@ class HealthCheckTests(unittest.TestCase):
                 "FAKE_CURL_RESPONSES": responses,
                 "FAKE_CURL_TARGET_HOST": target_host,
                 "FAKE_CURL_COUNT": str(count_file),
+                "FAKE_REPORT_PRESENT": str(report_present).lower(),
+                "FAKE_REPORT_HEALTHY": str(report_healthy).lower(),
             }
             result = subprocess.run(
                 ["bash", str(SCRIPT)],
@@ -111,6 +124,16 @@ class HealthCheckTests(unittest.TestCase):
         self.assertEqual(attempts, 3)
         self.assertIn(WEBSITE_ROUTE, result.stderr)
         self.assertIn("HTTP 502", result.stderr)
+
+    def test_missing_report_code_server_blocks_deployment_health(self) -> None:
+        result, _ = self.run_health_check("200", report_present=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("OpenProject Reports Dagster code server is not healthy", result.stderr)
+
+    def test_unhealthy_report_code_server_blocks_deployment_health(self) -> None:
+        result, _ = self.run_health_check("200", report_healthy=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("OpenProject Reports Dagster code server is not healthy", result.stderr)
 
 
 if __name__ == "__main__":

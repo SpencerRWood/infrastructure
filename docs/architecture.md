@@ -62,8 +62,11 @@ deployment by itself.
 
 Dagster is a dev-only infrastructure component. `compose/dagster/` owns its
 webserver, daemon, gRPC user-code servers, workspace, and storage configuration.
-The webserver alone joins `infrastructure-dev-proxy`; all services join the
-isolated infrastructure Postgres network. Its Caddy route is an infrastructure
+The OpenProject Reports code server runs from a pinned application image and
+receives its runtime settings from the Infisical-resolved Dagster environment.
+The webserver, daemon, and Codex usage code server join
+`infrastructure-dev-proxy`; all services join the isolated infrastructure
+Postgres network. Its Caddy route is an infrastructure
 fragment and is independent of homelab Caddy. The external
 `synthetic_website_poc` gRPC location remains configuration-only and is not
 migrated in this release. The Codex usage location runs in a Beelink container

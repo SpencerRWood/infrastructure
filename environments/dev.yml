@@ -13,6 +13,7 @@ keycloak_hostname: dev-keycloak.woodhost.cloud
 # The complete image reference is intentionally kept on one line for auditing.
 # yamllint disable rule:line-length
 portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.9.0@sha256:195221ffda46688148a0cc29f0ef85a6edd449e07926723ad16ea5d4f1cd2950
+openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.1.4@sha256:e9764e5178d004201242bad282600b52657e51b877ba66bf076e5b791408c16b
 # yamllint enable rule:line-length
 services:
   postgres: true
@@ -31,12 +32,22 @@ infrastructure_infisical_runtime_services:
     environment: dev
     path: /dagster
     output: /srv/infrastructure/secrets/runtime/dagster.env
-    required_keys: [DAGSTER_POSTGRES_PASSWORD]
+    required_keys:
+      - DAGSTER_POSTGRES_PASSWORD
+      - OPENPROJECT_BASE_URL
+      - OPENPROJECT_API_TOKEN
+      - GOOGLE_DRIVE_CREDENTIALS_JSON
+      - GOOGLE_DRIVE_FOLDER_ID
     compose_file: /srv/infrastructure/compose/dagster/compose.yml
     compose_env_file: /srv/infrastructure/secrets/dev/dagster-compose.env
     legacy_env_file: /srv/infrastructure/secrets/dev/dagster.env
     static_env_file: /srv/infrastructure/secrets/static/dagster.env
-    compose_services: [dagster-user-code, dagster-webserver, dagster-daemon]
+    compose_services:
+      - dagster-user-code
+      - dagster-codex-usage
+      - openproject-reports-code
+      - dagster-webserver
+      - dagster-daemon
     source: compose/dagster/compose.infisical.yml
   keycloak:
     environment: dev
