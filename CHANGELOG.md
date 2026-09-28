@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.13.5 (2026-09-28)
+
+### Bug Fixes
+
+- Deploy report image with psycopg2 runtime
+  ([#54](https://github.com/SpencerRWood/infrastructure/pull/54),
+  [`8ef8425`](https://github.com/SpencerRWood/infrastructure/commit/8ef84251c5c7914c4e73efa6d49ac96b6278e377))
+
+
 ## v0.13.4 (2026-09-28)
 
 ### Bug Fixes
