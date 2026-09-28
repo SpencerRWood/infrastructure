@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Project labels are the runtime contract written by the dev Ansible roles.
 # These checks establish container liveness; HTTP probes below establish application readiness.
-for project in infrastructure-dev-postgres infrastructure-dev-caddy infrastructure-dev-dagster infrastructure-dev-openwebui infrastructure-dev-keycloak infrastructure-dev-infisical infrastructure-dev-website-portfolio; do
+for project in infrastructure-dev-postgres infrastructure-dev-caddy infrastructure-dev-dagster infrastructure-dev-openwebui infrastructure-dev-keycloak infrastructure-dev-infisical infrastructure-dev-website-portfolio infrastructure-dev-openproject-reports; do
   ids=$(docker ps -q --filter "label=com.docker.compose.project=$project")
   test -n "$ids"
   while IFS= read -r id; do
@@ -75,3 +75,6 @@ done
 wait_for_route dev-infisical.woodhost.cloud /api/status
 wait_for_route dev-website-portfolio.woodhost.cloud /health
 wait_for_route dev-website-portfolio.woodhost.cloud /
+
+# The report code location must be reachable from shared Dagster on Beelink.
+docker exec infrastructure-dev-dagster-dagster-daemon-1 dagster api grpc-health-check -h openproject-reports -p 4000

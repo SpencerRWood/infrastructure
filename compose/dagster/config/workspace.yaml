@@ -8,3 +8,4 @@ load_from:
       host: dagster-codex-usage
       port: 4002
       location_name: infrastructure_codex_usage
+  - grpc_server: {host: openproject-reports, port: 4000, location_name: openproject_reports}
