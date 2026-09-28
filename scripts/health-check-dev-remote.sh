@@ -17,6 +17,15 @@ for project in infrastructure-dev-postgres infrastructure-dev-caddy infrastructu
   echo "OK $project"
 done
 
+report_container=$(docker ps -q \
+  --filter label=com.docker.compose.project=infrastructure-dev-dagster \
+  --filter label=com.docker.compose.service=openproject-reports-code)
+if [[ -z "$report_container" ]] || ! docker inspect "$report_container" | grep -q '"Status": "healthy"'; then
+  echo 'OpenProject Reports Dagster code server is not healthy' >&2
+  exit 1
+fi
+echo 'OK OpenProject Reports Dagster code server'
+
 caddy_env_file=${HEALTH_CHECK_CADDY_ENV_FILE:-/srv/infrastructure/secrets/dev/caddy.env}
 caddy_http_bind=$(sed -n 's/^CADDY_HTTP_BIND=//p' "$caddy_env_file")
 test -n "$caddy_http_bind"
