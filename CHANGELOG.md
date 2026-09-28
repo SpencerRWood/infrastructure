@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.13.4 (2026-09-28)
+
+### Bug Fixes
+
+- Allow report gRPC health probe to finish
+  ([#53](https://github.com/SpencerRWood/infrastructure/pull/53),
+  [`acea047`](https://github.com/SpencerRWood/infrastructure/commit/acea047421993cc9893967fe129f9c359de923b4))
+
+
 ## v0.13.3 (2026-09-28)
 
 ### Bug Fixes
