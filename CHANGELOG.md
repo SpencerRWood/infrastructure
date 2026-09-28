@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.13.0 (2026-09-28)
+
+### Features
+
+- **dagster**: Deploy OpenProject Reports code location
+  ([#49](https://github.com/SpencerRWood/infrastructure/pull/49),
+  [`0e6e3a2`](https://github.com/SpencerRWood/infrastructure/commit/0e6e3a20607f919411bf86c4d791d7821401827e))
+
+
 ## v0.12.1 (2026-09-27)
 
 ### Bug Fixes
