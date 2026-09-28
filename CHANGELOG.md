@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.13.7 (2026-09-28)
+
+### Chores
+
+- **deps**: Update openproject-reports to v0.1.9
+  ([`d246442`](https://github.com/SpencerRWood/infrastructure/commit/d24644248dbc4cc35bed58ef8ce36b0c73ab2dff))
+
+
 ## v0.13.6 (2026-09-28)
 
 ### Bug Fixes
