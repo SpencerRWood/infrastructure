@@ -68,7 +68,7 @@ services:
     volumes:
       - "${DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
       - "${DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
-    networks: [postgres]
+    networks: [postgres, proxy]
     healthcheck:
       test: [CMD, dagster, api, grpc-health-check, -p, '4000']
       interval: 10s
