@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.13.6 (2026-09-28)
+
+### Bug Fixes
+
+- Give OpenProject report worker outbound network access
+  ([#55](https://github.com/SpencerRWood/infrastructure/pull/55),
+  [`9b6ac6e`](https://github.com/SpencerRWood/infrastructure/commit/9b6ac6ed6ce553bd5d5174a02f7d2d253fc06b12))
+
+
 ## v0.13.5 (2026-09-28)
 
 ### Bug Fixes
