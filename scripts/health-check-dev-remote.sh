@@ -17,14 +17,32 @@ for project in infrastructure-dev-postgres infrastructure-dev-caddy infrastructu
   echo "OK $project"
 done
 
-report_container=$(docker ps -q \
-  --filter label=com.docker.compose.project=infrastructure-dev-dagster \
-  --filter label=com.docker.compose.service=openproject-reports-code)
-if [[ -z "$report_container" ]] || ! docker inspect "$report_container" | grep -q '"Status": "healthy"'; then
-  echo 'OpenProject Reports Dagster code server is not healthy' >&2
-  exit 1
-fi
-echo 'OK OpenProject Reports Dagster code server'
+location_file=${HEALTH_CHECK_DAGSTER_LOCATIONS_FILE:-/etc/infrastructure/dagster-code-locations.json}
+locations=$(python3 - "$location_file" <<'PY'
+import json
+import re
+import sys
+
+items = json.load(open(sys.argv[1], encoding='utf-8'))
+if not isinstance(items, list) or any(
+    not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9-]*', name)
+    for name in items
+):
+    raise ValueError('invalid Dagster location health targets')
+print('\n'.join(items))
+PY
+)
+while IFS= read -r service; do
+  [[ -n "$service" ]] || continue
+  container=$(docker ps -q \
+    --filter label=com.docker.compose.project=infrastructure-dev-dagster \
+    --filter "label=com.docker.compose.service=$service")
+  if [[ -z "$container" ]] || ! docker inspect "$container" | grep -q '"Status": "healthy"'; then
+    echo "Dagster code server $service is not healthy" >&2
+    exit 1
+  fi
+  echo "OK Dagster code server $service"
+done <<< "$locations"
 
 caddy_env_file=${HEALTH_CHECK_CADDY_ENV_FILE:-/srv/infrastructure/secrets/dev/caddy.env}
 caddy_http_bind=$(sed -n 's/^CADDY_HTTP_BIND=//p' "$caddy_env_file")

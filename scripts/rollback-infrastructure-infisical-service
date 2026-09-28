@@ -3,54 +3,192 @@
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
 
+from dagster_external_locations import CURRENT, OWNED, publish_locations, read_locations
 
-def run():
-    if os.geteuid() != 0 or len(sys.argv) != 2:
-        raise ValueError('invalid invocation')
-    name = sys.argv[1]
-    data = json.loads(pathlib.Path(
-        '/etc/infrastructure/infisical-runtime-services.json').read_text())
-    if name not in data:
-        raise ValueError('invalid rollback target')
-    item = data[name]
-    active = pathlib.Path(item['compose_file'])
-    snapshot = active.with_name('compose.pre-infisical.yml')
-    legacy = pathlib.Path(item['legacy_env_file'])
-    compose_env = pathlib.Path(item['compose_env_file'])
-    if not snapshot.is_file() or not legacy.is_file() or not compose_env.is_file():
-        raise ValueError('rollback source unavailable')
-    base = ['docker', 'compose', '--env-file', str(compose_env), '-f', str(snapshot)]
-    subprocess.run(base + ['config', '--quiet'], stdout=subprocess.DEVNULL,
-                   stderr=subprocess.DEVNULL, check=True)
-    subprocess.run(['systemctl', 'disable', '--now',
-                    'infrastructure-infisical@' + name + '.service'],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                   check=True)
-    fd, tmp = tempfile.mkstemp(prefix='.compose-rollback-', dir=active.parent)
+
+VARIABLE = re.compile(r'(?<!\$)\$\{([A-Za-z_][A-Za-z0-9_]*)')
+ASSIGNMENT = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*)=')
+WORKSPACE_ENTRY = re.compile(
+    r'^  - grpc_server: \{host: ([a-z][a-z0-9-]*), port: [0-9]+, '
+    r'location_name: [a-z][a-z0-9_]*\}\s*$'
+)
+CONFIG = pathlib.Path('/etc/infrastructure/infisical-runtime-services.json')
+HEALTH = pathlib.Path('/etc/infrastructure/dagster-code-locations.json')
+
+
+class RollbackFailure(Exception):
+    def __init__(self, category, phase, detail):
+        super().__init__(f'Rollback {category} failed in {phase}: {detail}')
+        self.category = category
+        self.phase = phase
+
+
+def checked(category, phase, action):
+    try:
+        return action()
+    except Exception as exc:
+        # Command arguments contain paths and service names, never secret values.
+        # Do not include captured stdout/stderr, which may contain resolved data.
+        raise RollbackFailure(category, phase, str(exc)) from exc
+
+
+def snapshot_environment(snapshot):
+    retained = snapshot.with_name('compose.pre-infisical.env')
+    if not retained.is_file():
+        raise ValueError('retained rollback Compose environment unavailable')
+    env_file = retained
+    required = set(VARIABLE.findall(snapshot.read_text()))
+    supplied = {match.group(1) for line in env_file.read_text().splitlines()
+                if (match := ASSIGNMENT.match(line))}
+    missing = required - supplied
+    if missing:
+        raise ValueError('rollback Compose environment lacks: ' + ', '.join(sorted(missing)))
+    # Compose variables must come from the retained file, never the caller's shell.
+    process_env = {key: os.environ[key] for key in ('PATH', 'HOME', 'DOCKER_CONFIG')
+                   if key in os.environ}
+    return env_file, process_env
+
+
+def rollback_workspace(workspace, current, target):
+    """Converge generated external entries from manifests, without Docker reads."""
+    if not workspace.is_file():
+        raise ValueError('Dagster workspace unavailable for rollback')
+    original = workspace.read_text()
+    rows = []
+    present = set()
+    for row in original.splitlines(keepends=True):
+        match = WORKSPACE_ENTRY.fullmatch(row.rstrip('\n'))
+        service = match.group(1) if match else None
+        if service in target:
+            location = target[service]
+            rows.append(f"  - grpc_server: {{host: {service}, port: {location['port']}, "
+                        f"location_name: {location['name']}}}\n")
+            present.add(service)
+        elif service not in current:
+            rows.append(row)
+    updated = ''.join(rows)
+    for service in sorted(set(target) - present):
+        location = target[service]
+        updated += (f"  - grpc_server: {{host: {service}, port: {location['port']}, "
+                    f"location_name: {location['name']}}}\n")
+    for service in set(current) - set(target):
+        if re.search(r'host:\s*' + re.escape(service) + r'(?=[,}\s])', updated):
+            raise ValueError(f'obsolete Dagster workspace entry has unknown format: {service}')
+    return updated.encode()
+
+
+def atomic_replace(path, content, mode):
+    fd, tmp = tempfile.mkstemp(prefix='.compose-rollback-', dir=path.parent)
     try:
         with os.fdopen(fd, 'wb') as stream:
-            stream.write(snapshot.read_bytes())
+            stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
-        os.chmod(tmp, 0o644)
-        os.replace(tmp, active)
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
-    base = ['docker', 'compose', '--env-file', str(compose_env), '-f', str(active)]
-    subprocess.run(base + ['up', '-d', '--no-deps', '--force-recreate'] +
-                   item['compose_services'], stdout=subprocess.DEVNULL,
-                   stderr=subprocess.DEVNULL, check=True)
+
+
+def run():
+    def prerequisites():
+        if os.geteuid() != 0 or len(sys.argv) != 2:
+            raise ValueError('invalid invocation')
+        name = sys.argv[1]
+        data = json.loads(CONFIG.read_text())
+        if name not in data:
+            raise ValueError('invalid rollback target')
+        item = data[name]
+        active = pathlib.Path(item['compose_file'])
+        snapshot = active.with_name('compose.pre-infisical.yml')
+        if not snapshot.is_file() or not pathlib.Path(item['legacy_env_file']).is_file():
+            raise ValueError('rollback source unavailable')
+        return name, item, active, snapshot
+
+    name, item, active, snapshot = checked('prerequisite', 'required files', prerequisites)
+    rollback_env, process_env = checked(
+        'prerequisite', 'retained environment validation',
+        lambda: snapshot_environment(snapshot),
+    )
+    base = ['docker', 'compose', '--env-file', str(rollback_env), '-f', str(snapshot)]
+
+    def compose_target():
+        subprocess.run(base + ['config', '--quiet'], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, check=True, env=process_env)
+        services = subprocess.run(
+            base + ['config', '--services'], capture_output=True, text=True,
+            check=True, env=process_env,
+        ).stdout.splitlines()
+        if not services:
+            raise ValueError('rollback snapshot has no services')
+        return services, snapshot.read_bytes()
+
+    snapshot_services, snapshot_content = checked(
+        'prerequisite', 'Compose snapshot validation', compose_target,
+    )
+    if name == 'dagster':
+        def workspace_target():
+            current = read_locations(CURRENT)
+            retained = snapshot.with_name('compose.pre-infisical-locations.json')
+            if retained.is_file():
+                target = read_locations(retained)
+            elif set(snapshot_services) <= OWNED:
+                # A pre-metadata snapshot containing only infrastructure-owned
+                # services has no external target locations.
+                target = {}
+            else:
+                raise ValueError('retained external Dagster target metadata unavailable')
+            if not set(target) <= set(snapshot_services):
+                raise ValueError('retained external Dagster target differs from Compose snapshot')
+            workspace = active.parent / 'config/workspace.yaml'
+            content = rollback_workspace(workspace, current, target)
+            return target, workspace, content, retained
+
+        target, workspace, workspace_content, retained = checked(
+            'prerequisite', 'workspace target preparation', workspace_target,
+        )
+
+    checked('restoration', 'boot service disable', lambda: subprocess.run(
+        ['systemctl', 'disable', '--now', f'infrastructure-infisical@{name}.service'],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True,
+    ))
+    checked('restoration', 'Compose replacement',
+            lambda: atomic_replace(active, snapshot_content, 0o644))
+    if name == 'dagster':
+        checked('restoration', 'workspace restoration',
+                lambda: atomic_replace(workspace, workspace_content, 0o644))
+    base = ['docker', 'compose', '--env-file', str(rollback_env), '-f', str(active)]
+    checked('restoration', 'service restoration', lambda: subprocess.run(
+        base + ['up', '-d', '--no-deps', '--force-recreate', *snapshot_services],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        check=True, env=process_env,
+    ))
+    if name == 'dagster':
+        desired = (['--desired-file', str(retained)] if retained.is_file() else
+                   ['--desired-json', '[]'])
+        checked('restoration', 'external service retirement', lambda: subprocess.run(
+            ['/usr/local/sbin/retire-dagster-external-locations',
+             '--current-file', str(CURRENT), *desired,
+             '--desired-compose-services-json', json.dumps(snapshot_services)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True,
+        ))
+        checked('restoration', 'ownership metadata publication',
+                lambda: publish_locations(CURRENT, target.values()))
+        checked('restoration', 'health metadata publication', lambda: atomic_replace(
+            HEALTH, (json.dumps(list(target)) + '\n').encode(), 0o644,
+        ))
     print(name + ' restored from retained legacy source')
 
 
 if __name__ == '__main__':
     try:
         run()
-    except Exception:
-        print('Service rollback failed', file=sys.stderr)
+    except RollbackFailure as exc:
+        print(exc, file=sys.stderr)
         sys.exit(1)

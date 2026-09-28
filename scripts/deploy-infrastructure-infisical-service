@@ -7,6 +7,8 @@ import re
 import subprocess
 import sys
 
+from dagster_external_locations import CURRENT, locations_from_json, publish_locations
+
 CONFIG = pathlib.Path('/etc/infrastructure/infisical-runtime-services.json')
 
 
@@ -19,12 +21,17 @@ def run():
     if not re.fullmatch(r'[a-z][a-z0-9-]*', name):
         raise ValueError('invalid service')
     item = json.loads(CONFIG.read_text())[name]
-    args = ['/usr/local/sbin/resolve-infrastructure-infisical-env',
-            '--environment', item['environment'], '--path', item['path'],
-            '--output', item['output']]
-    for key in item['required_keys']:
-        args.extend(['--require', key])
-    subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    has_external_metadata = name == 'dagster' and 'external_code_locations' in item
+    desired_locations = item['external_code_locations'] if has_external_metadata else []
+    if has_external_metadata:
+        locations_from_json(desired_locations)
+    for runtime in [item, *item.get('runtime_environments', {}).values()]:
+        args = ['/usr/local/sbin/resolve-infrastructure-infisical-env',
+                '--environment', runtime['environment'], '--path', runtime['path'],
+                '--output', runtime['output']]
+        for key in runtime['required_keys']:
+            args.extend(['--require', key])
+        subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     base = ['docker', 'compose', '--env-file', item['compose_env_file'],
             '-f', item['compose_file']]
     subprocess.run(base + ['config', '--quiet'], stdout=subprocess.DEVNULL,
@@ -34,6 +41,14 @@ def run():
         up.append('--force-recreate')
     subprocess.run(up + item['compose_services'], stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL, check=True)
+    if has_external_metadata:
+        subprocess.run(
+            ['/usr/local/sbin/retire-dagster-external-locations',
+             '--desired-json', json.dumps(desired_locations),
+             '--desired-compose-services-json', json.dumps(item['compose_services'])],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True,
+        )
+        publish_locations(CURRENT, desired_locations)
     print(name + ' reconciled')
 
 

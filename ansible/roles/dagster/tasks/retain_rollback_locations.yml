@@ -1,0 +1,75 @@
+---
+- name: Inspect retained external Dagster rollback metadata
+  ansible.builtin.stat:
+    path: "{{ dagster_rollback_directory }}/compose.pre-infisical-locations.json"
+  register: dagster_retained_locations
+
+- name: Require retained external Dagster rollback metadata to be a file
+  ansible.builtin.assert:
+    that: dagster_retained_locations.stat.isreg
+  when: dagster_retained_locations.stat.exists
+
+- name: Inspect previously deployed external Dagster metadata
+  ansible.builtin.stat:
+    path: /etc/infrastructure/dagster-external-locations.json
+  register: dagster_prior_locations_file
+  when: not dagster_retained_locations.stat.exists
+
+- name: Read previously deployed external Dagster metadata
+  ansible.builtin.slurp:
+    src: /etc/infrastructure/dagster-external-locations.json
+  register: dagster_prior_locations_content
+  when:
+    - not dagster_retained_locations.stat.exists
+    - dagster_prior_locations_file.stat.exists
+  no_log: true
+
+- name: Inspect retained Dagster Compose services
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ dagster_rollback_directory }}/compose.pre-infisical.env"
+      - -f
+      - "{{ dagster_rollback_directory }}/compose.pre-infisical.yml"
+      - config
+      - --services
+  register: dagster_retained_compose_services
+  changed_when: false
+  when: not dagster_retained_locations.stat.exists
+  no_log: true
+
+- name: Derive retained Dagster external locations from deployed ownership
+  ansible.builtin.set_fact:
+    dagster_previous_external_locations: >-
+      {{ (dagster_prior_locations_content.content | b64decode | from_json)
+         if dagster_prior_locations_file.stat.exists else dagster_code_locations }}
+    dagster_owned_compose_services: >-
+      {{ (lookup('ansible.builtin.file',
+          dagster_rollback_source_root ~ '/compose/dagster/compose.yml') |
+          from_yaml).services.keys() | list }}
+  when: not dagster_retained_locations.stat.exists
+
+- name: Require every retained Dagster service to have known ownership
+  ansible.builtin.assert:
+    that:
+      - dagster_retained_compose_services.stdout_lines | length > 0
+      - >-
+        dagster_retained_compose_services.stdout_lines |
+        difference(dagster_owned_compose_services +
+                   (dagster_previous_external_locations |
+                    map(attribute='service_name') | list)) | length == 0
+  when: not dagster_retained_locations.stat.exists
+
+- name: Retain external Dagster rollback target metadata once
+  ansible.builtin.copy:
+    content: >-
+      {{ dagster_previous_external_locations |
+         selectattr('service_name', 'in', dagster_retained_compose_services.stdout_lines) |
+         list | to_nice_json }}
+    dest: "{{ dagster_rollback_directory }}/compose.pre-infisical-locations.json"
+    owner: root
+    group: root
+    mode: '0644'
+  when: not dagster_retained_locations.stat.exists

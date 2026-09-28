@@ -13,8 +13,27 @@ keycloak_hostname: dev-keycloak.woodhost.cloud
 # The complete image reference is intentionally kept on one line for auditing.
 # yamllint disable rule:line-length
 portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.9.0@sha256:195221ffda46688148a0cc29f0ef85a6edd449e07926723ad16ea5d4f1cd2950
-openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.1.7@sha256:90d955f26549864699295c46c819c8ad13e80686c4ec648ca022fa5820099cf1
 # yamllint enable rule:line-length
+dagster_code_locations:
+  - name: openproject_reports
+    service_name: openproject-reports-code
+    # yamllint disable rule:line-length
+    image: ghcr.io/spencerrwood/openproject-reports:v0.1.7@sha256:90d955f26549864699295c46c819c8ad13e80686c4ec648ca022fa5820099cf1
+    # yamllint enable rule:line-length
+    port: 4000
+    runtime_env: openproject_reports
+    capabilities:
+      outbound_network: true
+dagster_runtime_environments:
+  openproject_reports:
+    environment: dev
+    path: /dagster
+    output: /srv/infrastructure/secrets/runtime/openproject-reports.env
+    required_keys:
+      - OPENPROJECT_BASE_URL
+      - OPENPROJECT_API_TOKEN
+      - GOOGLE_DRIVE_CREDENTIALS_JSON
+      - GOOGLE_DRIVE_FOLDER_ID
 services:
   postgres: true
   caddy: true
@@ -34,21 +53,19 @@ infrastructure_infisical_runtime_services:
     output: /srv/infrastructure/secrets/runtime/dagster.env
     required_keys:
       - DAGSTER_POSTGRES_PASSWORD
-      - OPENPROJECT_BASE_URL
-      - OPENPROJECT_API_TOKEN
-      - GOOGLE_DRIVE_CREDENTIALS_JSON
-      - GOOGLE_DRIVE_FOLDER_ID
     compose_file: /srv/infrastructure/compose/dagster/compose.yml
     compose_env_file: /srv/infrastructure/secrets/dev/dagster-compose.env
     legacy_env_file: /srv/infrastructure/secrets/dev/dagster.env
     static_env_file: /srv/infrastructure/secrets/static/dagster.env
-    compose_services:
-      - dagster-user-code
-      - dagster-codex-usage
-      - openproject-reports-code
-      - dagster-webserver
-      - dagster-daemon
-    source: compose/dagster/compose.infisical.yml
+    compose_services: >-
+      {{ ['dagster-user-code', 'dagster-codex-usage'] +
+         (dagster_code_locations | map(attribute='service_name') | list) +
+         ['dagster-webserver', 'dagster-daemon'] }}
+    source: ansible/roles/dagster/templates/compose.infisical.yml.j2
+    runtime_environments: >-
+      {{ dagster_runtime_environments |
+         referenced_dagster_runtime_environments(dagster_code_locations) }}
+    external_code_locations: "{{ dagster_code_locations }}"
   keycloak:
     environment: dev
     path: /keycloak

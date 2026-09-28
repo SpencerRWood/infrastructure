@@ -75,8 +75,10 @@ existing gRPC user-code server, the Codex usage code server, and the pinned
 OpenProject Reports code server).
 The report code server reads `OPENPROJECT_BASE_URL`, `OPENPROJECT_API_TOKEN`,
 `GOOGLE_DRIVE_CREDENTIALS_JSON`, and `GOOGLE_DRIVE_FOLDER_ID` from the protected
-Infisical-resolved Dagster environment file. Dagster loads it as the
+Infisical-resolved application runtime environment file. Dagster loads it as the
 `openproject_reports` location; its daily schedule runs at 06:00 America/New_York.
+New externally published code servers use the
+[generic code-location declaration](docs/external-dagster-code-locations.md).
 The webserver is reached through `infrastructure-dev-proxy` at
 `http://dev-dagster.woodhost.cloud:8080`. The webserver, daemon, and Codex usage
 code server join that proxy network; all Dagster services join

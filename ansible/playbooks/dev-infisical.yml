@@ -9,6 +9,10 @@
     source_root: "{{ playbook_dir }}/../.."
     infrastructure_infisical_selected_services: []
   tasks:
+    - name: Validate external Dagster code locations
+      ansible.builtin.assert:
+        that: dagster_code_locations | valid_dagster_locations(dagster_runtime_environments)
+      when: "'dagster' in infrastructure_infisical_selected_services"
     - name: Verify protected Infrastructure Dev deployer bootstrap
       ansible.builtin.stat:
         path: /srv/infrastructure/secrets/bootstrap/infisical-dev.json
@@ -48,6 +52,8 @@
         - {src: resolve-infisical-env.py, dest: resolve-infrastructure-infisical-env}
         - {src: deploy-infrastructure-infisical-service, dest: deploy-infrastructure-infisical-service}
         - {src: rollback-infrastructure-infisical-service, dest: rollback-infrastructure-infisical-service}
+        - {src: dagster_external_locations.py, dest: dagster_external_locations.py}
+        - {src: retire-dagster-external-locations, dest: retire-dagster-external-locations}
     - name: Install templated infrastructure boot unit
       ansible.builtin.copy:
         src: "{{ source_root }}/systemd/infrastructure-infisical@.service"
@@ -99,6 +105,44 @@
         mode: '0644'
       loop: "{{ rollback_compose_files.results }}"
       when: not item.stat.exists
+    - name: Check for retained Dagster rollback environment
+      ansible.builtin.stat:
+        path: /srv/infrastructure/compose/dagster/compose.pre-infisical.env
+      register: dagster_rollback_environment
+      when: "'dagster' in infrastructure_infisical_selected_services"
+    - name: Retain Dagster Compose interpolation values for rollback
+      ansible.builtin.copy:
+        src: "{{ infrastructure_infisical_runtime_services.dagster.compose_env_file }}"
+        dest: /srv/infrastructure/compose/dagster/compose.pre-infisical.env
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0600'
+      when:
+        - "'dagster' in infrastructure_infisical_selected_services"
+        - not dagster_rollback_environment.stat.exists
+      no_log: true
+    - name: Retain external Dagster rollback target metadata
+      ansible.builtin.include_tasks: "{{ source_root }}/ansible/roles/dagster/tasks/retain_rollback_locations.yml"
+      vars:
+        dagster_rollback_directory: "{{ infrastructure_infisical_runtime_services.dagster.compose_file | dirname }}"
+        dagster_rollback_source_root: "{{ source_root }}"
+      when: "'dagster' in infrastructure_infisical_selected_services"
+    - name: Check for current external Dagster ownership metadata
+      ansible.builtin.stat:
+        path: /etc/infrastructure/dagster-external-locations.json
+      register: dagster_external_ownership
+      when: "'dagster' in infrastructure_infisical_selected_services"
+    - name: Bootstrap external Dagster ownership before first Compose rewrite
+      ansible.builtin.copy:
+        content: "{{ dagster_code_locations | to_nice_json }}\n"
+        dest: /etc/infrastructure/dagster-external-locations.json
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - "'dagster' in infrastructure_infisical_selected_services"
+        - not dagster_external_ownership.stat.exists
     - name: Install selected Infisical Compose definitions
       ansible.builtin.copy:
         src: "{{ source_root }}/{{ infrastructure_infisical_runtime_services[item].source }}"
@@ -107,6 +151,23 @@
         group: root
         mode: '0644'
       loop: "{{ infrastructure_infisical_selected_services }}"
+      when: item != 'dagster'
+    - name: Render selected Dagster Compose definition
+      ansible.builtin.template:
+        src: "{{ source_root }}/ansible/roles/dagster/templates/compose.infisical.yml.j2"
+        dest: "{{ infrastructure_infisical_runtime_services.dagster.compose_file }}"
+        owner: root
+        group: root
+        mode: '0644'
+      when: "'dagster' in infrastructure_infisical_selected_services"
+    - name: Render selected Dagster workspace
+      ansible.builtin.template:
+        src: "{{ source_root }}/ansible/roles/dagster/templates/workspace.yaml.j2"
+        dest: /srv/infrastructure/compose/dagster/config/workspace.yaml
+        owner: root
+        group: root
+        mode: '0644'
+      when: "'dagster' in infrastructure_infisical_selected_services"
     - name: Resolve selected runtime files before Compose validation
       ansible.builtin.command:
         argv: >-
@@ -118,6 +179,20 @@
               (infrastructure_infisical_runtime_services[item].required_keys |
                map('regex_replace', '^', '--require=') | list) }}
       loop: "{{ infrastructure_infisical_selected_services }}"
+      no_log: true
+      changed_when: false
+    - name: Resolve selected Dagster application runtime environments
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/local/sbin/resolve-infrastructure-infisical-env',
+              '--environment', item.value.environment,
+              '--path', item.value.path,
+              '--output', item.value.output] +
+              (item.value.required_keys | map('regex_replace', '^', '--require=') | list) }}
+      loop: >-
+        {{ dagster_runtime_environments |
+           referenced_dagster_runtime_environments(dagster_code_locations) | dict2items }}
+      when: "'dagster' in infrastructure_infisical_selected_services"
       no_log: true
       changed_when: false
     - name: Validate selected Compose definitions
@@ -140,6 +215,22 @@
       loop: "{{ infrastructure_infisical_selected_services }}"
       no_log: true
       changed_when: true
+    - name: Publish selected external Dagster ownership metadata
+      ansible.builtin.copy:
+        content: "{{ dagster_code_locations | to_nice_json }}\n"
+        dest: /etc/infrastructure/dagster-external-locations.json
+        owner: root
+        group: root
+        mode: '0644'
+      when: "'dagster' in infrastructure_infisical_selected_services"
+    - name: Publish selected external Dagster health targets
+      ansible.builtin.copy:
+        content: "{{ dagster_code_locations | map(attribute='service_name') | list | to_nice_json }}\n"
+        dest: /etc/infrastructure/dagster-code-locations.json
+        owner: root
+        group: root
+        mode: '0644'
+      when: "'dagster' in infrastructure_infisical_selected_services"
     - name: Enable selected infrastructure boot units
       ansible.builtin.systemd_service:
         name: "infrastructure-infisical@{{ item }}.service"

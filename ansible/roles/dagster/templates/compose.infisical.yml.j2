@@ -61,26 +61,33 @@ services:
       timeout: 3s
       retries: 10
       start_period: 30s
-  openproject-reports-code:
-    image: ${OPENPROJECT_REPORTS_IMAGE_REF:?required}
+{% for location in dagster_code_locations | default([]) %}
+  {{ location.service_name }}:
+    image: {{ location.image }}
+    labels:
+      wood.infrastructure.dagster.external-code-location: 'true'
     restart: unless-stopped
     user: '1000:1000'
     env_file:
       - /srv/infrastructure/secrets/static/dagster.env
       - /srv/infrastructure/secrets/runtime/dagster.env
+{% if location.runtime_env is defined %}
+      - {{ dagster_runtime_environments[location.runtime_env].output }}
+{% endif %}
     environment:
-      DAGSTER_GRPC_PORT: '4000'
-    expose: ['4000']
+      DAGSTER_GRPC_PORT: '{{ location.port }}'
+    expose: ['{{ location.port }}']
     volumes:
       - "${DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
       - "${DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
-    networks: [postgres, proxy]
+    networks: [postgres{% if location.get('capabilities', {}).get('outbound_network', false) %}, proxy{% endif %}]
     healthcheck:
-      test: [CMD, dagster, api, grpc-health-check, -p, '4000']
+      test: [CMD, dagster, api, grpc-health-check, -p, '{{ location.port }}']
       interval: 10s
       timeout: 10s
       retries: 10
       start_period: 30s
+{% endfor %}
   dagster-webserver:
     image: ${DAGSTER_IMAGE:?required}
     restart: unless-stopped

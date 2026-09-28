@@ -63,7 +63,10 @@ deployment by itself.
 Dagster is a dev-only infrastructure component. `compose/dagster/` owns its
 webserver, daemon, gRPC user-code servers, workspace, and storage configuration.
 The OpenProject Reports code server runs from a pinned application image and
-receives its runtime settings from the Infisical-resolved Dagster environment.
+receives its application settings from a separate Infisical-resolved runtime
+environment. External application code servers are declared in the dev
+environment manifest and inherit the shared Dagster mounts, networking,
+health check, workspace entry, and deployment health gate.
 The webserver, daemon, and Codex usage code server join
 `infrastructure-dev-proxy`; all services join the isolated infrastructure
 Postgres network. Its Caddy route is an infrastructure

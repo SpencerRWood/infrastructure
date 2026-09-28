@@ -25,7 +25,10 @@ validation and service reconciliation. The
 available at boot.
 
 The service definitions in `environments/dev.yml` identify required keys,
-Compose services, runtime paths, and rollback sources. Deploy one service with
+Compose services, runtime paths, and rollback sources. Dagster's external
+application code locations may reference separate runtime environments in the
+same manifest; the Dagster service reconciler resolves these files before
+starting the code servers. Deploy one service with
 `ansible/playbooks/dev-infisical.yml` and
 `infrastructure_infisical_selected_services` set to its name. Select only one
 service at a time. The playbook retains the previous deployed Compose file
@@ -35,6 +38,11 @@ only the imported keys. The existing legacy env file remains intact for
 rollback. The normal Dev Ansible roles resolve the Infisical keys and retain
 the Infisical Compose definitions on subsequent deployments; they do not write
 the migrated values from local env files.
+For Dagster, the normal `dev.yml` role also publishes current derived runtime
+metadata and installs the reconciler, so adding or removing an external code
+location needs no separate `dev-infisical.yml` run. Unreferenced application
+runtime mappings are not resolved. The Dagster reconciler removes obsolete
+external code servers after starting desired services.
 
 `rollback-infrastructure-infisical-service SERVICE` accepts `dagster`,
 `keycloak`, `openwebui`, or `portfolio-website`. It validates the retained
@@ -43,6 +51,11 @@ the previous Compose file, and recreates only its declared services with the
 retained legacy source. Rollback does not remove application state or Infisical
 secrets. Validate the rollback configuration before invoking it against a
 healthy service.
+Dagster rollback uses a protected copy of the Compose interpolation env from
+the snapshot's era, checks every required variable, and removes external code
+servers absent from the rollback snapshot after its services start. It also
+removes their generated workspace entries before recreating the webserver. It does
+not use broad Compose orphan removal.
 
 Infisical's own startup secrets remain in its independent bootstrap file.
 GitHub Actions and other CI/CD credentials, generated GitHub credentials,

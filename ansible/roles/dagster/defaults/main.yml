@@ -19,3 +19,5 @@ dagster_lib_version: 0.29.16
 dagster_python_version: 3.12-slim
 dagster_restore_backup_path: ''
 dagster_required_environment: [DAGSTER_POSTGRES_PASSWORD, MACBOOK_DAGSTER_HOST]
+dagster_code_locations: []
+dagster_runtime_environments: {}

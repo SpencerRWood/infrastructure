@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import sys
 import tempfile
@@ -22,12 +23,14 @@ class HealthCheckTests(unittest.TestCase):
         target_host: str = "dev-infisical.woodhost.cloud",
         report_present: bool = True,
         report_healthy: bool = True,
+        locations: tuple[str, ...] = ("openproject-reports-code",),
     ) -> tuple[subprocess.CompletedProcess[str], int]:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             bin_directory = root / "bin"
             bin_directory.mkdir()
             (root / "caddy.env").write_text("CADDY_HTTP_BIND=127.0.0.1:8080\n", encoding="utf-8")
+            (root / "dagster-code-locations.json").write_text(json.dumps(locations) + "\n", encoding="utf-8")
             docker = bin_directory / "docker"
             docker.write_text(
                 '#!/usr/bin/env bash\n'
@@ -69,6 +72,7 @@ class HealthCheckTests(unittest.TestCase):
                 **os.environ,
                 "PATH": f"{bin_directory}:{os.environ['PATH']}",
                 "HEALTH_CHECK_CADDY_ENV_FILE": str(root / "caddy.env"),
+                "HEALTH_CHECK_DAGSTER_LOCATIONS_FILE": str(root / "dagster-code-locations.json"),
                 "HEALTH_CHECK_ROUTE_ATTEMPTS": "3",
                 "HEALTH_CHECK_KEYCLOAK_ROUTE_ATTEMPTS": "3",
                 "HEALTH_CHECK_RETRY_INTERVAL": "0",
@@ -95,6 +99,13 @@ class HealthCheckTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(attempts, 3)
                 self.assertIn(f"OK infrastructure Caddy route {INFISICAL_ROUTE}", result.stdout)
+
+    def test_each_declared_external_location_participates(self) -> None:
+        result, _ = self.run_health_check(
+            "200", locations=("openproject-reports-code", "data-cleanup-code")
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("OK Dagster code server data-cleanup-code", result.stdout)
 
     def test_persistent_502_fails_with_route_and_status(self) -> None:
         result, attempts = self.run_health_check("502")
@@ -128,12 +139,12 @@ class HealthCheckTests(unittest.TestCase):
     def test_missing_report_code_server_blocks_deployment_health(self) -> None:
         result, _ = self.run_health_check("200", report_present=False)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("OpenProject Reports Dagster code server is not healthy", result.stderr)
+        self.assertIn("Dagster code server openproject-reports-code is not healthy", result.stderr)
 
     def test_unhealthy_report_code_server_blocks_deployment_health(self) -> None:
         result, _ = self.run_health_check("200", report_healthy=False)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("OpenProject Reports Dagster code server is not healthy", result.stderr)
+        self.assertIn("Dagster code server openproject-reports-code is not healthy", result.stderr)
 
 
 if __name__ == "__main__":

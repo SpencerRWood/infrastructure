@@ -11,14 +11,11 @@
   when: infrastructure_environment != 'dev'
   tags: [dagster]
 
-- name: Require a pinned OpenProject Reports image in dev
+- name: Validate external Dagster code-location declarations
   ansible.builtin.assert:
     that:
-      - >-
-        openproject_reports_image_ref is match(
-        '^ghcr[.]io/spencerrwood/openproject-reports:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
-        )
-  when: infrastructure_environment == 'dev'
+      - dagster_code_locations | valid_dagster_locations(dagster_runtime_environments)
+    fail_msg: Invalid external Dagster code-location declaration.
   tags: [dagster]
 
 - name: Create Dagster component directories
@@ -81,6 +78,22 @@
   when: infrastructure_environment != 'dev'
   tags: [dagster]
 
+- name: Install current Dagster Infisical reconciliation tools
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../scripts/{{ item.src }}"
+    dest: "/usr/local/sbin/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - {src: resolve-infisical-env.py, dest: resolve-infrastructure-infisical-env}
+    - {src: deploy-infrastructure-infisical-service, dest: deploy-infrastructure-infisical-service}
+    - {src: dagster_external_locations.py, dest: dagster_external_locations.py}
+    - {src: retire-dagster-external-locations, dest: retire-dagster-external-locations}
+    - {src: rollback-infrastructure-infisical-service, dest: rollback-infrastructure-infisical-service}
+  when: infrastructure_environment == 'dev'
+  tags: [dagster]
+
 - name: Resolve Dagster Infisical runtime before Compose
   ansible.builtin.command:
     argv:
@@ -93,17 +106,81 @@
       - /srv/infrastructure/secrets/runtime/dagster.env
       - --require
       - DAGSTER_POSTGRES_PASSWORD
-      - --require
-      - OPENPROJECT_BASE_URL
-      - --require
-      - OPENPROJECT_API_TOKEN
-      - --require
-      - GOOGLE_DRIVE_CREDENTIALS_JSON
-      - --require
-      - GOOGLE_DRIVE_FOLDER_ID
   changed_when: false
   no_log: true
   when: infrastructure_environment == 'dev' and not ansible_check_mode
+  tags: [dagster]
+
+- name: Resolve application runtime environments before Compose
+  ansible.builtin.command:
+    argv: >-
+      {{ ['/usr/local/sbin/resolve-infrastructure-infisical-env',
+          '--environment', item.value.environment,
+          '--path', item.value.path,
+          '--output', item.value.output] +
+          (item.value.required_keys | map('regex_replace', '^', '--require=') | list) }}
+  loop: >-
+    {{ dagster_runtime_environments |
+       referenced_dagster_runtime_environments(dagster_code_locations) | dict2items }}
+  changed_when: false
+  no_log: true
+  when: infrastructure_environment == 'dev' and not ansible_check_mode
+  tags: [dagster]
+
+- name: Check for retained Dagster rollback snapshot
+  ansible.builtin.stat:
+    path: "{{ dagster_compose_directory }}/compose.pre-infisical.yml"
+  register: dagster_rollback_snapshot
+  when: infrastructure_environment == 'dev'
+  tags: [dagster]
+
+- name: Check for retained Dagster rollback environment
+  ansible.builtin.stat:
+    path: "{{ dagster_compose_directory }}/compose.pre-infisical.env"
+  register: dagster_rollback_environment
+  when: infrastructure_environment == 'dev'
+  tags: [dagster]
+
+- name: Retain Compose interpolation values for Dagster rollback
+  ansible.builtin.copy:
+    src: "{{ dagster_compose_env_file }}"
+    dest: "{{ dagster_compose_directory }}/compose.pre-infisical.env"
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - infrastructure_environment == 'dev'
+    - dagster_rollback_snapshot.stat.exists
+    - not dagster_rollback_environment.stat.exists
+  no_log: true
+  tags: [dagster]
+
+- name: Retain external Dagster rollback target metadata
+  ansible.builtin.include_tasks: retain_rollback_locations.yml
+  vars:
+    dagster_rollback_directory: "{{ dagster_compose_directory }}"
+    dagster_rollback_source_root: "{{ role_path }}/../../.."
+  when: infrastructure_environment == 'dev' and dagster_rollback_snapshot.stat.exists
+  tags: [dagster]
+
+- name: Check for current external Dagster ownership metadata
+  ansible.builtin.stat:
+    path: /etc/infrastructure/dagster-external-locations.json
+  register: dagster_external_ownership
+  when: infrastructure_environment == 'dev'
+  tags: [dagster]
+
+- name: Bootstrap external Dagster ownership before first Compose rewrite
+  ansible.builtin.copy:
+    content: "{{ dagster_code_locations | to_nice_json }}\n"
+    dest: /etc/infrastructure/dagster-external-locations.json
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - infrastructure_environment == 'dev'
+    - not dagster_external_ownership.stat.exists
   tags: [dagster]
 
 - name: Deploy Dagster Compose environment
@@ -111,7 +188,6 @@
     content: |-
       DAGSTER_PROJECT_NAME={{ dagster_project_name }}
       DAGSTER_IMAGE={{ dagster_image }}
-      OPENPROJECT_REPORTS_IMAGE_REF={{ openproject_reports_image_ref }}
       DAGSTER_VERSION={{ dagster_version }}
       DAGSTER_LIB_VERSION={{ dagster_lib_version }}
       PYTHON_VERSION={{ dagster_python_version }}
@@ -131,15 +207,23 @@
 
 - name: Deploy canonical Dagster payload
   ansible.builtin.copy:
-    src: >-
-      {{ role_path }}/../../../compose/dagster/{{
-         'compose.infisical.yml' if item == 'compose.yml' and infrastructure_environment == 'dev'
-         else item }}
+    src: "{{ role_path }}/../../../compose/dagster/{{ item }}"
     dest: "{{ dagster_compose_directory }}/{{ item }}"
     owner: root
     group: root
     mode: '0644'
-  loop: [compose.yml, Dockerfile]
+  loop: [Dockerfile, compose.yml]
+  when: item != 'compose.yml' or infrastructure_environment != 'dev'
+  tags: [dagster]
+
+- name: Render external Dagster services into the dev Compose payload
+  ansible.builtin.template:
+    src: compose.infisical.yml.j2
+    dest: "{{ dagster_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  when: infrastructure_environment == 'dev'
   tags: [dagster]
 
 - name: Deploy Dagster configuration and application
@@ -150,8 +234,35 @@
     group: root
     mode: '0644'
   loop:
-    - {source: config, destination: "{{ dagster_config_directory }}"}
     - {source: app, destination: "{{ dagster_app_directory }}"}
+  tags: [dagster]
+
+- name: Deploy Dagster storage configuration
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/dagster/config/dagster.yaml"
+    dest: "{{ dagster_config_directory }}/dagster.yaml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [dagster]
+
+- name: Render the Dagster workspace from code-location declarations
+  ansible.builtin.template:
+    src: workspace.yaml.j2
+    dest: "{{ dagster_config_directory }}/workspace.yaml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [dagster]
+
+- name: Create infrastructure health metadata directory
+  ansible.builtin.file:
+    path: /etc/infrastructure
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: infrastructure_environment == 'dev'
   tags: [dagster]
 
 - name: Check for the Dagster database role
@@ -318,4 +429,45 @@
   register: dagster_up
   changed_when: dagster_up.stdout is search('Created|Started|Recreated|Built')
   when: not ansible_check_mode
+  tags: [dagster]
+
+- name: Retire obsolete external Dagster code servers
+  ansible.builtin.command:
+    argv: >-
+      {{ ['/usr/local/sbin/retire-dagster-external-locations',
+          '--desired-json', dagster_code_locations | to_json,
+          '--desired-compose-services-json',
+          infrastructure_infisical_runtime_services.dagster.compose_services | to_json] }}
+  changed_when: false
+  when: infrastructure_environment == 'dev' and not ansible_check_mode
+  tags: [dagster]
+
+- name: Publish current Dagster Infisical reconciliation metadata
+  ansible.builtin.copy:
+    content: "{{ infrastructure_infisical_runtime_services | to_nice_json }}\n"
+    dest: /etc/infrastructure/infisical-runtime-services.json
+    owner: root
+    group: root
+    mode: '0644'
+  when: infrastructure_environment == 'dev' and not ansible_check_mode
+  tags: [dagster]
+
+- name: Publish current external Dagster ownership metadata
+  ansible.builtin.copy:
+    content: "{{ dagster_code_locations | to_nice_json }}\n"
+    dest: /etc/infrastructure/dagster-external-locations.json
+    owner: root
+    group: root
+    mode: '0644'
+  when: infrastructure_environment == 'dev' and not ansible_check_mode
+  tags: [dagster]
+
+- name: Publish external Dagster code locations for the remote health gate
+  ansible.builtin.copy:
+    content: "{{ dagster_code_locations | map(attribute='service_name') | list | to_nice_json }}\n"
+    dest: /etc/infrastructure/dagster-code-locations.json
+    owner: root
+    group: root
+    mode: '0644'
+  when: infrastructure_environment == 'dev' and not ansible_check_mode
   tags: [dagster]

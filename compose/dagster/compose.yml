@@ -57,24 +57,6 @@ services:
       timeout: 3s
       retries: 10
       start_period: 30s
-  openproject-reports-code:
-    image: ${OPENPROJECT_REPORTS_IMAGE_REF:?required}
-    restart: unless-stopped
-    user: '1000:1000'
-    env_file: ["${DAGSTER_RUNTIME_ENV_FILE:?required}"]
-    environment:
-      DAGSTER_GRPC_PORT: '4000'
-    expose: ['4000']
-    volumes:
-      - "${DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
-      - "${DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
-    networks: [postgres, proxy]
-    healthcheck:
-      test: [CMD, dagster, api, grpc-health-check, -p, '4000']
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
   dagster-webserver:
     image: ${DAGSTER_IMAGE:?required}
     restart: unless-stopped
