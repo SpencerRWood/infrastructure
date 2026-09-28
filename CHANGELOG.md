@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.13.1 (2026-09-28)
+
+### Bug Fixes
+
+- Deploy report image with Dagster Postgres support
+  ([#50](https://github.com/SpencerRWood/infrastructure/pull/50),
+  [`e45b041`](https://github.com/SpencerRWood/infrastructure/commit/e45b041bf2e70650fa7f571901b73683bef9e6a1))
+
+
 ## v0.13.0 (2026-09-28)
 
 ### Features
