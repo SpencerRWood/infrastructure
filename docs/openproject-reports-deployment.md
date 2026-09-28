@@ -1,0 +1,9 @@
+# OpenProject Reports in infrastructure dev
+
+The `openproject-reports` application repository owns the four Dagster assets, full-refresh job, daily 06:00 America/New_York schedule, OpenProject extraction, workbook, and Drive publisher. Infrastructure dev pins its GHCR image, runs the gRPC code location on Beelink, and registers `openproject_reports` in the shared Dagster workspace. Production does not select this service.
+
+The image pin in `environments/dev.yml` is digest-qualified. The application release uses `container-release.yml@v1`. After initial onboarding, set the application repository variable `OPENPROJECT_REPORTS_PROMOTION_ENABLED=true` and configure its `INFRASTRUCTURE_PR_TOKEN` secret to use the centralized dev image promotion workflow. The promotion changes only this image pin and goes through infrastructure validation and its Beelink deployment flow.
+
+Infisical dev path `/openproject-reports` must contain four single-line values: `OPENPROJECT_BASE_URL`, `OPENPROJECT_API_TOKEN`, `GOOGLE_DRIVE_CREDENTIALS_JSON`, and `GOOGLE_DRIVE_FOLDER_ID`. Set the folder ID to `1PbcC0x4YL3CnQ02f2cmZkKOkJrhjXZMp`. The target is in My Drive. Use authorized-user OAuth JSON with a refresh token, or domain-wide delegation with an `impersonated_user` field in the credential JSON set to the folder owner. A plain service account cannot create the first file in this folder. The resolver writes a root-owned runtime env file; credentials stay out of Git. The code location receives `DAGSTER_GRPC_PORT=4000` and joins the infrastructure dev proxy network for OpenProject and Google Drive egress.
+
+The OpenProject Reports code location is healthy when its container health check and the daemon-to-code-location gRPC check pass. A complete functional smoke test runs `openproject_full_refresh` twice and confirms one `OpenProject Status.xlsx` file in the target folder with the same Drive ID after both runs.

@@ -38,6 +38,12 @@
       when: services.dagster | bool
       tags: [dagster]
 
+    - name: Deploy selected OpenProject Reports code location
+      ansible.builtin.include_role:
+        name: openproject_reports
+      when: services.openproject_reports | default(false) | bool
+      tags: [openproject_reports]
+
     - name: Deploy selected Open WebUI component
       ansible.builtin.include_role:
         name: openwebui

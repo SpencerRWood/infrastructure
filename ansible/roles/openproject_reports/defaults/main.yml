@@ -1,0 +1,7 @@
+---
+openproject_reports_compose_directory: "{{ host_infrastructure_compose_root }}/openproject-reports"
+openproject_reports_runtime_env_file: /srv/infrastructure/secrets/runtime/openproject-reports.env
+openproject_reports_compose_env_file: "{{ host_infrastructure_secrets_root }}/openproject-reports-compose.env"
+openproject_reports_project_name: "infrastructure-{{ infrastructure_environment }}-openproject-reports"
+openproject_reports_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
+openproject_reports_ghcr_config_directory: "{{ host_infrastructure_secrets_root }}/ghcr-docker"

@@ -31,7 +31,8 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
   postgres_validation_env="$(mktemp)"
   caddy_validation_env="$(mktemp)"
   website_validation_env="$(mktemp)"
-  trap 'rm -f "$postgres_validation_env" "$caddy_validation_env" "$website_validation_env"' EXIT
+  openproject_reports_validation_env="$(mktemp)"
+  trap 'rm -f "$postgres_validation_env" "$caddy_validation_env" "$website_validation_env" "$openproject_reports_validation_env"' EXIT
   printf '%s\n' \
     'POSTGRES_DB=postgres' \
     'POSTGRES_USER=postgres' \
@@ -60,7 +61,13 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
     'WEBSITE_PORTFOLIO_PROXY_NETWORK=infrastructure-dev-proxy' >"$website_validation_env"
   docker compose --env-file "$postgres_validation_env" -f compose/postgres/compose.yml config --quiet
   docker compose --env-file "$caddy_validation_env" -f compose/caddy/compose.yml config --quiet
+  printf '%s\n' \
+    'OPENPROJECT_REPORTS_PROJECT_NAME=infrastructure-dev-openproject-reports' \
+    'OPENPROJECT_REPORTS_IMAGE_REF=ghcr.io/spencerrwood/openproject-reports:v0.1.4@sha256:e9764e5178d004201242bad282600b52657e51b877ba66bf076e5b791408c16b' \
+    'OPENPROJECT_REPORTS_RUNTIME_ENV_FILE=/dev/null' \
+    'OPENPROJECT_REPORTS_PROXY_NETWORK=infrastructure-dev-proxy' >"$openproject_reports_validation_env"
   docker compose --env-file "$website_validation_env" -f compose/website-portfolio/compose.yml config --quiet
+  docker compose --env-file "$openproject_reports_validation_env" -f compose/openproject-reports/compose.yml config --quiet
   env \
     INFISICAL_PROJECT_NAME=infrastructure-dev-infisical \
     INFISICAL_IMAGE_TAG=test \

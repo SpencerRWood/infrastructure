@@ -1,0 +1,18 @@
+name: ${OPENPROJECT_REPORTS_PROJECT_NAME:?required}
+services:
+  openproject-reports:
+    image: ${OPENPROJECT_REPORTS_IMAGE_REF:?required}
+    restart: unless-stopped
+    environment:
+      DAGSTER_GRPC_PORT: '4000'
+    env_file: ["${OPENPROJECT_REPORTS_RUNTIME_ENV_FILE:?required}"]
+    expose: ['4000']
+    networks: [proxy]
+    healthcheck:
+      test: [CMD, dagster, api, grpc-health-check, -p, '4000']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+networks:
+  proxy: {external: true, name: "${OPENPROJECT_REPORTS_PROXY_NETWORK:?required}"}

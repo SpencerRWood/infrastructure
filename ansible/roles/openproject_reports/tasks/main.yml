@@ -1,0 +1,132 @@
+---
+- name: Require pinned OpenProject Reports image
+  ansible.builtin.assert:
+    that:
+      - >-
+        openproject_reports_image_ref is match(
+        '^ghcr[.]io/spencerrwood/openproject-reports:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
+        )
+    fail_msg: OpenProject Reports requires a digest-qualified GHCR image.
+  tags: [openproject_reports]
+
+- name: Create OpenProject Reports Compose directory
+  ansible.builtin.file:
+    path: "{{ openproject_reports_compose_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [openproject_reports]
+
+- name: Resolve OpenProject Reports Infisical runtime
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/resolve-infrastructure-infisical-env
+      - --environment
+      - dev
+      - --path
+      - /openproject-reports
+      - --output
+      - /srv/infrastructure/secrets/runtime/openproject-reports.env
+      - --require=OPENPROJECT_BASE_URL
+      - --require=OPENPROJECT_API_TOKEN
+      - --require=GOOGLE_DRIVE_CREDENTIALS_JSON
+      - --require=GOOGLE_DRIVE_FOLDER_ID
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [openproject_reports]
+
+- name: Install protected static OpenProject Reports environment
+  ansible.builtin.copy:
+    content: "DAGSTER_GRPC_PORT=4000\n"
+    dest: /srv/infrastructure/secrets/static/openproject-reports.env
+    owner: root
+    group: root
+    mode: '0600'
+  tags: [openproject_reports]
+
+- name: Check for retained OpenProject Reports legacy environment
+  ansible.builtin.stat:
+    path: /srv/infrastructure/secrets/dev/openproject-reports.env
+  register: openproject_reports_legacy_env
+  tags: [openproject_reports]
+
+- name: Retain protected initial environment for rollback
+  ansible.builtin.copy:
+    src: "{{ openproject_reports_runtime_env_file }}"
+    dest: /srv/infrastructure/secrets/dev/openproject-reports.env
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  when: not ansible_check_mode and not openproject_reports_legacy_env.stat.exists
+  tags: [openproject_reports]
+
+- name: Write OpenProject Reports Compose variables
+  ansible.builtin.copy:
+    content: |-
+      OPENPROJECT_REPORTS_PROJECT_NAME={{ openproject_reports_project_name }}
+      OPENPROJECT_REPORTS_IMAGE_REF={{ openproject_reports_image_ref }}
+      OPENPROJECT_REPORTS_RUNTIME_ENV_FILE={{ openproject_reports_runtime_env_file }}
+      OPENPROJECT_REPORTS_PROXY_NETWORK={{ openproject_reports_proxy_network }}
+    dest: "{{ openproject_reports_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [openproject_reports]
+
+- name: Install OpenProject Reports Compose payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/openproject-reports/compose.yml"
+    dest: "{{ openproject_reports_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [openproject_reports]
+
+- name: Validate OpenProject Reports Compose configuration
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ openproject_reports_compose_env_file }}"
+      - -f
+      - "{{ openproject_reports_compose_directory }}/compose.yml"
+      - config
+      - --quiet
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [openproject_reports]
+
+- name: Pull pinned OpenProject Reports image
+  ansible.builtin.command:
+    argv: [docker, pull, "{{ openproject_reports_image_ref }}"]
+  environment:
+    DOCKER_CONFIG: "{{ openproject_reports_ghcr_config_directory }}"
+  register: openproject_reports_pull
+  changed_when: openproject_reports_pull.stdout is search('Downloaded newer image')
+  when: not ansible_check_mode
+  tags: [openproject_reports]
+
+- name: Start OpenProject Reports code location
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ openproject_reports_compose_env_file }}"
+      - -f
+      - "{{ openproject_reports_compose_directory }}/compose.yml"
+      - up
+      - -d
+  environment:
+    DOCKER_CONFIG: "{{ openproject_reports_ghcr_config_directory }}"
+  register: openproject_reports_up
+  changed_when: openproject_reports_up.stdout is search('Created|Started|Recreated')
+  when: not ansible_check_mode
+  tags: [openproject_reports]
