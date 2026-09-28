@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.13.2 (2026-09-28)
+
+### Bug Fixes
+
+- Provide Dagster instance environment to report worker
+  ([#51](https://github.com/SpencerRWood/infrastructure/pull/51),
+  [`237f08c`](https://github.com/SpencerRWood/infrastructure/commit/237f08ceafaba4a2432a7f547ea2d1b88db2216d))
+
+
 ## v0.13.1 (2026-09-28)
 
 ### Bug Fixes
