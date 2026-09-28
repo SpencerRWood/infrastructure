@@ -1,6 +1,6 @@
 [project]
 name = "infrastructure"
-version = "0.13.2"
+version = "0.13.3"
 description = "Versioned declarative configuration for portable infrastructure"
 readme = "README.md"
 requires-python = ">=3.13"
