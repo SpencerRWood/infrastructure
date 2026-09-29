@@ -2,12 +2,22 @@
 name: Deploy released infrastructure development configuration
 
 'on':
+  workflow_call:
+    inputs:
+      ref:
+        description: Immutable repository release tag.
+        required: true
+        type: string
+      skip_superseded:
+        description: Skip an automated deployment when a newer main commit exists.
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       release:
         description: >-
-          Existing release tag to deploy; leave empty to deploy the latest
-          release.
+          Existing release tag; leave empty to deploy the latest release.
         required: false
         type: string
 
@@ -17,25 +27,38 @@ permissions:
 
 jobs:
   resolve-release:
-    runs-on: ubuntu-latest
-    outputs:
-      ref: ${{ steps.release.outputs.ref }}
-    steps:
-      - id: release
-        env:
-          EVENT_RELEASE: ${{ github.event.release.tag_name }}
-          REQUESTED_RELEASE: ${{ inputs.release }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          ref="${EVENT_RELEASE:-${REQUESTED_RELEASE:-}}"
-          if [[ -z "$ref" ]]; then
-            latest_endpoint="repos/${GITHUB_REPOSITORY}/releases/latest"
-            ref=$(gh api "$latest_endpoint" --jq .tag_name)
-          fi
-          printf 'ref=%s\n' "$ref" >> "$GITHUB_OUTPUT"
+    uses: SpencerRWood/workflows/.github/workflows/resolve-release.yml@v1
+    with:
+      ref: ${{ inputs.ref || inputs.release }}
 
   deploy-dev:
     needs: resolve-release
-    uses: ./.github/workflows/deploy-target.yml
+    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@v1
     with:
+      repository: ${{ github.repository }}
       ref: ${{ needs.resolve-release.outputs.ref }}
+      skip_superseded: ${{ inputs.skip_superseded }}
+      inventory_path: ansible/inventory/dev
+      playbook_path: ansible/playbooks/dev.yml
+      ansible_config_path: ansible/ansible.cfg
+      environment_name: infrastructure-dev
+      deployment_working_directory: .
+      concurrency_group: deploy-infrastructure-dev
+      runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure"]'
+      secrets_file: /home/github-runner-infrastructure/.secrets/dev.env
+      validation_command: >-
+        uv sync --group dev &&
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+        "$GITHUB_WORKSPACE" validate
+      check_command: >-
+        ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
+        -i ansible/inventory/dev
+        ansible/playbooks/dev.yml --tags host --check --diff
+      privileged_check_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE" check
+      health_check_command: bash scripts/health-check-dev.sh
+      privileged_deploy_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE" apply
+      privileged_health_check_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE" health
+      deployment_state_file: /var/lib/github-actions-deployments/github-runner-infrastructure/infrastructure-dev.json
