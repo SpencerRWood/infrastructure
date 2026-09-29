@@ -8,3 +8,4 @@ checks = ["pre-commit"]
 
 [release]
 semantic_release = true
+tag_merged_commit = true
