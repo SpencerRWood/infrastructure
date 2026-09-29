@@ -133,9 +133,10 @@ dedicated Beelink infrastructure runner, which checks out the exact
 tag, validates it, applies `ansible/playbooks/dev.yml`, and runs
 `scripts/health-check-dev.sh`. Deployments are serialized by
 `deploy-infrastructure-dev`; a newer run never interrupts an active apply.
-Automatic and manual deployment entrypoints both use
-`.github/workflows/deploy-target.yml` for the target's inventory, runner,
-protected file path, health command, and durable state path.
+Automatic and manual deployment enter the same `.github/workflows/deploy.yml`.
+It holds the target's inventory, runner, protected file path, health command,
+and durable state path. The shared resolver verifies an explicit published
+release or selects the latest one for a manual run with no release input.
 
 On deployment or health failure the workflow restores the prior successful
 `infrastructure-dev` Environment release once and validates it. Rollback restores
@@ -151,8 +152,8 @@ Automatic release deployment is dev-only. `prod.yml` is never called automatical
 and production remains an explicit/manual operation.
 
 Renovate follows this same release path. Docker patch and vulnerability
-updates are configured for auto-merge. Renovate itself waits for passing PR
-checks before merging because consumer `main` has no required GitHub check.
+updates are configured for auto-merge. GitHub holds the merge until the required
+PR validation check passes.
 Minor and major updates remain manual. PostgreSQL compatibility-major changes
 remain manual. Routine
 Renovate commits are `fix(deps)`, producing semantic-release patch releases.
