@@ -115,11 +115,10 @@ records the pinned artifact, protected inputs, migration, and route.
 Run `uv sync --group dev` once, then `uv run pre-commit install`. Pre-commit blocks
 local commits directly to `main` and validates YAML, secrets/private keys,
 Ansible inventories and syntax, Ansible lint, and Compose configuration. Work on
-a branch and merge through a reviewed pull request; local hooks complement, but
-are distinct from, GitHub branch protection. The prepared `main` ruleset is
-intentionally disabled for this single-developer repository so semantic-release
-can write its generated version commit back to `main`. `workflows/main` remains
-protected; see the [shared branch policy](https://github.com/SpencerRWood/workflows/blob/main/docs/branch-rules.md).
+a branch and merge through a reviewed pull request; local hooks complement GitHub
+branch protection. The `main` ruleset requires PR validation. Semantic-release
+tags the validated merged commit without writing a new commit to `main`; see
+the [shared branch policy](https://github.com/SpencerRWood/workflows/blob/main/docs/branch-rules.md).
 
 The pull-request wrapper calls `validate.yml@v1` using `.github/release.toml`.
 It opts into the shared `infrastructure-validation` commit status on the PR head
@@ -127,10 +126,9 @@ so the Website Portfolio dev promotion can read the result with a narrowly
 scoped token. The Actions check remains the normal CI result.
 The shared release workflow runs the same checks after changes reach `main`,
 then determines the next version from conventional commits. Its release job
-writes that version to `pyproject.toml`, commits
-`chore(release): X.Y.Z`, tags that commit `vX.Y.Z`, and publishes the GitHub
-Release. The published tag's checked-in project version matches its release
-version. A published release invokes the shared deployment workflow on the
+tags that validated merged commit `vX.Y.Z` and publishes the GitHub Release.
+The Git tag is the version source for this non-package repository. A published
+release invokes the shared deployment workflow on the
 dedicated Beelink infrastructure runner, which checks out the exact
 tag, validates it, applies `ansible/playbooks/dev.yml`, and runs
 `scripts/health-check-dev.sh`. Deployments are serialized by
