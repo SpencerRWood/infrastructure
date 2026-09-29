@@ -6,7 +6,7 @@
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
   "pinDigests": true,
-  "platformAutomerge": false,
+  "platformAutomerge": true,
   "automergeStrategy": "squash",
   "vulnerabilityAlerts": {
     "automerge": true,
