@@ -61,3 +61,9 @@
         name: website_portfolio
       when: services.website_portfolio | default(false) | bool
       tags: [website_portfolio]
+
+    - name: Deploy selected RAG Service component
+      ansible.builtin.include_role:
+        name: rag_service
+      when: services.rag_service | default(false) | bool
+      tags: [rag_service]

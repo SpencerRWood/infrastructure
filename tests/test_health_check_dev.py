@@ -22,6 +22,8 @@ class HealthCheckTests(unittest.TestCase):
         target_host: str = "dev-infisical.woodhost.cloud",
         report_present: bool = True,
         report_healthy: bool = True,
+        rag_present: bool = True,
+        rag_healthy: bool = True,
     ) -> tuple[subprocess.CompletedProcess[str], int]:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -32,10 +34,14 @@ class HealthCheckTests(unittest.TestCase):
             docker.write_text(
                 '#!/usr/bin/env bash\n'
                 'if [[ "$1" == ps ]]; then\n'
-                '  if [[ "$*" == *openproject-reports-code* ]]; then\n'
+                '  if [[ "$*" == *rag-service-code* ]]; then\n'
+                '    [[ "$FAKE_RAG_PRESENT" == true ]] && echo rag1\n'
+                '  elif [[ "$*" == *openproject-reports-code* ]]; then\n'
                 '    [[ "$FAKE_REPORT_PRESENT" == true ]] && echo report1\n'
                 '  else echo container1; fi\n'
                 '  exit 0\n'
+                'elif [[ "$2" == rag1 && "$FAKE_RAG_HEALTHY" != true ]]; then\n'
+                '  echo \'{"Running": true, "Status": "unhealthy"}\'\n'
                 'elif [[ "$2" == report1 && "$FAKE_REPORT_HEALTHY" != true ]]; then\n'
                 '  echo \'{"Running": true, "Status": "unhealthy"}\'\n'
                 'else echo \'{"Running": true, "Status": "healthy"}\'; fi\n',
@@ -77,6 +83,8 @@ class HealthCheckTests(unittest.TestCase):
                 "FAKE_CURL_COUNT": str(count_file),
                 "FAKE_REPORT_PRESENT": str(report_present).lower(),
                 "FAKE_REPORT_HEALTHY": str(report_healthy).lower(),
+                "FAKE_RAG_PRESENT": str(rag_present).lower(),
+                "FAKE_RAG_HEALTHY": str(rag_healthy).lower(),
             }
             result = subprocess.run(
                 ["bash", str(SCRIPT)],
@@ -87,6 +95,19 @@ class HealthCheckTests(unittest.TestCase):
                 check=False,
             )
             return result, int(count_file.read_text()) if count_file.exists() else 0
+
+    def test_rag_database_readiness_must_succeed_after_liveness(self) -> None:
+        result, attempts = self.run_health_check("200,503,503,503", target_host="dev-rag-service.woodhost.cloud")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(attempts, 4)
+        self.assertIn("dev-rag-service.woodhost.cloud/knowledge-bases?limit=1", result.stderr)
+
+    def test_rag_code_server_must_be_present_and_healthy(self) -> None:
+        for present, healthy in ((False, True), (True, False)):
+            with self.subTest(present=present, healthy=healthy):
+                result, _ = self.run_health_check("200", rag_present=present, rag_healthy=healthy)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("RAG Service Dagster code server is not healthy", result.stderr)
 
     def test_transient_502_then_success(self) -> None:
         for responses in ("502,502,200", "500,503,200"):

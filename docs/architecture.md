@@ -60,6 +60,12 @@ deployment by itself.
 
 ## Dagster ownership
 
+RAG Service is selected in dev and owns a separate `rag_service` database with
+distinct runtime and migration identities. Its API and Dagster code server
+share one pinned application image; application source and Alembic migrations
+remain in the RAG repository. See [RAG deployment](rag-service-deployment.md)
+for first-time setup and rollback.
+
 Dagster is a dev-only infrastructure component. `compose/dagster/` owns its
 webserver, daemon, gRPC user-code servers, workspace, and storage configuration.
 The OpenProject Reports code server runs from a pinned application image and

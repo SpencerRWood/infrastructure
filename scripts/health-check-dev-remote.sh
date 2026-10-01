@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Project labels are the runtime contract written by the dev Ansible roles.
 # These checks establish container liveness; HTTP probes below establish application readiness.
-for project in infrastructure-dev-postgres infrastructure-dev-caddy infrastructure-dev-dagster infrastructure-dev-openwebui infrastructure-dev-keycloak infrastructure-dev-infisical infrastructure-dev-website-portfolio; do
+for project in infrastructure-dev-postgres infrastructure-dev-caddy infrastructure-dev-dagster infrastructure-dev-openwebui infrastructure-dev-keycloak infrastructure-dev-infisical infrastructure-dev-website-portfolio infrastructure-dev-rag-service; do
   ids=$(docker ps -q --filter "label=com.docker.compose.project=$project")
   test -n "$ids"
   while IFS= read -r id; do
@@ -25,6 +25,15 @@ if [[ -z "$report_container" ]] || ! docker inspect "$report_container" | grep -
   exit 1
 fi
 echo 'OK OpenProject Reports Dagster code server'
+
+rag_code_container=$(docker ps -q \
+  --filter label=com.docker.compose.project=infrastructure-dev-rag-service \
+  --filter label=com.docker.compose.service=rag-service-code)
+if [[ -z "$rag_code_container" ]] || ! docker inspect "$rag_code_container" | grep -q '"Status": "healthy"'; then
+  echo 'RAG Service Dagster code server is not healthy' >&2
+  exit 1
+fi
+echo 'OK RAG Service Dagster code server'
 
 caddy_env_file=${HEALTH_CHECK_CADDY_ENV_FILE:-/srv/infrastructure/secrets/dev/caddy.env}
 caddy_http_bind=$(sed -n 's/^CADDY_HTTP_BIND=//p' "$caddy_env_file")
@@ -84,3 +93,5 @@ done
 wait_for_route dev-infisical.woodhost.cloud /api/status
 wait_for_route dev-website-portfolio.woodhost.cloud /health
 wait_for_route dev-website-portfolio.woodhost.cloud /
+wait_for_route dev-rag-service.woodhost.cloud /health
+wait_for_route dev-rag-service.woodhost.cloud /knowledge-bases?limit=1
