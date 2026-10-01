@@ -12,7 +12,7 @@ dagster_restore_backup_path: /srv/infrastructure/backups/dagster/dagster-final.d
 keycloak_hostname: dev-keycloak.woodhost.cloud
 # The complete image reference is intentionally kept on one line for auditing.
 # yamllint disable rule:line-length
-portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.9.1@sha256:c6ce55e1cfdab36dc282462b1397a6b9865547c6a939dc4eebe996a1c3230d7a
+portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.10.0@sha256:b2909c24dd1b043c0410820a743e179715d1cf3c55c1192113da4f222e94aa67
 openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.0@sha256:fa2ef486195e4ce69dfb88fe443afa0b5c01956702b611b209948562f275efb5
 rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.1.0@sha256:83be558d8a7bb509d2b673f22d1b34438b354eb738ba7242a4157a9321653cf5
 # yamllint enable rule:line-length
