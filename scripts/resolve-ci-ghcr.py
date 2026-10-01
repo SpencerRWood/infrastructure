@@ -19,6 +19,17 @@ def fail() -> None:
     raise SystemExit(1)
 
 
+def select_credential(result: dict) -> str:
+    """Select the registry key without rejecting other CI credentials."""
+    matches = [item for item in result['secrets'] if item['secretKey'] == KEY]
+    if len(matches) != 1:
+        raise ValueError('expected one registry credential')
+    value = matches[0]['secretValue']
+    if not isinstance(value, str) or not value or '\n' in value or '\r' in value:
+        raise ValueError('invalid registry credential')
+    return value
+
+
 def request(url: str, *, payload: dict[str, str] | None = None,
             access_token: str | None = None) -> dict:
     headers = {'Content-Type': 'application/json', 'User-Agent': 'ci-ghcr-resolver'}
@@ -56,13 +67,7 @@ def main() -> None:
         })
         result = request(BASE + '/api/v4/secrets?' + query,
                          access_token=login['accessToken'])
-        secrets = result['secrets']
-        if len(secrets) != 1 or secrets[0]['secretKey'] != KEY:
-            fail()
-        value = secrets[0]['secretValue']
-        if not isinstance(value, str) or not value or '\n' in value or '\r' in value:
-            fail()
-        sys.stdout.write(value)
+        sys.stdout.write(select_credential(result))
     except (OSError, KeyError, TypeError, ValueError, urllib.error.URLError):
         fail()
 
