@@ -1,6 +1,7 @@
 load_from:
   - grpc_server: {host: dagster-user-code, port: 4000, location_name: wood-data-platform}
   - grpc_server: {host: openproject-reports-code, port: 4000, location_name: openproject_reports}
+  - grpc_server: {host: rag-service-code, port: 4000, location_name: rag-service}
   - grpc_server:
       host: {env: MACBOOK_DAGSTER_HOST}
       port: 4000

@@ -49,6 +49,11 @@ secrets, `infrastructure-dev-proxy` membership, validation, legacy shutdown,
 and rollback plan. Dev URLs explicitly include alternate ports, for example
 `http://dev-<service>.woodhost.cloud:8080`; DNS does not conceal the port.
 
+RAG Service follows the same Caddy route pattern at
+`dev-rag-service.woodhost.cloud`. Its pinned image runs both the API and Dagster
+code server. Separate Infrastructure Dev Infisical folders hold runtime and
+migration credentials; see [RAG deployment](rag-service-deployment.md).
+
 Dagster is selected only in `dev`; production remains disabled. Its protected
 runtime environment reads `DAGSTER_POSTGRES_PASSWORD` and
 `MACBOOK_DAGSTER_HOST` from the untracked dev environment. The MacBook host is

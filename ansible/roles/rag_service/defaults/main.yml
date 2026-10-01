@@ -1,0 +1,13 @@
+---
+rag_service_compose_directory: "{{ host_infrastructure_compose_root }}/rag-service"
+rag_service_state_directory: "{{ host_infrastructure_state_root }}/rag-service"
+rag_service_compose_env_file: "{{ host_infrastructure_secrets_root }}/rag-service-compose.env"
+rag_service_runtime_env_file: /srv/infrastructure/secrets/runtime/rag-service.env
+rag_service_migration_env_file: /srv/infrastructure/secrets/runtime/rag-service-migrations.env
+rag_service_dagster_env_file: /srv/infrastructure/secrets/runtime/rag-service-dagster.env
+rag_service_docker_config_directory: "{{ host_infrastructure_secrets_root }}/ghcr-docker"
+rag_service_project_name: "infrastructure-{{ infrastructure_environment }}-rag-service"
+rag_service_postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
+rag_service_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
+rag_service_dagster_config_path: "{{ host_infrastructure_compose_root }}/dagster/config"
+rag_service_dagster_local_path: "{{ host_infrastructure_state_root }}/dagster/local"

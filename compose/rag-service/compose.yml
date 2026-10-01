@@ -1,0 +1,71 @@
+name: ${RAG_SERVICE_PROJECT_NAME:?required}
+
+x-runtime: &runtime
+  image: ${RAG_SERVICE_IMAGE_REF:?required}
+  user: '1000:1000'
+  restart: unless-stopped
+  networks: [postgres, proxy]
+
+x-settings: &settings
+  RAG_ENVIRONMENT: dev
+  RAG_STORAGE_BACKEND: filesystem
+  RAG_STORAGE_PATH: /data/documents
+  RAG_DAGSTER_URL: http://dagster-webserver:3000
+  RAG_SOURCE_REVISION: ${RAG_SERVICE_SOURCE_REVISION:?required}
+  RAG_RELEASE_REVISION: ${RAG_SERVICE_RELEASE_TAG:?required}
+
+services:
+  rag-service:
+    <<: *runtime
+    env_file: ["${RAG_SERVICE_RUNTIME_ENV_FILE:?required}"]
+    environment: *settings
+    volumes: ["${RAG_SERVICE_DOCUMENTS_PATH:?required}:/data/documents"]
+    expose: ['8000']
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/knowledge-bases?limit=1', timeout=3).close()
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  rag-service-code:
+    <<: *runtime
+    env_file:
+      - "${RAG_SERVICE_RUNTIME_ENV_FILE:?required}"
+      - "${RAG_SERVICE_DAGSTER_ENV_FILE:?required}"
+    environment:
+      <<: *settings
+      DAGSTER_HOME: /opt/dagster/dagster_home
+      DAGSTER_GRPC_PORT: '4000'
+      DAGSTER_POSTGRES_HOST: postgres
+      DAGSTER_POSTGRES_PORT: '5432'
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_POSTGRES_USER: dagster
+    volumes:
+      - "${RAG_SERVICE_DOCUMENTS_PATH:?required}:/data/documents"
+      - "${RAG_SERVICE_DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
+      - "${RAG_SERVICE_DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
+    expose: ['4000']
+    healthcheck:
+      test: [CMD, dagster, api, grpc-health-check, -p, '4000']
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  rag-service-migrate:
+    image: ${RAG_SERVICE_IMAGE_REF:?required}
+    profiles: [migration]
+    env_file: ["${RAG_SERVICE_MIGRATION_ENV_FILE:?required}"]
+    command: [alembic, upgrade, head]
+    networks: [postgres]
+
+networks:
+  postgres: {external: true, name: "${RAG_SERVICE_POSTGRES_NETWORK:?required}"}
+  proxy: {external: true, name: "${RAG_SERVICE_PROXY_NETWORK:?required}"}

@@ -109,6 +109,8 @@ See [environment ownership](docs/environments.md) and the
 [next-release migration inventory](docs/postgres-migration-inventory.md).
 The [Website Portfolio deployment contract](docs/website-portfolio-deployment.md)
 records the pinned artifact, protected inputs, migration, and route.
+The [RAG Service deployment contract](docs/rag-service-deployment.md) records
+its database bootstrap, Infisical folders, code location, and rollback boundary.
 
 ## Repository workflow
 

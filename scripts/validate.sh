@@ -31,7 +31,8 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
   postgres_validation_env="$(mktemp)"
   caddy_validation_env="$(mktemp)"
   website_validation_env="$(mktemp)"
-  trap 'rm -f "$postgres_validation_env" "$caddy_validation_env" "$website_validation_env"' EXIT
+  rag_validation_env="$(mktemp)"
+  trap 'rm -f "$postgres_validation_env" "$caddy_validation_env" "$website_validation_env" "$rag_validation_env"' EXIT
   printf '%s\n' \
     'POSTGRES_DB=postgres' \
     'POSTGRES_USER=postgres' \
@@ -61,6 +62,20 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
   docker compose --env-file "$postgres_validation_env" -f compose/postgres/compose.yml config --quiet
   docker compose --env-file "$caddy_validation_env" -f compose/caddy/compose.yml config --quiet
   docker compose --env-file "$website_validation_env" -f compose/website-portfolio/compose.yml config --quiet
+  printf '%s\n' \
+    'RAG_SERVICE_PROJECT_NAME=infrastructure-dev-rag-service' \
+    'RAG_SERVICE_IMAGE_REF=ghcr.io/spencerrwood/rag-service:v0.1.0@sha256:83be558d8a7bb509d2b673f22d1b34438b354eb738ba7242a4157a9321653cf5' \
+    'RAG_SERVICE_RELEASE_TAG=v0.1.0' \
+    'RAG_SERVICE_SOURCE_REVISION=21380620d3c951863a5abadae5e528360cbb73c5' \
+    'RAG_SERVICE_RUNTIME_ENV_FILE=/dev/null' \
+    'RAG_SERVICE_MIGRATION_ENV_FILE=/dev/null' \
+    'RAG_SERVICE_DAGSTER_ENV_FILE=/dev/null' \
+    'RAG_SERVICE_DOCUMENTS_PATH=/tmp/rag-documents' \
+    'RAG_SERVICE_DAGSTER_CONFIG_PATH=/tmp/dagster-config' \
+    'RAG_SERVICE_DAGSTER_LOCAL_PATH=/tmp/dagster-local' \
+    'RAG_SERVICE_POSTGRES_NETWORK=infrastructure-dev-postgres' \
+    'RAG_SERVICE_PROXY_NETWORK=infrastructure-dev-proxy' >"$rag_validation_env"
+  docker compose --env-file "$rag_validation_env" -f compose/rag-service/compose.yml config --quiet
   env \
     INFISICAL_PROJECT_NAME=infrastructure-dev-infisical \
     INFISICAL_IMAGE_TAG=test \

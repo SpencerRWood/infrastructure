@@ -1,0 +1,173 @@
+---
+- name: Require the RAG Service dev artifact and dependencies
+  ansible.builtin.assert:
+    that:
+      - infrastructure_environment == 'dev'
+      - services.postgres | bool
+      - services.caddy | bool
+      - services.dagster | bool
+      - >-
+        rag_service_image_ref is match(
+        '^ghcr[.]io/spencerrwood/rag-service:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
+        )
+    fail_msg: RAG Service requires a pinned release and its dev platform dependencies.
+  tags: [rag_service]
+
+- name: Create the RAG Service component directory
+  ansible.builtin.file:
+    path: "{{ rag_service_compose_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [rag_service]
+
+- name: Create persistent RAG Service document storage for the non-root runtime
+  ansible.builtin.file:
+    path: "{{ rag_service_state_directory }}/documents"
+    state: directory
+    owner: '1000'
+    group: '1000'
+    mode: '0770'
+  tags: [rag_service]
+
+- name: Resolve distinct RAG runtime and migration credentials from Infisical
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/resolve-infrastructure-infisical-env
+      - --environment
+      - dev
+      - --path
+      - "{{ item.path }}"
+      - --output
+      - "{{ item.output }}"
+      - --require
+      - "{{ item.key }}"
+  loop:
+    - {path: /rag-service, output: "{{ rag_service_runtime_env_file }}", key: RAG_DATABASE_URL}
+    - {path: /rag-service-migrations, output: "{{ rag_service_migration_env_file }}", key: RAG_DATABASE_URL}
+    - {path: /dagster, output: "{{ rag_service_dagster_env_file }}", key: DAGSTER_POSTGRES_PASSWORD}
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Pull the exact RAG Service release using the protected host registry config
+  ansible.builtin.command:
+    argv: [docker, pull, "{{ rag_service_image_ref }}"]
+  environment:
+    DOCKER_CONFIG: "{{ rag_service_docker_config_directory }}"
+  register: rag_service_pull
+  changed_when: rag_service_pull.stdout is search('Downloaded newer image')
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Inspect RAG Service source provenance from the pulled artifact
+  community.docker.docker_image_info:
+    name: "{{ rag_service_image_ref }}"
+  register: rag_service_image
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Require source provenance on the RAG Service artifact
+  ansible.builtin.assert:
+    that:
+      - rag_service_image.images | length == 1
+      - >-
+        rag_service_image.images[0].Config.Labels['org.opencontainers.image.revision']
+        is match('^[0-9a-f]{40}$')
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Deploy RAG Service Compose settings
+  ansible.builtin.copy:
+    content: |-
+      RAG_SERVICE_PROJECT_NAME={{ rag_service_project_name }}
+      RAG_SERVICE_IMAGE_REF={{ rag_service_image_ref }}
+      RAG_SERVICE_RELEASE_TAG={{ rag_service_image_ref.split(':')[1].split('@')[0] }}
+      RAG_SERVICE_SOURCE_REVISION={{ rag_service_image.images[0].Config.Labels['org.opencontainers.image.revision'] }}
+      RAG_SERVICE_RUNTIME_ENV_FILE={{ rag_service_runtime_env_file }}
+      RAG_SERVICE_MIGRATION_ENV_FILE={{ rag_service_migration_env_file }}
+      RAG_SERVICE_DAGSTER_ENV_FILE={{ rag_service_dagster_env_file }}
+      RAG_SERVICE_DOCUMENTS_PATH={{ rag_service_state_directory }}/documents
+      RAG_SERVICE_DAGSTER_CONFIG_PATH={{ rag_service_dagster_config_path }}
+      RAG_SERVICE_DAGSTER_LOCAL_PATH={{ rag_service_dagster_local_path }}
+      RAG_SERVICE_POSTGRES_NETWORK={{ rag_service_postgres_network }}
+      RAG_SERVICE_PROXY_NETWORK={{ rag_service_proxy_network }}
+    dest: "{{ rag_service_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Deploy the canonical RAG Service Compose payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/rag-service/compose.yml"
+    dest: "{{ rag_service_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [rag_service]
+
+- name: Validate rendered RAG Service Compose configuration
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ rag_service_compose_env_file }}"
+      - -f
+      - "{{ rag_service_compose_directory }}/compose.yml"
+      - config
+      - --quiet
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Apply forward-only RAG Service migrations using the migration identity
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ rag_service_compose_env_file }}"
+      - -f
+      - "{{ rag_service_compose_directory }}/compose.yml"
+      - --profile
+      - migration
+      - run
+      - --rm
+      - --no-deps
+      - rag-service-migrate
+  environment:
+    DOCKER_CONFIG: "{{ rag_service_docker_config_directory }}"
+  changed_when: true
+  no_log: true
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Start RAG Service API and code server after migrations
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ rag_service_compose_env_file }}"
+      - -f
+      - "{{ rag_service_compose_directory }}/compose.yml"
+      - up
+      - -d
+      - --wait
+      - --wait-timeout
+      - '120'
+      - rag-service
+      - rag-service-code
+  environment:
+    DOCKER_CONFIG: "{{ rag_service_docker_config_directory }}"
+  register: rag_service_up
+  changed_when: (rag_service_up.stdout + rag_service_up.stderr) is search('Created|Started|Recreated')
+  when: not ansible_check_mode
+  tags: [rag_service]
