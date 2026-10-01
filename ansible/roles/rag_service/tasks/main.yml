@@ -63,19 +63,30 @@
   tags: [rag_service]
 
 - name: Inspect RAG Service source provenance from the pulled artifact
-  community.docker.docker_image_info:
-    name: "{{ rag_service_image_ref }}"
-  register: rag_service_image
+  ansible.builtin.command:
+    argv:
+      - docker
+      - image
+      - inspect
+      - "{{ rag_service_image_ref }}"
+      - --format
+      - '{{ "{{json .Config.Labels}}" }}'
+  register: rag_service_image_labels
+  changed_when: false
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Read the RAG Service source revision
+  ansible.builtin.set_fact:
+    rag_service_source_revision: >-
+      {{ (rag_service_image_labels.stdout | from_json).get('org.opencontainers.image.revision', '') }}
   when: not ansible_check_mode
   tags: [rag_service]
 
 - name: Require source provenance on the RAG Service artifact
   ansible.builtin.assert:
     that:
-      - rag_service_image.images | length == 1
-      - >-
-        rag_service_image.images[0].Config.Labels['org.opencontainers.image.revision']
-        is match('^[0-9a-f]{40}$')
+      - rag_service_source_revision is match('^[0-9a-f]{40}$')
   when: not ansible_check_mode
   tags: [rag_service]
 
@@ -85,7 +96,7 @@
       RAG_SERVICE_PROJECT_NAME={{ rag_service_project_name }}
       RAG_SERVICE_IMAGE_REF={{ rag_service_image_ref }}
       RAG_SERVICE_RELEASE_TAG={{ rag_service_image_ref.split(':')[1].split('@')[0] }}
-      RAG_SERVICE_SOURCE_REVISION={{ rag_service_image.images[0].Config.Labels['org.opencontainers.image.revision'] }}
+      RAG_SERVICE_SOURCE_REVISION={{ rag_service_source_revision }}
       RAG_SERVICE_RUNTIME_ENV_FILE={{ rag_service_runtime_env_file }}
       RAG_SERVICE_MIGRATION_ENV_FILE={{ rag_service_migration_env_file }}
       RAG_SERVICE_DAGSTER_ENV_FILE={{ rag_service_dagster_env_file }}
