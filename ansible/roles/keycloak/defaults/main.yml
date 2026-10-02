@@ -6,7 +6,7 @@ keycloak_compose_env_file: "{{ host_infrastructure_secrets_root }}/keycloak-comp
 keycloak_project_name: "infrastructure-{{ infrastructure_environment }}-keycloak"
 # v26.7.4 model migration completed in infrastructure v0.9.13 with the
 # one-time realm-cache-disabled startup workaround (upstream issue #52394).
-keycloak_image_tag: 26.7.4
+keycloak_image_tag: 26.8.0
 keycloak_postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
 keycloak_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
 keycloak_hostname: dev-keycloak.woodhost.cloud
