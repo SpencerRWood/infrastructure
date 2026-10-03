@@ -1,8 +1,5 @@
 ---
 environment_name: dev
-# Bootstrap this pin from the first verified events-service release; never invent
-# a digest. Enable the service only after database/secrets/ingress review.
-events_service_image_ref: ''
 # Events Service runs its own migrations with its dedicated application role.
 # The protected deployment input caches the canonical Infisical URL, never a
 # separately generated password. No production application is selected here.
@@ -24,12 +21,13 @@ dagster_restore_backup_path: /srv/infrastructure/backups/dagster/dagster-final.d
 keycloak_hostname: dev-keycloak.woodhost.cloud
 # The complete image reference is intentionally kept on one line for auditing.
 # yamllint disable rule:line-length
+events_service_image_ref: ghcr.io/spencerrwood/events-service:v0.5.0@sha256:4ea2d108a70bc520e05ca9c0f64ba9b59728c8dd0bc95c664ea51ab7f3de6dc0
 portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.11.0@sha256:abc93a08082b8b664b31a8cf35a1bc8f70c7408095d8be33ee37a8a301f710a0
 openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.0@sha256:fa2ef486195e4ce69dfb88fe443afa0b5c01956702b611b209948562f275efb5
 rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.2.0@sha256:b015b42427003f951e1d9d9bee5d368db4f97edf0f9ef78a63a05d42f31d6e0d
 # yamllint enable rule:line-length
 services:
-  events_service: false
+  events_service: true
   postgres: true
   caddy: true
   dagster: true

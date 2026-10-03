@@ -4,6 +4,7 @@ events_service_compose_env_file: "{{ host_infrastructure_secrets_root }}/events-
 events_service_project_name: "infrastructure-{{ infrastructure_environment }}-events-service"
 events_service_postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
 events_service_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
+events_service_docker_config_directory: "{{ host_infrastructure_secrets_root }}/ghcr-docker"
 events_service_broker_env_file: /srv/infrastructure/secrets/runtime/events-service-broker.env
 events_service_notify_env_file: /srv/infrastructure/secrets/runtime/events-service-notify.env
 events_service_infisical_path: /events-service
