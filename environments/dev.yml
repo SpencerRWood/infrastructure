@@ -1,5 +1,14 @@
 ---
 environment_name: dev
+# Events Service runs its own migrations with its dedicated application role.
+# The protected deployment input caches the canonical Infisical URL, never a
+# separately generated password. No production application is selected here.
+postgres_applications:
+  - database: events_service
+    role: events_service
+    url_environment: WES_DATABASE_URL
+    host: 192.168.1.21
+    port: 25433
 caddy_bind_address: 192.168.1.21
 caddy_http_port: 8080
 caddy_https_port: 8443

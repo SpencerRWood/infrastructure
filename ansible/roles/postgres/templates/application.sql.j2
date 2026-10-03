@@ -1,0 +1,58 @@
+\set ON_ERROR_STOP on
+SET log_statement = 'none';
+SET log_min_duration_statement = -1;
+SET log_min_error_statement = 'panic';
+SET password_encryption = 'scram-sha-256';
+
+SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS PASSWORD %L',
+    '{{ postgres_application.role }}', '{{ postgres_application_credential.password | replace("'", "''") }}')
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{{ postgres_application.role }}') \gexec
+
+-- Reject unsafe pre-existing identities; do not silently repurpose a role.
+DO $policy$
+BEGIN
+    IF NOT EXISTS (
+        SELECT FROM pg_roles WHERE rolname = '{{ postgres_application.role }}'
+        AND rolcanlogin AND NOT rolsuper AND NOT rolcreatedb AND NOT rolcreaterole
+        AND NOT rolinherit AND NOT rolreplication AND NOT rolbypassrls
+    ) OR EXISTS (
+        SELECT FROM pg_auth_members
+        WHERE member = (SELECT oid FROM pg_roles WHERE rolname = '{{ postgres_application.role }}')
+    ) OR EXISTS (
+        SELECT FROM pg_database WHERE datdba = (SELECT oid FROM pg_roles WHERE rolname = '{{ postgres_application.role }}')
+        AND datname <> '{{ postgres_application.database }}'
+    ) THEN
+        RAISE EXCEPTION 'Existing application role violates isolation policy';
+    END IF;
+END
+$policy$;
+
+SELECT format('CREATE DATABASE %I OWNER %I', '{{ postgres_application.database }}', '{{ postgres_application.role }}')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{{ postgres_application.database }}') \gexec
+
+DO $policy$
+BEGIN
+    IF NOT EXISTS (
+        SELECT FROM pg_database WHERE datname = '{{ postgres_application.database }}'
+        AND datdba = (SELECT oid FROM pg_roles WHERE rolname = '{{ postgres_application.role }}')
+    ) THEN
+        RAISE EXCEPTION 'Existing application database has an unexpected owner';
+    END IF;
+END
+$policy$;
+
+SELECT format('REVOKE ALL ON DATABASE %I FROM PUBLIC', '{{ postgres_application.database }}')
+WHERE EXISTS (
+    SELECT FROM pg_database, LATERAL aclexplode(coalesce(datacl, acldefault('d', datdba))) AS acl
+    WHERE datname = '{{ postgres_application.database }}' AND acl.grantee = 0
+) \gexec
+
+\connect {{ postgres_application.database }}
+SELECT 'REVOKE ALL ON SCHEMA public FROM PUBLIC'
+WHERE EXISTS (
+    SELECT FROM pg_namespace, LATERAL aclexplode(coalesce(nspacl, acldefault('n', nspowner))) AS acl
+    WHERE nspname = 'public' AND acl.grantee = 0
+) \gexec
+SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', '{{ postgres_application.role }}')
+WHERE NOT has_schema_privilege('{{ postgres_application.role }}', 'public', 'USAGE')
+   OR NOT has_schema_privilege('{{ postgres_application.role }}', 'public', 'CREATE') \gexec

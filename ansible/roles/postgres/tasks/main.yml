@@ -115,3 +115,31 @@
   changed_when: postgres_compose_up.stdout is search('Created|Started|Recreated')
   when: not ansible_check_mode
   tags: [postgres]
+
+- name: Wait for PostgreSQL before application provisioning
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ postgres_project_name }}-postgres-1"
+      - pg_isready
+      - -U
+      - "{{ lookup('ansible.builtin.env', 'POSTGRES_USER') }}"
+      - -d
+      - "{{ lookup('ansible.builtin.env', 'POSTGRES_DB') }}"
+  register: postgres_application_ready
+  changed_when: false
+  until: postgres_application_ready.rc == 0
+  retries: 30
+  delay: 2
+  when:
+    - not ansible_check_mode
+    - postgres_applications | length > 0
+  tags: [postgres]
+
+- name: Provision selected application databases
+  ansible.builtin.include_tasks: application.yml
+  loop: "{{ postgres_applications }}"
+  loop_control:
+    loop_var: postgres_application
+  tags: [postgres]
