@@ -1,0 +1,13 @@
+# Private infrastructure proxy: public ingress exposes only the callback below.
+http://dev-events-service.woodhost.cloud:80 {
+	@callback {
+		method POST
+		path /v1/telegram/callbacks
+	}
+	handle @callback {
+		reverse_proxy wood-notify:8000
+	}
+	handle {
+		respond 404
+	}
+}

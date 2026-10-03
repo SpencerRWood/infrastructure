@@ -1,0 +1,134 @@
+---
+- name: Require an immutable released Events Service artifact
+  ansible.builtin.assert:
+    that:
+      - >-
+        events_service_image_ref is match(
+        '^ghcr[.]io/spencerrwood/events-service:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$')
+    fail_msg: A released Events Service image pinned by digest is required.
+  tags: [events_service]
+
+- name: Install the environment-scoped Infisical resolver
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../scripts/resolve-infisical-env.py"
+    dest: /usr/local/sbin/resolve-infrastructure-infisical-env
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [events_service]
+
+- name: Create Events Service component directory
+  ansible.builtin.file:
+    path: "{{ events_service_compose_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [events_service]
+
+- name: Resolve separated Events Service runtime secrets
+  ansible.builtin.command:
+    argv: >-
+      {{ ['/usr/local/sbin/resolve-infrastructure-infisical-env',
+          '--environment', infrastructure_environment,
+          '--path', events_service_infisical_path, '--output', item.output] +
+         (item['keys'] | map('regex_replace', '^', '--require=') | list) }}
+  loop:
+    - output: "{{ events_service_broker_env_file }}"
+      keys: "{{ events_service_broker_keys }}"
+    - output: "{{ events_service_notify_env_file }}"
+      keys: "{{ events_service_notify_keys + events_service_optional_provider_keys }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [events_service]
+
+- name: Deploy Events Service Compose inputs
+  ansible.builtin.copy:
+    content: |-
+      EVENTS_SERVICE_PROJECT_NAME={{ events_service_project_name }}
+      EVENTS_SERVICE_IMAGE_REF={{ events_service_image_ref }}
+      EVENTS_SERVICE_BROKER_ENV_FILE={{ events_service_broker_env_file }}
+      EVENTS_SERVICE_NOTIFY_ENV_FILE={{ events_service_notify_env_file }}
+      EVENTS_SERVICE_POSTGRES_NETWORK={{ events_service_postgres_network }}
+      EVENTS_SERVICE_PROXY_NETWORK={{ events_service_proxy_network }}
+    dest: "{{ events_service_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [events_service]
+
+- name: Deploy canonical Events Service Compose payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/events-service/compose.yml"
+    dest: "{{ events_service_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [events_service]
+
+- name: Validate Events Service Compose before migration
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ events_service_compose_env_file }}"
+      - -f
+      - "{{ events_service_compose_directory }}/compose.yml"
+      - config
+      - --quiet
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [events_service]
+
+- name: Pull the exact validated Events Service image
+  ansible.builtin.command:
+    argv: [docker, pull, "{{ events_service_image_ref }}"]
+  register: events_service_pull
+  changed_when: events_service_pull.stdout is search('Downloaded newer image')
+  when: not ansible_check_mode
+  tags: [events_service]
+
+- name: Apply serialized Events Service migrations before starting services
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ events_service_compose_env_file }}"
+      - -f
+      - "{{ events_service_compose_directory }}/compose.yml"
+      - --profile
+      - migration
+      - run
+      - --rm
+      - --no-deps
+      - events-migrate
+  changed_when: true
+  no_log: true
+  when: not ansible_check_mode
+  tags: [events_service]
+
+- name: Start Events Service and require both readiness checks
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ events_service_compose_env_file }}"
+      - -f
+      - "{{ events_service_compose_directory }}/compose.yml"
+      - up
+      - -d
+      - --wait
+      - --wait-timeout
+      - '90'
+      - wood-broker
+      - wood-notify
+  register: events_service_up
+  changed_when: events_service_up.stdout is search('Created|Started|Recreated')
+  when: not ansible_check_mode
+  tags: [events_service]

@@ -24,7 +24,8 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
   postgres_validation_env="$(mktemp)"
   caddy_validation_env="$(mktemp)"
   website_validation_env="$(mktemp)"
-  trap 'rm -f "$postgres_validation_env" "$caddy_validation_env" "$website_validation_env"' EXIT
+  events_validation_env="$(mktemp)"
+  trap 'rm -f "$postgres_validation_env" "$caddy_validation_env" "$website_validation_env" "$events_validation_env"' EXIT
   printf '%s\n' \
     'POSTGRES_DB=postgres' \
     'POSTGRES_USER=postgres' \
@@ -54,6 +55,15 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
   docker compose --env-file "$postgres_validation_env" -f compose/postgres/compose.yml config --quiet
   docker compose --env-file "$caddy_validation_env" -f compose/caddy/compose.yml config --quiet
   docker compose --env-file "$website_validation_env" -f compose/website-portfolio/compose.yml config --quiet
+  # Syntax fixtures only: this image is never pulled or deployed by validation.
+  printf '%s\n' \
+    'EVENTS_SERVICE_PROJECT_NAME=syntax-events' \
+    'EVENTS_SERVICE_IMAGE_REF=syntax-only/events:test' \
+    'EVENTS_SERVICE_BROKER_ENV_FILE=/dev/null' \
+    'EVENTS_SERVICE_NOTIFY_ENV_FILE=/dev/null' \
+    'EVENTS_SERVICE_POSTGRES_NETWORK=syntax-postgres' \
+    'EVENTS_SERVICE_PROXY_NETWORK=syntax-proxy' >"$events_validation_env"
+  docker compose --env-file "$events_validation_env" -f compose/events-service/compose.yml config --quiet
   env \
     INFISICAL_PROJECT_NAME=infrastructure-dev-infisical \
     INFISICAL_IMAGE_TAG=test \

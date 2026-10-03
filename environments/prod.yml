@@ -8,6 +8,7 @@ caddy_https_port: 443
 caddy_allowed_cidrs: []
 dagster_restore_backup_path: ''
 services:
+  events_service: false
   postgres: false
   caddy: false
   dagster: false

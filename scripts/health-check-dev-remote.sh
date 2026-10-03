@@ -75,3 +75,21 @@ done
 wait_for_route dev-infisical.woodhost.cloud /api/status
 wait_for_route dev-website-portfolio.woodhost.cloud /health
 wait_for_route dev-website-portfolio.woodhost.cloud /
+
+# The protected Compose input exists only after an Events deployment. Do not
+# require the component on environments where it has never been selected.
+events_env=${HEALTH_CHECK_EVENTS_ENV_FILE:-/srv/infrastructure/secrets/dev/events-service-compose.env}
+if [[ -f "$events_env" ]]; then
+  events_image=$(sed -n 's/^EVENTS_SERVICE_IMAGE_REF=//p' "$events_env")
+  test -n "$events_image"
+  for service in wood-broker wood-notify; do
+    ids=$(docker ps -q --filter label=com.docker.compose.project=infrastructure-dev-events-service \
+      --filter "label=com.docker.compose.service=$service")
+    test -n "$ids"
+    while IFS= read -r id; do
+      test "$(docker inspect --format '{{.Config.Image}}' "$id")" = "$events_image"
+      docker exec "$id" python -c "import json, urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=3))['status'] == 'ok'; assert json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3))['status'] == 'ready'"
+    done <<< "$ids"
+    echo "OK Events Service $service image and readiness"
+  done
+fi

@@ -1,5 +1,8 @@
 ---
 environment_name: dev
+# Bootstrap this pin from the first verified events-service release; never invent
+# a digest. Enable the service only after database/secrets/ingress review.
+events_service_image_ref: ''
 caddy_bind_address: 192.168.1.21
 caddy_http_port: 8080
 caddy_https_port: 8443
@@ -15,6 +18,7 @@ keycloak_hostname: dev-keycloak.woodhost.cloud
 portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.8.4@sha256:2bce19b75058c9ec834723751c57e8a0b2fb7de693c3602a091be19c82ddf56e
 # yamllint enable rule:line-length
 services:
+  events_service: false
   postgres: true
   caddy: true
   dagster: true
