@@ -33,8 +33,9 @@ def resolve(args):
     output = pathlib.Path(args.output)
     if output.parent != RUNTIME_ROOT or output.suffix != '.env' or not re.fullmatch(r'[a-z][a-z0-9-]*\.env', output.name):
         raise ValueError('invalid output path')
-    protected(IDENTITY)
-    identity=json.loads(IDENTITY.read_text())
+    identity_path = IDENTITY.with_name('infisical-' + args.environment + '.json')
+    protected(identity_path)
+    identity=json.loads(identity_path.read_text())
     if set(identity) != {'api_url','project_id','client_id','client_secret'} or any(not isinstance(v,str) or not v for v in identity.values()):
         raise ValueError('invalid identity configuration')
     api_url=identity['api_url'].rstrip('/')

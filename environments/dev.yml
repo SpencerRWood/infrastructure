@@ -1,5 +1,8 @@
 ---
 environment_name: dev
+# Bootstrap this pin from the first verified events-service release; never invent
+# a digest. Enable the service only after database/secrets/ingress review.
+events_service_image_ref: ''
 # Events Service runs its own migrations with its dedicated application role.
 # The protected deployment input caches the canonical Infisical URL, never a
 # separately generated password. No production application is selected here.
@@ -26,6 +29,7 @@ openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.0@s
 rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.2.0@sha256:b015b42427003f951e1d9d9bee5d368db4f97edf0f9ef78a63a05d42f31d6e0d
 # yamllint enable rule:line-length
 services:
+  events_service: false
   postgres: true
   caddy: true
   dagster: true

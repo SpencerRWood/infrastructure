@@ -1,0 +1,16 @@
+# Telegram cannot use the administrator IP allowlist. Service authentication
+# verifies its secret header and signed callback; every other route is denied.
+dev-events-service.woodhost.cloud {
+	import cloudflare_tls
+	import security_headers
+	@callback {
+		method POST
+		path /v1/telegram/callbacks
+	}
+	handle @callback {
+		reverse_proxy 192.168.1.21:8080
+	}
+	handle {
+		respond 404
+	}
+}

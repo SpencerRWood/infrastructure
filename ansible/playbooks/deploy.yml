@@ -62,6 +62,11 @@
       when: services.website_portfolio | default(false) | bool
       tags: [website_portfolio]
 
+    - name: Deploy selected Events Service component
+      ansible.builtin.include_role:
+        name: events_service
+      when: services.events_service | default(false) | bool
+      tags: [events_service]
     - name: Deploy selected RAG Service component
       ansible.builtin.include_role:
         name: rag_service

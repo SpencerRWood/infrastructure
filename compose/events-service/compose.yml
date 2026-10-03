@@ -1,0 +1,52 @@
+name: ${EVENTS_SERVICE_PROJECT_NAME:?required}
+
+x-runtime: &runtime
+  image: ${EVENTS_SERVICE_IMAGE_REF:?required}
+  restart: unless-stopped
+  networks: [postgres, proxy]
+  healthcheck:
+    test:
+      - CMD
+      - python
+      - -c
+      - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3).close()"
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 15s
+
+services:
+  wood-broker:
+    <<: *runtime
+    env_file:
+      - path: ${EVENTS_SERVICE_BROKER_ENV_FILE:?required}
+        format: raw
+    command: [uvicorn, events_service.broker:app, --host, 0.0.0.0, --port, '8000', --no-access-log]
+    ports: ['127.0.0.1:18000:8000']
+    networks:
+      postgres: {}
+      proxy:
+        aliases: [wood-broker]
+  wood-notify:
+    <<: *runtime
+    env_file:
+      - path: ${EVENTS_SERVICE_NOTIFY_ENV_FILE:?required}
+        format: raw
+    command: [uvicorn, events_service.notify:app, --host, 0.0.0.0, --port, '8000', --no-access-log]
+    ports: ['127.0.0.1:18001:8000']
+    networks:
+      postgres: {}
+      proxy:
+        aliases: [wood-notify]
+  events-migrate:
+    image: ${EVENTS_SERVICE_IMAGE_REF:?required}
+    profiles: [migration]
+    env_file:
+      - path: ${EVENTS_SERVICE_BROKER_ENV_FILE:?required}
+        format: raw
+    command: [python, -m, events_service.migrate]
+    networks: [postgres, proxy]
+
+networks:
+  postgres: {external: true, name: "${EVENTS_SERVICE_POSTGRES_NETWORK:?required}"}
+  proxy: {external: true, name: "${EVENTS_SERVICE_PROXY_NETWORK:?required}"}
