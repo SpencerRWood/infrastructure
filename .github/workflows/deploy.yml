@@ -37,7 +37,7 @@ jobs:
     with:
       repository: ${{ github.repository }}
       ref: ${{ needs.resolve-release.outputs.ref }}
-      skip_superseded: ${{ inputs.skip_superseded }}
+      skip_superseded: ${{ inputs.skip_superseded || false }}
       inventory_path: ansible/inventory/dev
       playbook_path: ansible/playbooks/dev.yml
       ansible_config_path: ansible/ansible.cfg

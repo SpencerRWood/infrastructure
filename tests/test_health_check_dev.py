@@ -75,6 +75,7 @@ class HealthCheckTests(unittest.TestCase):
                 **os.environ,
                 "PATH": f"{bin_directory}:{os.environ['PATH']}",
                 "HEALTH_CHECK_CADDY_ENV_FILE": str(root / "caddy.env"),
+                "HEALTH_CHECK_EVENTS_ENV_FILE": str(root / "events-compose.env"),
                 "HEALTH_CHECK_ROUTE_ATTEMPTS": "3",
                 "HEALTH_CHECK_KEYCLOAK_ROUTE_ATTEMPTS": "3",
                 "HEALTH_CHECK_RETRY_INTERVAL": "0",
