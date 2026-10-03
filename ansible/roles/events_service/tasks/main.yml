@@ -87,6 +87,8 @@
 - name: Pull the exact validated Events Service image
   ansible.builtin.command:
     argv: [docker, pull, "{{ events_service_image_ref }}"]
+  environment:
+    DOCKER_CONFIG: "{{ events_service_docker_config_directory }}"
   register: events_service_pull
   changed_when: events_service_pull.stdout is search('Downloaded newer image')
   when: not ansible_check_mode
@@ -107,6 +109,8 @@
       - --rm
       - --no-deps
       - events-migrate
+  environment:
+    DOCKER_CONFIG: "{{ events_service_docker_config_directory }}"
   changed_when: true
   no_log: true
   when: not ansible_check_mode
@@ -128,6 +132,8 @@
       - '90'
       - wood-broker
       - wood-notify
+  environment:
+    DOCKER_CONFIG: "{{ events_service_docker_config_directory }}"
   register: events_service_up
   changed_when: events_service_up.stdout is search('Created|Started|Recreated')
   when: not ansible_check_mode
