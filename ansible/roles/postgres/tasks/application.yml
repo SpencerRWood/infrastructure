@@ -1,0 +1,97 @@
+---
+- name: Validate the protected application database credential
+  ansible.builtin.set_fact:
+    postgres_application_credential: >-
+      {{ lookup('ansible.builtin.env', postgres_application.url_environment)
+         | postgres_application_credential(postgres_application) }}
+  no_log: true
+  tags: [postgres]
+
+- name: Reconcile the application role, database and schema permissions
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - -i
+      - "{{ postgres_project_name }}-postgres-1"
+      - psql
+      - -X
+      - -U
+      - "{{ lookup('ansible.builtin.env', 'POSTGRES_USER') }}"
+      - -d
+      - "{{ lookup('ansible.builtin.env', 'POSTGRES_DB') }}"
+      - --set=ON_ERROR_STOP=1
+    stdin: "{{ lookup('ansible.builtin.template', 'application.sql.j2') }}"
+  register: postgres_application_result
+  changed_when: >-
+    'CREATE ROLE' in postgres_application_result.stdout or
+    'CREATE DATABASE' in postgres_application_result.stdout or
+    'REVOKE' in postgres_application_result.stdout or
+    'GRANT' in postgres_application_result.stdout
+  no_log: true
+  when: not ansible_check_mode
+  tags: [postgres]
+
+- name: Limit the application role to its assigned database
+  ansible.builtin.blockinfile:
+    path: "{{ postgres_state_directory }}/pgdata/pg_hba.conf"
+    insertbefore: BOF
+    marker: "# {mark} ANSIBLE APPLICATION {{ postgres_application.role }}"
+    block: |-
+      local {{ postgres_application.database }} {{ postgres_application.role }} scram-sha-256
+      local all {{ postgres_application.role }} reject
+      host {{ postgres_application.database }} {{ postgres_application.role }} 0.0.0.0/0 scram-sha-256
+      host {{ postgres_application.database }} {{ postgres_application.role }} ::/0 scram-sha-256
+      host all {{ postgres_application.role }} 0.0.0.0/0 reject
+      host all {{ postgres_application.role }} ::/0 reject
+    owner: "{{ postgres_uid }}"
+    group: "{{ postgres_gid }}"
+    mode: '0600'
+  register: postgres_application_hba
+  when: not ansible_check_mode
+  tags: [postgres]
+
+- name: Reload application connection restrictions
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ postgres_project_name }}-postgres-1"
+      - psql
+      - -X
+      - -U
+      - "{{ lookup('ansible.builtin.env', 'POSTGRES_USER') }}"
+      - -d
+      - "{{ lookup('ansible.builtin.env', 'POSTGRES_DB') }}"
+      - -Atc
+      - SELECT pg_reload_conf();
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - postgres_application_hba.changed
+  tags: [postgres]
+
+- name: Verify the existing password without rotating it
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - -e
+      - PGPASSWORD
+      - "{{ postgres_project_name }}-postgres-1"
+      - psql
+      - -X
+      - -h
+      - 127.0.0.1
+      - -U
+      - "{{ postgres_application.role }}"
+      - -d
+      - "{{ postgres_application.database }}"
+      - -Atc
+      - SELECT 1;
+  environment:
+    PGPASSWORD: "{{ postgres_application_credential.password }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [postgres]

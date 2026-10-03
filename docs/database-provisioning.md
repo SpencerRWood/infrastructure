@@ -43,3 +43,37 @@ POSTGRES_MIGRATION_PASSWORD
 
 Do not reuse the PostgreSQL superuser/bootstrap password for runtime or
 migration credentials.
+
+## Events Service development exception
+
+Events Service runs Alembic itself and uses one canonical `WES_DATABASE_URL`.
+Its approved dev exception uses the `events_service` role as owner of only
+the `events_service` database. It has no superuser, database creation, role
+creation, replication, bypass-RLS, or role membership privileges. Role-specific
+`pg_hba.conf` rules reject connections to other databases. PUBLIC access to
+its database and public schema is revoked. Its ownership permits migrations
+and runtime DML within its assigned database.
+
+`environments/dev.yml` declares the resource in `postgres_applications`.
+The PostgreSQL Ansible role provisions it during the normal dev playbook;
+production selects no application entries. This declarative path is separate
+from the older one-time bootstrap scaffold above.
+
+The sole credential source is the existing Events Service Infisical project
+`7ea10433-2eeb-4c57-95a9-b793dd40c7a4`, environment `dev`, path
+`/events-service`, key `WES_DATABASE_URL`. An attended deployment exports that
+key without printing it and synchronizes a protected deployment copy to the
+administrator's `/home/spencerwood/.config/wood/infrastructure/dev.env` and
+`/home/github-runner-infrastructure/.secrets/dev.env`, mode `0600`, following
+the existing protected input convention. No independent password is stored.
+Ansible requires this input on clean deployment and decodes its URL password
+in memory. The dev URL uses LAN endpoint `192.168.1.21:25433` for the existing
+repository launcher; PostgreSQL does not require SSL in this dev deployment.
+
+Provisioning creates missing resources and converges schema and connection
+permissions. It rejects unexpected existing ownership or elevated role flags.
+An existing password is never reset: an authentication check fails if the
+protected input differs. Intentional rotation requires a separate operation
+and synchronization of the canonical URL and protected deployment copies.
+Repeat the dev playbook to verify convergence; application data and migrations
+are never rolled back by this provisioning path.
