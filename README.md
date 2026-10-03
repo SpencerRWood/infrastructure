@@ -70,13 +70,22 @@ receive one Caddy route fragment only when they migrate. Development URLs use
 
 ## Dagster dev migration
 
-Dagster's canonical dev runtime is `compose/dagster/` (webserver, daemon, and
-the existing gRPC user-code server). Its webserver alone joins
-`infrastructure-dev-proxy` and is reached at
-`http://dev-dagster.woodhost.cloud:8080`; the other services use only
+Dagster's canonical dev runtime is `compose/dagster/` (webserver, daemon, the
+existing gRPC user-code server, the Codex usage code server, and the pinned
+OpenProject Reports code server).
+The report code server reads `OPENPROJECT_BASE_URL`, `OPENPROJECT_API_TOKEN`,
+`GOOGLE_DRIVE_CREDENTIALS_JSON`, and `GOOGLE_DRIVE_FOLDER_ID` from the protected
+Infisical-resolved Dagster environment file. Dagster loads it as the
+`openproject_reports` location; its daily schedule runs at 06:00 America/New_York.
+The webserver is reached through `infrastructure-dev-proxy` at
+`http://dev-dagster.woodhost.cloud:8080`. The webserver, daemon, and Codex usage
+code server join that proxy network; all Dagster services join
 `infrastructure-dev-postgres`. The legacy runtime and source database remain
 available for rollback until the attended database restore and cutover are
 completed.
+
+The dev-only [Codex usage-window schedule](docs/codex-usage-schedule.md) runs
+from an infrastructure-owned Beelink code location connected to this Dagster daemon.
 
 ## Remaining dev-service migration
 
@@ -100,17 +109,18 @@ See [environment ownership](docs/environments.md) and the
 [next-release migration inventory](docs/postgres-migration-inventory.md).
 The [Website Portfolio deployment contract](docs/website-portfolio-deployment.md)
 records the pinned artifact, protected inputs, migration, and route.
+The [RAG Service deployment contract](docs/rag-service-deployment.md) records
+its database bootstrap, Infisical folders, code location, and rollback boundary.
 
 ## Repository workflow
 
 Run `uv sync --group dev` once, then `uv run pre-commit install`. Pre-commit blocks
 local commits directly to `main` and validates YAML, secrets/private keys,
 Ansible inventories and syntax, Ansible lint, and Compose configuration. Work on
-a branch and merge through a reviewed pull request; local hooks complement, but
-are distinct from, GitHub branch protection. The prepared `main` ruleset is
-intentionally disabled for this single-developer repository so semantic-release
-can write its generated version commit back to `main`. `workflows/main` remains
-protected; see the [shared branch policy](https://github.com/SpencerRWood/workflows/blob/main/docs/branch-rules.md).
+a branch and merge through a reviewed pull request; local hooks complement GitHub
+branch protection. The `main` ruleset requires PR validation. Semantic-release
+tags the validated merged commit without writing a new commit to `main`; see
+the [shared branch policy](https://github.com/SpencerRWood/workflows/blob/main/docs/branch-rules.md).
 
 The pull-request wrapper calls `validate.yml@v1` using `.github/release.toml`.
 It opts into the shared `infrastructure-validation` commit status on the PR head
@@ -118,17 +128,17 @@ so the Website Portfolio dev promotion can read the result with a narrowly
 scoped token. The Actions check remains the normal CI result.
 The shared release workflow runs the same checks after changes reach `main`,
 then determines the next version from conventional commits. Its release job
-writes that version to `pyproject.toml`, commits
-`chore(release): X.Y.Z`, tags that commit `vX.Y.Z`, and publishes the GitHub
-Release. The published tag's checked-in project version matches its release
-version. A published release invokes the shared deployment workflow on the
+tags that validated merged commit `vX.Y.Z` and publishes the GitHub Release.
+The Git tag is the version source for this non-package repository. A published
+release invokes the shared deployment workflow on the
 dedicated Beelink infrastructure runner, which checks out the exact
 tag, validates it, applies `ansible/playbooks/dev.yml`, and runs
 `scripts/health-check-dev.sh`. Deployments are serialized by
 `deploy-infrastructure-dev`; a newer run never interrupts an active apply.
-Automatic and manual deployment entrypoints both use
-`.github/workflows/deploy-target.yml` for the target's inventory, runner,
-protected file path, health command, and durable state path.
+Automatic and manual deployment enter the same `.github/workflows/deploy.yml`.
+It holds the target's inventory, runner, protected file path, health command,
+and durable state path. The shared resolver verifies an explicit published
+release or selects the latest one for a manual run with no release input.
 
 On deployment or health failure the workflow restores the prior successful
 `infrastructure-dev` Environment release once and validates it. Rollback restores
@@ -144,8 +154,8 @@ Automatic release deployment is dev-only. `prod.yml` is never called automatical
 and production remains an explicit/manual operation.
 
 Renovate follows this same release path. Docker patch and vulnerability
-updates are configured for auto-merge. Renovate itself waits for passing PR
-checks before merging because consumer `main` has no required GitHub check.
+updates are configured for auto-merge. GitHub holds the merge until the required
+PR validation check passes.
 Minor and major updates remain manual. PostgreSQL compatibility-major changes
 remain manual. Routine
 Renovate commits are `fix(deps)`, producing semantic-release patch releases.

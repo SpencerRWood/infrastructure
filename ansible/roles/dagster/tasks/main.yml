@@ -11,6 +11,16 @@
   when: infrastructure_environment != 'dev'
   tags: [dagster]
 
+- name: Require a pinned OpenProject Reports image in dev
+  ansible.builtin.assert:
+    that:
+      - >-
+        openproject_reports_image_ref is match(
+        '^ghcr[.]io/spencerrwood/openproject-reports:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
+        )
+  when: infrastructure_environment == 'dev'
+  tags: [dagster]
+
 - name: Create Dagster component directories
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -23,7 +33,34 @@
     - {path: "{{ dagster_config_directory }}", mode: '0755'}
     - {path: "{{ dagster_app_directory }}", mode: '0755'}
     - {path: "{{ dagster_state_directory }}", mode: '0700'}
-    - {path: "{{ dagster_local_directory }}", mode: '0700'}
+    - {path: "{{ dagster_local_directory }}", mode: '0770'}
+  tags: [dagster]
+
+- name: Permit the Codex code server to write Dagster local artifacts
+  ansible.builtin.file:
+    path: "{{ dagster_local_directory }}"
+    state: directory
+    owner: spencerwood
+    group: spencerwood
+    mode: '0770'
+  tags: [dagster]
+
+- name: Permit the Codex code server to access existing Dagster compute logs
+  ansible.builtin.file:
+    path: "{{ dagster_local_directory }}"
+    state: directory
+    owner: spencerwood
+    group: spencerwood
+    recurse: true
+  tags: [dagster]
+
+- name: Create persistent Codex slot claim directory
+  ansible.builtin.file:
+    path: "{{ dagster_codex_state_directory }}"
+    state: directory
+    owner: spencerwood
+    group: spencerwood
+    mode: '0700'
   tags: [dagster]
 
 - name: Deploy protected Dagster runtime environment
@@ -56,6 +93,14 @@
       - /srv/infrastructure/secrets/runtime/dagster.env
       - --require
       - DAGSTER_POSTGRES_PASSWORD
+      - --require
+      - OPENPROJECT_BASE_URL
+      - --require
+      - OPENPROJECT_API_TOKEN
+      - --require
+      - GOOGLE_DRIVE_CREDENTIALS_JSON
+      - --require
+      - GOOGLE_DRIVE_FOLDER_ID
   changed_when: false
   no_log: true
   when: infrastructure_environment == 'dev' and not ansible_check_mode
@@ -66,12 +111,15 @@
     content: |-
       DAGSTER_PROJECT_NAME={{ dagster_project_name }}
       DAGSTER_IMAGE={{ dagster_image }}
+      OPENPROJECT_REPORTS_IMAGE_REF={{ openproject_reports_image_ref }}
       DAGSTER_VERSION={{ dagster_version }}
       DAGSTER_LIB_VERSION={{ dagster_lib_version }}
       PYTHON_VERSION={{ dagster_python_version }}
       DAGSTER_RUNTIME_ENV_FILE={{ dagster_env_file }}
       DAGSTER_CONFIG_PATH={{ dagster_config_directory }}
       DAGSTER_LOCAL_PATH={{ dagster_local_directory }}
+      DAGSTER_CODEX_HOME={{ dagster_codex_host_home }}
+      DAGSTER_CODEX_STATE_PATH={{ dagster_codex_state_directory }}
       DAGSTER_POSTGRES_NETWORK={{ dagster_postgres_network }}
       DAGSTER_PROXY_NETWORK={{ dagster_proxy_network }}
     dest: "{{ dagster_compose_env_file }}"

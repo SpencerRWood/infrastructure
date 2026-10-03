@@ -2,6 +2,141 @@
 
 <!-- version list -->
 
+## v0.13.8 (2026-09-29)
+
+### Chores
+
+- **deps**: Update portfolio-website to v0.9.1
+  ([`19f7b05`](https://github.com/SpencerRWood/infrastructure/commit/19f7b058e1616d73a0b06f0c5df66f18302f4180))
+
+
+## v0.13.7 (2026-09-28)
+
+### Chores
+
+- **deps**: Update openproject-reports to v0.1.9
+  ([`d246442`](https://github.com/SpencerRWood/infrastructure/commit/d24644248dbc4cc35bed58ef8ce36b0c73ab2dff))
+
+
+## v0.13.6 (2026-09-28)
+
+### Bug Fixes
+
+- Give OpenProject report worker outbound network access
+  ([#55](https://github.com/SpencerRWood/infrastructure/pull/55),
+  [`9b6ac6e`](https://github.com/SpencerRWood/infrastructure/commit/9b6ac6ed6ce553bd5d5174a02f7d2d253fc06b12))
+
+
+## v0.13.5 (2026-09-28)
+
+### Bug Fixes
+
+- Deploy report image with psycopg2 runtime
+  ([#54](https://github.com/SpencerRWood/infrastructure/pull/54),
+  [`8ef8425`](https://github.com/SpencerRWood/infrastructure/commit/8ef84251c5c7914c4e73efa6d49ac96b6278e377))
+
+
+## v0.13.4 (2026-09-28)
+
+### Bug Fixes
+
+- Allow report gRPC health probe to finish
+  ([#53](https://github.com/SpencerRWood/infrastructure/pull/53),
+  [`acea047`](https://github.com/SpencerRWood/infrastructure/commit/acea047421993cc9893967fe129f9c359de923b4))
+
+
+## v0.13.3 (2026-09-28)
+
+### Bug Fixes
+
+- Deploy report image with psycopg runtime
+  ([#52](https://github.com/SpencerRWood/infrastructure/pull/52),
+  [`2c14f0c`](https://github.com/SpencerRWood/infrastructure/commit/2c14f0cbc56b709e8a856995fd0263423034210d))
+
+
+## v0.13.2 (2026-09-28)
+
+### Bug Fixes
+
+- Provide Dagster instance environment to report worker
+  ([#51](https://github.com/SpencerRWood/infrastructure/pull/51),
+  [`237f08c`](https://github.com/SpencerRWood/infrastructure/commit/237f08ceafaba4a2432a7f547ea2d1b88db2216d))
+
+
+## v0.13.1 (2026-09-28)
+
+### Bug Fixes
+
+- Deploy report image with Dagster Postgres support
+  ([#50](https://github.com/SpencerRWood/infrastructure/pull/50),
+  [`e45b041`](https://github.com/SpencerRWood/infrastructure/commit/e45b041bf2e70650fa7f571901b73683bef9e6a1))
+
+
+## v0.13.0 (2026-09-28)
+
+### Features
+
+- **dagster**: Deploy OpenProject Reports code location
+  ([#49](https://github.com/SpencerRWood/infrastructure/pull/49),
+  [`0e6e3a2`](https://github.com/SpencerRWood/infrastructure/commit/0e6e3a20607f919411bf86c4d791d7821401827e))
+
+
+## v0.12.1 (2026-09-27)
+
+### Bug Fixes
+
+- **ci**: Sync runner validation environment before privileged check
+  ([`7c168a4`](https://github.com/SpencerRWood/infrastructure/commit/7c168a472e87851b5a96f120060632014cfa6801))
+
+
+## v0.12.0 (2026-09-27)
+
+### Bug Fixes
+
+- **dagster**: Run Codex usage window on Beelink
+  ([`8110fc5`](https://github.com/SpencerRWood/infrastructure/commit/8110fc52ac6707fc6a7b66e54438abc4a5a203bc))
+
+### Features
+
+- **dagster**: Schedule Codex usage-window pings
+  ([`70f4e2f`](https://github.com/SpencerRWood/infrastructure/commit/70f4e2f49cd379f05c5c67580e9d1255b7b5db8c))
+
+
+## v0.11.0 (2026-09-27)
+
+### Features
+
+- **ci**: Resolve GHCR deploy token from isolated Infisical identity
+  ([`f8404b1`](https://github.com/SpencerRWood/infrastructure/commit/f8404b1b2346ae30796332289c61d3e774892740))
+
+
+## v0.10.0 (2026-09-27)
+
+### Features
+
+- **infisical**: Establish external bootstrap path
+  ([`58f3431`](https://github.com/SpencerRWood/infrastructure/commit/58f343171cd0d4771f77f7dea3e75d27eff852ac))
+
+- **secrets**: Migrate dev runtime services to Infisical
+  ([`0e3fb93`](https://github.com/SpencerRWood/infrastructure/commit/0e3fb93c0d6fd2f51bf7de589545375133a6fd18))
+
+
+## v0.9.17 (2026-09-26)
+
+### Chores
+
+- **deps**: Update portfolio-website to v0.9.0
+  ([`4efe77c`](https://github.com/SpencerRWood/infrastructure/commit/4efe77c7e43fe69613c67bb1186ced151b5743c7))
+
+
+## v0.9.16 (2026-09-25)
+
+### Bug Fixes
+
+- **ci**: Skip superseded infrastructure deployment
+  ([`8e9b8eb`](https://github.com/SpencerRWood/infrastructure/commit/8e9b8eb6bafbcf205b044d45efdfea3110ce69c5))
+
+
 ## v0.9.15 (2026-09-25)
 
 ### Chores

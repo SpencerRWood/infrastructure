@@ -11,6 +11,7 @@ postgres_lan_port: 25433
 postgres_allowed_cidrs: ["192.168.1.0/24"]
 postgres_uid: '999'
 postgres_gid: '999'
+postgres_applications: []
 postgres_required_environment:
   - POSTGRES_DB
   - POSTGRES_USER

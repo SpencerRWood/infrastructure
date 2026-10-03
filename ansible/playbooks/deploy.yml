@@ -67,3 +67,8 @@
         name: events_service
       when: services.events_service | default(false) | bool
       tags: [events_service]
+    - name: Deploy selected RAG Service component
+      ansible.builtin.include_role:
+        name: rag_service
+      when: services.rag_service | default(false) | bool
+      tags: [rag_service]

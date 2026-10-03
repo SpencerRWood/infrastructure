@@ -4,6 +4,7 @@ extends: default
 ignore: |
   .git/
   .venv/
+  .venv-codex-usage/
 
 rules:
   braces:

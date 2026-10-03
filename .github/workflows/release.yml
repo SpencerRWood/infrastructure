@@ -17,6 +17,7 @@ jobs:
   deploy-dev:
     needs: release
     if: ${{ needs.release.outputs.released == 'true' }}
-    uses: ./.github/workflows/deploy-target.yml
+    uses: ./.github/workflows/deploy.yml
     with:
       ref: ${{ needs.release.outputs.release_tag }}
+      skip_superseded: true

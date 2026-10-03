@@ -10,7 +10,14 @@ bash -n scripts/validate.sh scripts/health-check-dev.sh \
   scripts/health-check-dev-remote.sh postgres/scripts/provision-database.sh
 
 echo 'Checking deployment readiness behavior...'
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests
+if command -v uv >/dev/null 2>&1; then
+  PYTHONDONTWRITEBYTECODE=1 uv run python -m unittest discover -s tests
+elif [[ -x .venv/bin/python ]]; then
+  PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest discover -s tests
+else
+  echo 'Validation requires uv or a synced .venv/bin/python.' >&2
+  exit 1
+fi
 
 echo 'Checking for tracked credential files...'
 tracked_credentials="$(git ls-files | rg '(^|/)(\.env($|\.)|id_rsa$|.*\.(pem|key)$|credentials(\.|$))' | rg -v '(^|/)\.env\.example$' || true)"
@@ -25,7 +32,8 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
   caddy_validation_env="$(mktemp)"
   website_validation_env="$(mktemp)"
   events_validation_env="$(mktemp)"
-  trap 'rm -f "$postgres_validation_env" "$caddy_validation_env" "$website_validation_env" "$events_validation_env"' EXIT
+  rag_validation_env="$(mktemp)"
+  trap 'rm -f "$postgres_validation_env" "$caddy_validation_env" "$website_validation_env" "$events_validation_env" "$rag_validation_env"' EXIT
   printf '%s\n' \
     'POSTGRES_DB=postgres' \
     'POSTGRES_USER=postgres' \
@@ -64,6 +72,20 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
     'EVENTS_SERVICE_POSTGRES_NETWORK=syntax-postgres' \
     'EVENTS_SERVICE_PROXY_NETWORK=syntax-proxy' >"$events_validation_env"
   docker compose --env-file "$events_validation_env" -f compose/events-service/compose.yml config --quiet
+  printf '%s\n' \
+    'RAG_SERVICE_PROJECT_NAME=infrastructure-dev-rag-service' \
+    'RAG_SERVICE_IMAGE_REF=ghcr.io/spencerrwood/rag-service:v0.1.0@sha256:83be558d8a7bb509d2b673f22d1b34438b354eb738ba7242a4157a9321653cf5' \
+    'RAG_SERVICE_RELEASE_TAG=v0.1.0' \
+    'RAG_SERVICE_SOURCE_REVISION=21380620d3c951863a5abadae5e528360cbb73c5' \
+    'RAG_SERVICE_RUNTIME_ENV_FILE=/dev/null' \
+    'RAG_SERVICE_MIGRATION_ENV_FILE=/dev/null' \
+    'RAG_SERVICE_DAGSTER_ENV_FILE=/dev/null' \
+    'RAG_SERVICE_DOCUMENTS_PATH=/tmp/rag-documents' \
+    'RAG_SERVICE_DAGSTER_CONFIG_PATH=/tmp/dagster-config' \
+    'RAG_SERVICE_DAGSTER_LOCAL_PATH=/tmp/dagster-local' \
+    'RAG_SERVICE_POSTGRES_NETWORK=infrastructure-dev-postgres' \
+    'RAG_SERVICE_PROXY_NETWORK=infrastructure-dev-proxy' >"$rag_validation_env"
+  docker compose --env-file "$rag_validation_env" -f compose/rag-service/compose.yml config --quiet
   env \
     INFISICAL_PROJECT_NAME=infrastructure-dev-infisical \
     INFISICAL_IMAGE_TAG=test \

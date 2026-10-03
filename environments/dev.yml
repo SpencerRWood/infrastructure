@@ -3,6 +3,15 @@ environment_name: dev
 # Bootstrap this pin from the first verified events-service release; never invent
 # a digest. Enable the service only after database/secrets/ingress review.
 events_service_image_ref: ''
+# Events Service runs its own migrations with its dedicated application role.
+# The protected deployment input caches the canonical Infisical URL, never a
+# separately generated password. No production application is selected here.
+postgres_applications:
+  - database: events_service
+    role: events_service
+    url_environment: WES_DATABASE_URL
+    host: 192.168.1.21
+    port: 25433
 caddy_bind_address: 192.168.1.21
 caddy_http_port: 8080
 caddy_https_port: 8443
@@ -15,7 +24,9 @@ dagster_restore_backup_path: /srv/infrastructure/backups/dagster/dagster-final.d
 keycloak_hostname: dev-keycloak.woodhost.cloud
 # The complete image reference is intentionally kept on one line for auditing.
 # yamllint disable rule:line-length
-portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.8.4@sha256:2bce19b75058c9ec834723751c57e8a0b2fb7de693c3602a091be19c82ddf56e
+portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.11.0@sha256:abc93a08082b8b664b31a8cf35a1bc8f70c7408095d8be33ee37a8a301f710a0
+openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.0@sha256:fa2ef486195e4ce69dfb88fe443afa0b5c01956702b611b209948562f275efb5
+rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.2.0@sha256:b015b42427003f951e1d9d9bee5d368db4f97edf0f9ef78a63a05d42f31d6e0d
 # yamllint enable rule:line-length
 services:
   events_service: false
@@ -26,6 +37,7 @@ services:
   keycloak: true
   infisical: true
   website_portfolio: true
+  rag_service: true
   rudderstack: false
 
 # Root-owned deployment metadata. Application containers never receive the
@@ -35,12 +47,22 @@ infrastructure_infisical_runtime_services:
     environment: dev
     path: /dagster
     output: /srv/infrastructure/secrets/runtime/dagster.env
-    required_keys: [DAGSTER_POSTGRES_PASSWORD]
+    required_keys:
+      - DAGSTER_POSTGRES_PASSWORD
+      - OPENPROJECT_BASE_URL
+      - OPENPROJECT_API_TOKEN
+      - GOOGLE_DRIVE_CREDENTIALS_JSON
+      - GOOGLE_DRIVE_FOLDER_ID
     compose_file: /srv/infrastructure/compose/dagster/compose.yml
     compose_env_file: /srv/infrastructure/secrets/dev/dagster-compose.env
     legacy_env_file: /srv/infrastructure/secrets/dev/dagster.env
     static_env_file: /srv/infrastructure/secrets/static/dagster.env
-    compose_services: [dagster-user-code, dagster-webserver, dagster-daemon]
+    compose_services:
+      - dagster-user-code
+      - dagster-codex-usage
+      - openproject-reports-code
+      - dagster-webserver
+      - dagster-daemon
     source: compose/dagster/compose.infisical.yml
   keycloak:
     environment: dev
