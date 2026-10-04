@@ -24,22 +24,37 @@ class HealthCheckTests(unittest.TestCase):
         report_healthy: bool = True,
         rag_present: bool = True,
         rag_healthy: bool = True,
+        automerge_selected: bool = False,
+        automerge_present: bool = True,
+        automerge_healthy: bool = True,
+        automerge_image_matches: bool = True,
+        automerge_grpc_ready: bool = True,
     ) -> tuple[subprocess.CompletedProcess[str], int]:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             bin_directory = root / "bin"
             bin_directory.mkdir()
             (root / "caddy.env").write_text("CADDY_HTTP_BIND=127.0.0.1:8080\n", encoding="utf-8")
+            if automerge_selected:
+                (root / "automerge.env").write_text("AUTOMERGE_REPAIR_IMAGE_REF=syntax-only/automerge:test\n")
             docker = bin_directory / "docker"
             docker.write_text(
                 '#!/usr/bin/env bash\n'
                 'if [[ "$1" == ps ]]; then\n'
-                '  if [[ "$*" == *rag-service-code* ]]; then\n'
+                '  if [[ "$*" == *automerge-repair-code* ]]; then\n'
+                '    [[ "$FAKE_AUTOMERGE_PRESENT" == true ]] && echo automerge1\n'
+                '  elif [[ "$*" == *rag-service-code* ]]; then\n'
                 '    [[ "$FAKE_RAG_PRESENT" == true ]] && echo rag1\n'
                 '  elif [[ "$*" == *openproject-reports-code* ]]; then\n'
                 '    [[ "$FAKE_REPORT_PRESENT" == true ]] && echo report1\n'
                 '  else echo container1; fi\n'
                 '  exit 0\n'
+                'elif [[ "$1" == exec && "$2" == automerge1 ]]; then\n'
+                '  [[ "$FAKE_AUTOMERGE_GRPC_READY" == true ]]; exit $?\n'
+                'elif [[ "$*" == *automerge1* && "$*" == *Config.Image* ]]; then\n'
+                '  if [[ "$FAKE_AUTOMERGE_IMAGE_MATCHES" == true ]]; then echo syntax-only/automerge:test; else echo wrong; fi\n'
+                'elif [[ "$*" == *automerge1* && "$*" == *State.Health.Status* ]]; then\n'
+                '  if [[ "$FAKE_AUTOMERGE_HEALTHY" == true ]]; then echo healthy; else echo unhealthy; fi\n'
                 'elif [[ "$2" == rag1 && "$FAKE_RAG_HEALTHY" != true ]]; then\n'
                 '  echo \'{"Running": true, "Status": "unhealthy"}\'\n'
                 'elif [[ "$2" == report1 && "$FAKE_REPORT_HEALTHY" != true ]]; then\n'
@@ -86,6 +101,11 @@ class HealthCheckTests(unittest.TestCase):
                 "FAKE_REPORT_HEALTHY": str(report_healthy).lower(),
                 "FAKE_RAG_PRESENT": str(rag_present).lower(),
                 "FAKE_RAG_HEALTHY": str(rag_healthy).lower(),
+                "HEALTH_CHECK_AUTOMERGE_ENV_FILE": str(root / "automerge.env"),
+                "FAKE_AUTOMERGE_PRESENT": str(automerge_present).lower(),
+                "FAKE_AUTOMERGE_HEALTHY": str(automerge_healthy).lower(),
+                "FAKE_AUTOMERGE_IMAGE_MATCHES": str(automerge_image_matches).lower(),
+                "FAKE_AUTOMERGE_GRPC_READY": str(automerge_grpc_ready).lower(),
             }
             result = subprocess.run(
                 ["bash", str(SCRIPT)],
@@ -96,6 +116,20 @@ class HealthCheckTests(unittest.TestCase):
                 check=False,
             )
             return result, int(count_file.read_text()) if count_file.exists() else 0
+
+    def test_selected_automerge_requires_exact_image_and_grpc_readiness(self) -> None:
+        result, _ = self.run_health_check("200", automerge_selected=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("OK Automerge Repair image and gRPC readiness", result.stdout)
+        for failure in (
+            {"automerge_present": False},
+            {"automerge_healthy": False},
+            {"automerge_image_matches": False},
+            {"automerge_grpc_ready": False},
+        ):
+            with self.subTest(failure=failure):
+                result, _ = self.run_health_check("200", automerge_selected=True, **failure)
+                self.assertNotEqual(result.returncode, 0)
 
     def test_rag_database_readiness_must_succeed_after_liveness(self) -> None:
         result, attempts = self.run_health_check("200,503,503,503", target_host="dev-rag-service.woodhost.cloud")

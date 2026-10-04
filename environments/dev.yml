@@ -29,6 +29,8 @@ openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.0@s
 rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.2.0@sha256:b015b42427003f951e1d9d9bee5d368db4f97edf0f9ef78a63a05d42f31d6e0d
 # yamllint enable rule:line-length
 services:
+  # Enable only after the first verified release image and scoped secrets exist.
+  automerge_repair: false
   events_service: true
   postgres: true
   caddy: true
@@ -40,9 +42,21 @@ services:
   rag_service: true
   rudderstack: false
 
+# Populated with a real version@digest during the reviewed first deployment.
+automerge_repair_image_ref: ''
+
 # Root-owned deployment metadata. Application containers never receive the
 # machine-identity credential; only the resolver reads it.
 infrastructure_infisical_runtime_services:
+  automerge-repair:
+    environment: dev
+    path: /automerge-repair
+    output: /srv/infrastructure/secrets/runtime/automerge-repair.env
+    required_keys: [DAGSTER_POSTGRES_PASSWORD]
+    compose_file: /srv/infrastructure/compose/automerge-repair/compose.yml
+    compose_env_file: /srv/infrastructure/secrets/dev/automerge-repair-compose.env
+    compose_services: [automerge-repair-code]
+    source: compose/automerge-repair/compose.yml
   dagster:
     environment: dev
     path: /dagster

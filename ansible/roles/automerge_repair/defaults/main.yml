@@ -1,0 +1,5 @@
+---
+automerge_repair_compose_directory: "{{ host_infrastructure_compose_root }}/automerge-repair"
+automerge_repair_compose_env_file: "{{ host_infrastructure_secrets_root }}/automerge-repair-compose.env"
+automerge_repair_runtime_env_file: /srv/infrastructure/secrets/runtime/automerge-repair.env
+automerge_repair_docker_config_directory: "{{ host_infrastructure_secrets_root }}/ghcr-docker"

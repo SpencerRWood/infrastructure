@@ -1,0 +1,143 @@
+---
+- name: Require a pinned dev Automerge Repair release and Dagster
+  ansible.builtin.assert:
+    that:
+      - infrastructure_environment == 'dev'
+      - services.postgres | bool
+      - services.dagster | bool
+      - >-
+        automerge_repair_image_ref is match(
+        '^ghcr[.]io/spencerrwood/automerge-repair:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
+        )
+    fail_msg: Automerge Repair requires a real digest-qualified dev release.
+  tags: [automerge_repair]
+
+- name: Create Automerge Repair component directory
+  ansible.builtin.file:
+    path: "{{ automerge_repair_compose_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [automerge_repair]
+
+- name: Install the environment-scoped Infisical resolver
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../scripts/resolve-infisical-env.py"
+    dest: /usr/local/sbin/resolve-infrastructure-infisical-env
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [automerge_repair]
+
+- name: Create infrastructure resolver configuration directory
+  ansible.builtin.file:
+    path: /etc/infrastructure
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [automerge_repair]
+
+- name: Register declared runtime services for secret refresh
+  ansible.builtin.copy:
+    content: "{{ infrastructure_infisical_runtime_services | to_nice_json }}\n"
+    dest: /etc/infrastructure/infisical-runtime-services.json
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [automerge_repair]
+
+- name: Resolve scoped Automerge Repair runtime credentials
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/resolve-infrastructure-infisical-env
+      - --environment
+      - dev
+      - --path
+      - /automerge-repair
+      - --output
+      - "{{ automerge_repair_runtime_env_file }}"
+      - --require
+      - DAGSTER_POSTGRES_PASSWORD
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [automerge_repair]
+
+- name: Deploy reviewed Automerge Repair policy
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/automerge-repair/policy.toml"
+    dest: "{{ automerge_repair_compose_directory }}/policy.toml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [automerge_repair]
+
+- name: Deploy Automerge Repair Compose settings
+  ansible.builtin.copy:
+    content: |-
+      AUTOMERGE_REPAIR_PROJECT_NAME=infrastructure-dev-automerge-repair
+      AUTOMERGE_REPAIR_IMAGE_REF={{ automerge_repair_image_ref }}
+      AUTOMERGE_REPAIR_RUNTIME_ENV_FILE={{ automerge_repair_runtime_env_file }}
+      AUTOMERGE_REPAIR_POLICY_PATH={{ automerge_repair_compose_directory }}/policy.toml
+      AUTOMERGE_REPAIR_DAGSTER_CONFIG_PATH={{ host_infrastructure_compose_root }}/dagster/config
+      AUTOMERGE_REPAIR_DAGSTER_LOCAL_PATH={{ host_infrastructure_state_root }}/dagster/local
+      AUTOMERGE_REPAIR_POSTGRES_NETWORK=infrastructure-dev-postgres
+      AUTOMERGE_REPAIR_PROXY_NETWORK=infrastructure-dev-proxy
+    dest: "{{ automerge_repair_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [automerge_repair]
+
+- name: Deploy canonical Automerge Repair Compose payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/automerge-repair/compose.yml"
+    dest: "{{ automerge_repair_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [automerge_repair]
+
+- name: Validate Automerge Repair Compose configuration
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ automerge_repair_compose_env_file }}"
+      - -f
+      - "{{ automerge_repair_compose_directory }}/compose.yml"
+      - config
+      - --quiet
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [automerge_repair]
+
+- name: Start the exact Automerge Repair code location
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ automerge_repair_compose_env_file }}"
+      - -f
+      - "{{ automerge_repair_compose_directory }}/compose.yml"
+      - up
+      - -d
+      - --pull
+      - always
+      - --wait
+      - --wait-timeout
+      - '120'
+  environment:
+    DOCKER_CONFIG: "{{ automerge_repair_docker_config_directory }}"
+  register: automerge_repair_up
+  changed_when: >-
+    (automerge_repair_up.stdout + automerge_repair_up.stderr)
+    is search('Created|Started|Recreated')
+  when: not ansible_check_mode
+  tags: [automerge_repair]

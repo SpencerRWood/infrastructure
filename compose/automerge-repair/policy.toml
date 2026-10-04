@@ -1,0 +1,12 @@
+# Reviewed non-secret foundation policy; source repair is disabled.
+[repositories.infrastructure]
+environments = ["dev"]
+rollback = "notification-only"
+repair_enabled = false
+verification_window_seconds = 300
+
+[repositories.homelab]
+environments = ["dev"]
+rollback = "notification-only"
+repair_enabled = false
+verification_window_seconds = 300

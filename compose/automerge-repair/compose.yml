@@ -1,0 +1,32 @@
+---
+name: ${AUTOMERGE_REPAIR_PROJECT_NAME:?required}
+services:
+  automerge-repair-code:
+    image: ${AUTOMERGE_REPAIR_IMAGE_REF:?required}
+    user: '1000:1000'
+    restart: unless-stopped
+    env_file: ["${AUTOMERGE_REPAIR_RUNTIME_ENV_FILE:?required}"]
+    environment:
+      DAGSTER_HOME: /opt/dagster/dagster_home
+      DAGSTER_GRPC_PORT: '4000'
+      DAGSTER_POSTGRES_HOST: postgres
+      DAGSTER_POSTGRES_PORT: '5432'
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_POSTGRES_USER: dagster
+      AUTOMERGE_REPAIR_ENVIRONMENT: dev
+      AUTOMERGE_REPAIR_POLICY_FILE: /etc/automerge-repair/policy.toml
+    expose: ['4000']
+    volumes:
+      - "${AUTOMERGE_REPAIR_POLICY_PATH:?required}:/etc/automerge-repair/policy.toml:ro"
+      - "${AUTOMERGE_REPAIR_DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
+      - "${AUTOMERGE_REPAIR_DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
+    networks: [postgres, proxy]
+    healthcheck:
+      test: [CMD, dagster, api, grpc-health-check, -p, '4000']
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+networks:
+  postgres: {external: true, name: "${AUTOMERGE_REPAIR_POSTGRES_NETWORK:?required}"}
+  proxy: {external: true, name: "${AUTOMERGE_REPAIR_PROXY_NETWORK:?required}"}
