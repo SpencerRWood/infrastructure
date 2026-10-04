@@ -41,6 +41,7 @@ class EventsHealthTests(unittest.TestCase):
                     'PATH': str(root) + ':' + os.environ['PATH'],
                     'HEALTH_CHECK_CADDY_ENV_FILE': str(root / 'caddy.env'),
                     'HEALTH_CHECK_EVENTS_ENV_FILE': str(root / 'events.env'),
+                    'HEALTH_CHECK_AUTOMERGE_ENV_FILE': str(root / 'unselected-automerge.env'),
                     'HEALTH_CHECK_RETRY_INTERVAL': '0',
                     'FAKE_IMAGE': image,
                     'FAKE_HEALTH': health,
@@ -60,6 +61,15 @@ class EventsHealthTests(unittest.TestCase):
                 result = self.run_health(image, health)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn('OK Events Service', result.stdout)
+
+    def test_host_automerge_selection_does_not_enter_events_fixture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            host_env = Path(directory) / 'host-automerge.env'
+            host_env.write_text('AUTOMERGE_REPAIR_IMAGE_REF=host-only-image\n')
+            with patch.dict(os.environ, {'HEALTH_CHECK_AUTOMERGE_ENV_FILE': str(host_env)}):
+                result = self.run_health('expected-digest', '0')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn('OK Automerge Repair', result.stdout)
 
 
 class ResolverEnvironmentTests(unittest.TestCase):
