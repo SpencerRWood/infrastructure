@@ -72,6 +72,7 @@
     owner: root
     group: root
     mode: '0644'
+  register: automerge_repair_policy
   tags: [automerge_repair]
 
 - name: Deploy Automerge Repair Compose settings
@@ -140,4 +141,24 @@
     (automerge_repair_up.stdout + automerge_repair_up.stderr)
     is search('Created|Started|Recreated')
   when: not ansible_check_mode
+  tags: [automerge_repair]
+
+- name: Reload shared Dagster processes after the code location is ready
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ host_infrastructure_secrets_root }}/dagster-compose.env"
+      - -f
+      - "{{ host_infrastructure_compose_root }}/dagster/compose.yml"
+      - restart
+      - dagster-webserver
+      - dagster-daemon
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - >-
+      automerge_repair_up.changed or automerge_repair_policy.changed or
+      (dagster_workspace.changed | default(false))
   tags: [automerge_repair]

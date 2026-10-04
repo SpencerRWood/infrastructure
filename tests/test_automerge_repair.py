@@ -10,10 +10,15 @@ ROOT = Path(__file__).parents[1]
 
 
 class AutomergeRepairTests(unittest.TestCase):
-    def test_no_environment_enables_unreleased_artifact(self):
-        for environment in ("dev", "prod"):
-            manifest = yaml.safe_load((ROOT / f"environments/{environment}.yml").read_text())
-            self.assertFalse(manifest["services"].get("automerge_repair", False))
+    def test_only_dev_selects_a_digest_qualified_release(self):
+        dev = yaml.safe_load((ROOT / "environments/dev.yml").read_text())
+        prod = yaml.safe_load((ROOT / "environments/prod.yml").read_text())
+        self.assertTrue(dev["services"]["automerge_repair"])
+        self.assertRegex(
+            dev["automerge_repair_image_ref"],
+            r"^ghcr\.io/spencerrwood/automerge-repair:v\d+\.\d+\.\d+@sha256:[0-9a-f]{64}$",
+        )
+        self.assertFalse(prod["services"].get("automerge_repair", False))
 
     def test_code_location_is_private_and_uses_scoped_credentials(self):
         compose = yaml.safe_load((ROOT / "compose/automerge-repair/compose.yml").read_text())

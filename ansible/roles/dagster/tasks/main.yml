@@ -161,6 +161,7 @@
     owner: root
     group: root
     mode: '0644'
+  register: dagster_workspace
   tags: [dagster]
 
 - name: Check for the Dagster database role

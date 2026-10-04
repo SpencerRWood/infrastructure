@@ -27,10 +27,10 @@ events_service_image_ref: ghcr.io/spencerrwood/events-service:v0.5.1@sha256:336d
 portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.11.0@sha256:abc93a08082b8b664b31a8cf35a1bc8f70c7408095d8be33ee37a8a301f710a0
 openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.0@sha256:fa2ef486195e4ce69dfb88fe443afa0b5c01956702b611b209948562f275efb5
 rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.2.0@sha256:b015b42427003f951e1d9d9bee5d368db4f97edf0f9ef78a63a05d42f31d6e0d
+automerge_repair_image_ref: ghcr.io/spencerrwood/automerge-repair:v0.1.0@sha256:2c4965d39ccea05e9ef7edd5c78b5d5040573191fbca77c2aa1fc2e432936428
 # yamllint enable rule:line-length
 services:
-  # Enable only after the first verified release image and scoped secrets exist.
-  automerge_repair: false
+  automerge_repair: true
   events_service: true
   postgres: true
   caddy: true
@@ -41,9 +41,6 @@ services:
   website_portfolio: true
   rag_service: true
   rudderstack: false
-
-# Populated with a real version@digest during the reviewed first deployment.
-automerge_repair_image_ref: ''
 
 # Root-owned deployment metadata. Application containers never receive the
 # machine-identity credential; only the resolver reads it.
