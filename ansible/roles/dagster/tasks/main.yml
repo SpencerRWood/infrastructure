@@ -324,7 +324,7 @@
   ansible.builtin.command:
     cmd: >-
       docker compose --env-file {{ dagster_compose_env_file }}
-      -f {{ dagster_compose_directory }}/compose.yml up -d --build
+      -f {{ dagster_compose_directory }}/compose.yml up -d --build --wait --wait-timeout 120
   register: dagster_up
   changed_when: dagster_up.stdout is search('Created|Started|Recreated|Built')
   when: not ansible_check_mode
