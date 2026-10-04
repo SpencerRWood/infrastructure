@@ -18,3 +18,5 @@ compute_logs:
   class: LocalComputeLogManager
   config: {base_dir: /opt/dagster/local/compute_logs}
 telemetry: {enabled: false}
+run_monitoring:
+  enabled: true

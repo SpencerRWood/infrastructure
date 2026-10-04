@@ -4,12 +4,17 @@ from pathlib import Path
 import unittest
 
 import yaml
+from dagster._core.instance.config import dagster_instance_config
 
 
 ROOT = Path(__file__).parents[1]
 
 
 class RagServiceTests(unittest.TestCase):
+    def test_shared_runtime_accepts_worker_monitoring_configuration(self):
+        config, _ = dagster_instance_config(str(ROOT / "compose/dagster/config"))
+        self.assertTrue(config["run_monitoring"]["enabled"])
+
     def test_migration_and_platform_secrets_are_not_in_the_api(self):
         compose = yaml.safe_load((ROOT / "compose/rag-service/compose.yml").read_text())
         api = compose["services"]["rag-service"]

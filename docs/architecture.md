@@ -82,3 +82,7 @@ custom-format backup are retained for rollback; do not run both daemons. The
 attended cutover restored the final backup to infrastructure-dev Postgres,
 stopped the legacy project, and verified 9 historical runs and 179 event logs
 through the infrastructure Caddy route.
+
+Shared Dagster run monitoring detects abandoned workers and records terminal
+failures. The RAG code location reconciles those failures into retryable processing
+generations while retaining the last ready source and derived artifacts.
