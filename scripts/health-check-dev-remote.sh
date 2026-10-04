@@ -35,6 +35,21 @@ if [[ -z "$rag_code_container" ]] || ! docker inspect "$rag_code_container" | gr
 fi
 echo 'OK RAG Service Dagster code server'
 
+# This protected input exists only after the component has been deployed.
+automerge_env=${HEALTH_CHECK_AUTOMERGE_ENV_FILE:-/srv/infrastructure/secrets/dev/automerge-repair-compose.env}
+if [[ -f "$automerge_env" ]]; then
+  automerge_image=$(sed -n 's/^AUTOMERGE_REPAIR_IMAGE_REF=//p' "$automerge_env")
+  test -n "$automerge_image"
+  automerge_container=$(docker ps -q \
+    --filter label=com.docker.compose.project=infrastructure-dev-automerge-repair \
+    --filter label=com.docker.compose.service=automerge-repair-code)
+  test -n "$automerge_container"
+  test "$(docker inspect --format '{{.Config.Image}}' "$automerge_container")" = "$automerge_image"
+  test "$(docker inspect --format '{{.State.Health.Status}}' "$automerge_container")" = healthy
+  docker exec "$automerge_container" dagster api grpc-health-check -p 4000
+  echo 'OK Automerge Repair image and gRPC readiness'
+fi
+
 caddy_env_file=${HEALTH_CHECK_CADDY_ENV_FILE:-/srv/infrastructure/secrets/dev/caddy.env}
 caddy_http_bind=$(sed -n 's/^CADDY_HTTP_BIND=//p' "$caddy_env_file")
 test -n "$caddy_http_bind"

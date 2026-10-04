@@ -3,6 +3,21 @@
 Infrastructure topology and portable runtime components for Wood environments.
 Application repositories keep source code, migrations, and releases.
 
+Automerge Repair's application source lives in its standalone repository.
+The dev-only `automerge_repair` role deploys its digest-qualified GHCR release,
+mounts the reviewed `compose/automerge-repair/policy.toml`, and resolves only
+`DAGSTER_POSTGRES_PASSWORD` from the Infisical dev path `/automerge-repair`.
+Its private gRPC location is registered in Dagster only when selected in dev.
+Dev selects the runtime-validated `v0.1.0` image by immutable digest; its scoped
+secret contains the existing Dagster storage credential.
+The role waits for gRPC health; the normal dev health script also checks the
+configured image and readiness after deployment. Application health is verified
+by running `foundation_health_job` through the shared Dagster instance. After
+the code location is ready, the role reloads the webserver and daemon when its
+image, policy, or workspace changes.
+The role registers its scoped path in the existing runtime refresh metadata.
+No production component is enabled.
+
 ## Ownership
 
 Terraform provisions cloud infrastructure: hosts, volumes, DNS, firewall/network

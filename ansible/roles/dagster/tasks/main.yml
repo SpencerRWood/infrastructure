@@ -154,6 +154,16 @@
     - {source: app, destination: "{{ dagster_app_directory }}"}
   tags: [dagster]
 
+- name: Render the selected Dagster code locations
+  ansible.builtin.template:
+    src: workspace.yaml.j2
+    dest: "{{ dagster_config_directory }}/workspace.yaml"
+    owner: root
+    group: root
+    mode: '0644'
+  register: dagster_workspace
+  tags: [dagster]
+
 - name: Check for the Dagster database role
   ansible.builtin.command:
     argv:

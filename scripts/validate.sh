@@ -33,7 +33,8 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
   website_validation_env="$(mktemp)"
   events_validation_env="$(mktemp)"
   rag_validation_env="$(mktemp)"
-  trap 'rm -f "$postgres_validation_env" "$caddy_validation_env" "$website_validation_env" "$events_validation_env" "$rag_validation_env"' EXIT
+  automerge_validation_env="$(mktemp)"
+  trap 'rm -f "$postgres_validation_env" "$caddy_validation_env" "$website_validation_env" "$events_validation_env" "$rag_validation_env" "$automerge_validation_env"' EXIT
   printf '%s\n' \
     'POSTGRES_DB=postgres' \
     'POSTGRES_USER=postgres' \
@@ -86,6 +87,17 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
     'RAG_SERVICE_POSTGRES_NETWORK=infrastructure-dev-postgres' \
     'RAG_SERVICE_PROXY_NETWORK=infrastructure-dev-proxy' >"$rag_validation_env"
   docker compose --env-file "$rag_validation_env" -f compose/rag-service/compose.yml config --quiet
+  # Syntax fixture only; no image is pulled or deployed.
+  printf '%s\n' \
+    'AUTOMERGE_REPAIR_PROJECT_NAME=syntax-automerge-repair' \
+    'AUTOMERGE_REPAIR_IMAGE_REF=syntax-only/automerge-repair:test' \
+    'AUTOMERGE_REPAIR_RUNTIME_ENV_FILE=/dev/null' \
+    'AUTOMERGE_REPAIR_POLICY_PATH=/tmp/policy.toml' \
+    'AUTOMERGE_REPAIR_DAGSTER_CONFIG_PATH=/tmp/dagster-config' \
+    'AUTOMERGE_REPAIR_DAGSTER_LOCAL_PATH=/tmp/dagster-local' \
+    'AUTOMERGE_REPAIR_POSTGRES_NETWORK=syntax-postgres' \
+    'AUTOMERGE_REPAIR_PROXY_NETWORK=syntax-proxy' >"$automerge_validation_env"
+  docker compose --env-file "$automerge_validation_env" -f compose/automerge-repair/compose.yml config --quiet
   env \
     INFISICAL_PROJECT_NAME=infrastructure-dev-infisical \
     INFISICAL_IMAGE_TAG=test \

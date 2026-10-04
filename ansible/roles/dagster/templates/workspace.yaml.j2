@@ -1,0 +1,4 @@
+{{ lookup('ansible.builtin.file', role_path + '/../../../compose/dagster/config/workspace.yaml') }}
+{% if services.automerge_repair | default(false) | bool %}
+  - grpc_server: {host: automerge-repair-code, port: 4000, location_name: automerge-repair}
+{% endif %}

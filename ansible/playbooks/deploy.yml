@@ -72,3 +72,9 @@
         name: rag_service
       when: services.rag_service | default(false) | bool
       tags: [rag_service]
+
+    - name: Deploy selected Automerge Repair component
+      ansible.builtin.include_role:
+        name: automerge_repair
+      when: services.automerge_repair | default(false) | bool
+      tags: [automerge_repair]
