@@ -138,6 +138,28 @@
   when: not ansible_check_mode
   tags: [rag_service]
 
+- name: Enable pgvector using the platform database identity
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - -i
+      - "{{ rag_service_postgres_container }}"
+      - psql
+      - -X
+      - -U
+      - "{{ lookup('ansible.builtin.env', 'POSTGRES_USER') }}"
+      - -d
+      - "{{ rag_service_database_name }}"
+      - --set=ON_ERROR_STOP=1
+    stdin: |-
+      SELECT 'CREATE EXTENSION vector WITH SCHEMA public'
+      WHERE NOT EXISTS (SELECT FROM pg_extension WHERE extname = 'vector') \gexec
+  register: rag_service_vector_extension
+  changed_when: "'CREATE EXTENSION' in rag_service_vector_extension.stdout"
+  when: not ansible_check_mode
+  tags: [rag_service]
+
 - name: Apply forward-only RAG Service migrations using the migration identity
   ansible.builtin.command:
     argv:
