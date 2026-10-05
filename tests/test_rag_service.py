@@ -1,7 +1,10 @@
 """Check the RAG deployment's credential and persistence boundaries."""
 
 from pathlib import Path
+import os
+import subprocess
 import unittest
+from uuid import uuid4
 
 import yaml
 from dagster._core.instance.config import dagster_instance_config
@@ -11,6 +14,39 @@ ROOT = Path(__file__).parents[1]
 
 
 class RagServiceTests(unittest.TestCase):
+    @unittest.skipUnless(
+        os.environ.get("RAG_TEST_POSTGRES_CONTAINER"),
+        "Requires a disposable PostgreSQL/pgvector container",
+    )
+    def test_extension_provisioning_preserves_restricted_migration_identity(self):
+        container = os.environ["RAG_TEST_POSTGRES_CONTAINER"]
+        name = "rag_fixture_" + uuid4().hex
+        tasks = yaml.safe_load((ROOT / "ansible/roles/rag_service/tasks/main.yml").read_text())
+        provision = next(task for task in tasks if "rag_service_vector_extension" == task.get("register"))
+
+        def sql(database, statement, user="postgres", check=True):
+            return subprocess.run(
+                ["docker", "exec", "-i", container, "psql", "-X", "-U", user,
+                 "-d", database, "-At", "--set=ON_ERROR_STOP=1"],
+                input=statement, text=True, capture_output=True, check=check,
+            )
+
+        sql("postgres", f"CREATE ROLE {name} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;\nCREATE DATABASE {name} OWNER {name};")
+        try:
+            denied = sql(name, "CREATE EXTENSION vector WITH SCHEMA public;", name, check=False)
+            self.assertNotEqual(denied.returncode, 0)
+            self.assertIn("superuser", denied.stderr)
+            first = sql(name, provision["ansible.builtin.command"]["stdin"])
+            self.assertIn("CREATE EXTENSION", first.stdout)
+            repeat = sql(name, provision["ansible.builtin.command"]["stdin"])
+            self.assertNotIn("CREATE EXTENSION", repeat.stdout)
+            result = sql(name, "CREATE TABLE vectors (embedding vector(2));\nINSERT INTO vectors VALUES ('[1,0]');\nSELECT 1 - (embedding <=> '[1,0]'::vector) FROM vectors;", name)
+            self.assertEqual(result.stdout.splitlines()[-1], "1")
+            privileges = sql("postgres", f"SELECT rolsuper,rolcreatedb,rolcreaterole FROM pg_roles WHERE rolname='{name}';")
+            self.assertEqual(privileges.stdout.strip(), "f|f|f")
+        finally:
+            sql("postgres", f"DROP DATABASE {name};\nDROP ROLE {name};")
+
     def test_shared_runtime_accepts_worker_monitoring_configuration(self):
         config, _ = dagster_instance_config(str(ROOT / "compose/dagster/config"))
         self.assertTrue(config["run_monitoring"]["enabled"])
