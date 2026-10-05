@@ -131,3 +131,7 @@ duplicate recovery, interrupted attempts, and concurrent clients. No live rollba
 is executed by development validation. Requirement coverage: FR-005/006/026 and
 QR-005/007/010 for this prerequisite only; subsequent incident orchestration and
 repair tests belong to their own Stories.
+
+See [rollback exercise preparation](rollback-exercise.md) for isolated target
+prerequisites, approval inputs, execution evidence, and the remaining runtime
+verification gap. That runbook does not attest to an executed recovery drill.
