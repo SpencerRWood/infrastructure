@@ -20,7 +20,7 @@ done
 report_container=$(docker ps -q \
   --filter label=com.docker.compose.project=infrastructure-dev-dagster \
   --filter label=com.docker.compose.service=openproject-reports-code)
-if [[ -z "$report_container" ]] || ! docker inspect "$report_container" | grep -q '"Status": "healthy"'; then
+if [[ -z "$report_container" ]] || [[ $(docker inspect --format '{{.State.Health.Status}}' "$report_container") != healthy ]]; then
   echo 'OpenProject Reports Dagster code server is not healthy' >&2
   exit 1
 fi
@@ -29,7 +29,7 @@ echo 'OK OpenProject Reports Dagster code server'
 rag_code_container=$(docker ps -q \
   --filter label=com.docker.compose.project=infrastructure-dev-rag-service \
   --filter label=com.docker.compose.service=rag-service-code)
-if [[ -z "$rag_code_container" ]] || ! docker inspect "$rag_code_container" | grep -q '"Status": "healthy"'; then
+if [[ -z "$rag_code_container" ]] || [[ $(docker inspect --format '{{.State.Health.Status}}' "$rag_code_container") != healthy ]]; then
   echo 'RAG Service Dagster code server is not healthy' >&2
   exit 1
 fi

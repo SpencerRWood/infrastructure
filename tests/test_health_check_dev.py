@@ -22,6 +22,7 @@ class HealthCheckTests(unittest.TestCase):
         target_host: str = "dev-infisical.woodhost.cloud",
         report_present: bool = True,
         report_healthy: bool = True,
+        report_inspect_broken_pipe: bool = False,
         rag_present: bool = True,
         rag_healthy: bool = True,
         automerge_selected: bool = False,
@@ -55,6 +56,12 @@ class HealthCheckTests(unittest.TestCase):
                 '  if [[ "$FAKE_AUTOMERGE_IMAGE_MATCHES" == true ]]; then echo syntax-only/automerge:test; else echo wrong; fi\n'
                 'elif [[ "$*" == *automerge1* && "$*" == *State.Health.Status* ]]; then\n'
                 '  if [[ "$FAKE_AUTOMERGE_HEALTHY" == true ]]; then echo healthy; else echo unhealthy; fi\n'
+                'elif [[ "$*" == *report1* && "$*" == *State.Health.Status* ]]; then\n'
+                '  if [[ "$FAKE_REPORT_HEALTHY" == true ]]; then echo healthy; else echo unhealthy; fi\n'
+                'elif [[ "$*" == *rag1* && "$*" == *State.Health.Status* ]]; then\n'
+                '  if [[ "$FAKE_RAG_HEALTHY" == true ]]; then echo healthy; else echo unhealthy; fi\n'
+                'elif [[ "$2" == report1 && "$FAKE_REPORT_INSPECT_BROKEN_PIPE" == true ]]; then\n'
+                '  echo \'{"Running": true, "Status": "healthy"}\'; exit 141\n'
                 'elif [[ "$2" == rag1 && "$FAKE_RAG_HEALTHY" != true ]]; then\n'
                 '  echo \'{"Running": true, "Status": "unhealthy"}\'\n'
                 'elif [[ "$2" == report1 && "$FAKE_REPORT_HEALTHY" != true ]]; then\n'
@@ -99,6 +106,7 @@ class HealthCheckTests(unittest.TestCase):
                 "FAKE_CURL_COUNT": str(count_file),
                 "FAKE_REPORT_PRESENT": str(report_present).lower(),
                 "FAKE_REPORT_HEALTHY": str(report_healthy).lower(),
+                "FAKE_REPORT_INSPECT_BROKEN_PIPE": str(report_inspect_broken_pipe).lower(),
                 "FAKE_RAG_PRESENT": str(rag_present).lower(),
                 "FAKE_RAG_HEALTHY": str(rag_healthy).lower(),
                 "HEALTH_CHECK_AUTOMERGE_ENV_FILE": str(root / "automerge.env"),
@@ -185,6 +193,11 @@ class HealthCheckTests(unittest.TestCase):
         result, _ = self.run_health_check("200", report_present=False)
         self.assertEqual(result.returncode, 1)
         self.assertIn("OpenProject Reports Dagster code server is not healthy", result.stderr)
+
+    def test_health_state_read_avoids_full_inspection_broken_pipe(self) -> None:
+        result, _ = self.run_health_check("200", report_inspect_broken_pipe=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("OK OpenProject Reports Dagster code server", result.stdout)
 
     def test_unhealthy_report_code_server_blocks_deployment_health(self) -> None:
         result, _ = self.run_health_check("200", report_healthy=False)
