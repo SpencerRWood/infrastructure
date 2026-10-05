@@ -1,8 +1,32 @@
 ---
+- name: Require an explicit application credential source
+  ansible.builtin.assert:
+    that:
+      - postgres_application.url_source in ['environment', 'infisical']
+    fail_msg: Application database URL source must be explicitly selected.
+  tags: [postgres]
+
+- name: Resolve the selected application URL from Infisical without a cache
+  ansible.builtin.script:
+    cmd: >-
+      {{ role_path }}/../../../scripts/resolve-infisical-env.py
+      --environment {{ infrastructure_environment }}
+      --path {{ postgres_application.infisical_path }}
+      --stdout-key {{ postgres_application.url_environment }}
+      --require {{ postgres_application.url_environment }}
+  register: postgres_application_url
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: postgres_application.url_source == 'infisical'
+  tags: [postgres]
+
 - name: Validate the protected application database credential
   ansible.builtin.set_fact:
     postgres_application_credential: >-
-      {{ lookup('ansible.builtin.env', postgres_application.url_environment)
+      {{ (postgres_application_url.stdout | trim
+          if postgres_application.url_source == 'infisical'
+          else lookup('ansible.builtin.env', postgres_application.url_environment))
          | postgres_application_credential(postgres_application) }}
   no_log: true
   tags: [postgres]
