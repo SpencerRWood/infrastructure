@@ -30,9 +30,12 @@ def resolve(args):
         raise ValueError('invalid path')
     if not args.require or len(set(args.require)) != len(args.require) or any(not re.fullmatch(r'[A-Z][A-Z0-9_]*', k) for k in args.require):
         raise ValueError('invalid required keys')
-    output = pathlib.Path(args.output)
-    if output.parent != RUNTIME_ROOT or output.suffix != '.env' or not re.fullmatch(r'[a-z][a-z0-9-]*\.env', output.name):
-        raise ValueError('invalid output path')
+    output = pathlib.Path(args.output) if args.output else None
+    if output is not None:
+        if output.parent != RUNTIME_ROOT or output.suffix != '.env' or not re.fullmatch(r'[a-z][a-z0-9-]*\.env', output.name):
+            raise ValueError('invalid output path')
+    elif args.require != [args.stdout_key]:
+        raise ValueError('stdout resolution requires exactly the selected key')
     identity_path = IDENTITY.with_name('infisical-' + args.environment + '.json')
     protected(identity_path)
     identity=json.loads(identity_path.read_text())
@@ -49,6 +52,23 @@ def resolve(args):
         token=json.load(response)['accessToken']
     if not isinstance(token,str) or not token:
         raise ValueError('authentication failed')
+    env=os.environ.copy()
+    env.update(INFISICAL_TOKEN=token,INFISICAL_API_URL=api_url,INFISICAL_DOMAIN=api_url,INFISICAL_DISABLE_UPDATE_CHECK='true')
+    if args.stdout_key:
+        cmd=['infisical','secrets','get',args.stdout_key,'--plain',
+             '--env='+args.environment,'--path='+args.path,
+             '--projectId='+identity['project_id'],'--domain='+api_url,
+             '--expand=false','--include-imports=false','--secret-overriding=false',
+             '--telemetry=false','--silent']
+        result=subprocess.run(cmd,env=env,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
+                              text=True,timeout=45,check=False)
+        if result.returncode:
+            raise ValueError('secret resolution failed')
+        value=result.stdout.rstrip('\n')
+        if not re.fullmatch(r'[\x21-\x7e]+',value):
+            raise ValueError('invalid secret value')
+        print(value)
+        return
     RUNTIME_ROOT.mkdir(mode=0o700,parents=True,exist_ok=True)
     ds=RUNTIME_ROOT.stat()
     if ds.st_uid != 0 or ds.st_gid != 0 or stat.S_IMODE(ds.st_mode) != 0o700:
@@ -56,8 +76,6 @@ def resolve(args):
     fd,export_path=tempfile.mkstemp(prefix='.infisical-export-',dir=RUNTIME_ROOT)
     os.close(fd)
     try:
-        env=os.environ.copy()
-        env.update(INFISICAL_TOKEN=token,INFISICAL_API_URL=api_url,INFISICAL_DOMAIN=api_url,INFISICAL_DISABLE_UPDATE_CHECK='true')
         cmd=['infisical','export','--format=json','--env='+args.environment,'--path='+args.path,
              '--projectId='+identity['project_id'],'--domain='+api_url,'--expand=false',
              '--include-imports=false','--telemetry=false','--silent','--output-file='+export_path]
@@ -102,7 +120,9 @@ if __name__ == '__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('--environment',required=True)
     parser.add_argument('--path',required=True)
-    parser.add_argument('--output',required=True)
+    destination=parser.add_mutually_exclusive_group(required=True)
+    destination.add_argument('--output')
+    destination.add_argument('--stdout-key')
     parser.add_argument('--require',action='append',required=True)
     try:resolve(parser.parse_args())
     except Exception:

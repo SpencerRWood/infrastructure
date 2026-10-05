@@ -8,23 +8,22 @@ adds database-specific SCRAM connection rules, and verifies the password without
 rotating it. Application code creates and versions its own tables.
 
 `ARCHITECTURE_DOCS_DATABASE_URL` is stored in Infrastructure Dev's Infisical
-`dev:/architecture-docs` folder. Inject it into the Ansible controller process;
-do not create an independent password or write the URL into Git or diagnostic
-output. The existing protected controller contract still supplies PostgreSQL
-administrator inputs. Before a release-tag deployment, ensure its controller
-receives the application URL from Infisical; selecting the application without
-this input deliberately fails. Creating the Infisical secret alone does not
-provision the role or database.
+`dev:/architecture-docs` folder. The PostgreSQL task resolves this exact key using
+the protected dev bootstrap identity on the target. The existing resolver's
+`--stdout-key` mode returns the value only to a `no_log` Ansible task and does not
+create an environment cache. Failed resolution never falls back to a controller
+environment value. Do not create an independent password or write the URL into
+Git or diagnostic output. The protected controller contract still supplies
+PostgreSQL administrator inputs. The bootstrap identity must have read access to
+`dev:/architecture-docs` before release-tag deployment. Creating the Infisical
+secret alone does not provision the role or database.
 
 For an attended provisioning run from this repository, after loading the existing
 administrator inputs and reviewing the inventory and PostgreSQL changes:
 
 ```sh
-infisical run --domain=https://dev-infisical.woodhost.cloud/api \
-  --projectId=7ea10433-2eeb-4c57-95a9-b793dd40c7a4 \
-  --env=dev --path=/architecture-docs -- \
-  uv run ansible-playbook -i ansible/inventory/dev \
-    ansible/playbooks/dev.yml --tags postgres
+uv run ansible-playbook -i ansible/inventory/dev \
+  ansible/playbooks/dev.yml --tags postgres
 ```
 
 Use the repository's `ANSIBLE_CONFIG=ansible/ansible.cfg`. Verify the dedicated
