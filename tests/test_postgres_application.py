@@ -16,6 +16,7 @@ class ApplicationCredentialTests(unittest.TestCase):
         self.application = {
             "role": "events_service", "database": "events_service",
             "host": "192.168.1.21", "port": 25433,
+            "url_scheme": "postgresql+psycopg",
         }
         self.password = "encoding-test-only:" + "@/'%+?#" * 4
         self.url = (
@@ -49,3 +50,23 @@ class ApplicationCredentialTests(unittest.TestCase):
         application = {**self.application, "role": "events_service';--"}
         with self.assertRaises(MODULE.AnsibleFilterError):
             MODULE.postgres_application_credential(self.url, application)
+
+    def test_native_postgresql_url_requires_explicit_selected_scheme(self):
+        application = {
+            **self.application, "role": "architecture_docs",
+            "database": "architecture_docs", "url_scheme": "postgresql",
+        }
+        value = self.url.replace("postgresql+psycopg", "postgresql").replace(
+            "events_service", "architecture_docs"
+        )
+        self.assertEqual(
+            MODULE.postgres_application_credential(value, application),
+            {"password": self.password},
+        )
+        for contract in (
+            {**application, "url_scheme": "postgresql+psycopg"},
+            {**application, "url_scheme": "unsupported"},
+            {key: item for key, item in application.items() if key != "url_scheme"},
+        ):
+            with self.assertRaises(MODULE.AnsibleFilterError):
+                MODULE.postgres_application_credential(value, contract)

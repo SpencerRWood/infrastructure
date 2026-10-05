@@ -15,7 +15,8 @@ def postgres_application_credential(value, application):
         if not (
             re.fullmatch(r"[a-z][a-z0-9_]{0,62}", role)
             and re.fullmatch(r"[a-z][a-z0-9_]{0,62}", database)
-            and parsed.scheme == "postgresql+psycopg"
+            and application["url_scheme"] in {"postgresql", "postgresql+psycopg"}
+            and parsed.scheme == application["url_scheme"]
             and unquote(parsed.username or "") == role
             and unquote(parsed.path) == "/" + database
             and parsed.hostname == application["host"]
