@@ -44,7 +44,15 @@ runs before RAG in the same playbook.
 
 The normal versioned dev deployment resolves secrets, pulls the exact image,
 checks its OCI source revision, runs `alembic upgrade head` with the migration
-identity, and waits for both the API and gRPC server to become healthy. Readiness
+identity, and waits for both the API and gRPC server to become healthy. Before
+application migrations, the infrastructure role enables pgvector in the selected
+RAG database using the platform database identity. This extension requires an
+administrator; application runtime and migration roles remain non-superusers.
+The operation checks installed extensions first and is a no-op on repeat deploys.
+`rag_service_database_name` defaults to `rag_service`, and
+`rag_service_postgres_container` selects the dev PostgreSQL container. Overrides
+must match the database and cluster selected by the protected migration URL.
+The extension and database survive application image rollback. Readiness
 uses `/knowledge-bases?limit=1`, so an unmigrated database or invalid runtime
 credential fails the deployment. `/version` reports the artifact's source
 revision and semantic release tag. The database and documents survive container
