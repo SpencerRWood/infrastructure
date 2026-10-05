@@ -168,6 +168,11 @@ only that runner's workspaces and `apply`, `check`, or `health` operations.
 Automatic release deployment is dev-only. `prod.yml` is never called automatically
 and production remains an explicit/manual operation.
 
+The [shared rollback contract](docs/rollback-contract.md) exposes `rollback.yml`
+and a versioned JSON result for deterministic previous-known-good recovery.
+It requires matching failed-deployment evidence, uses the canonical privileged
+entrypoint, and verifies recovery separately from execution. Preview is the default.
+
 Renovate follows this same release path. Docker patch and vulnerability
 updates are configured for auto-merge. GitHub holds the merge until the required
 PR validation check passes.

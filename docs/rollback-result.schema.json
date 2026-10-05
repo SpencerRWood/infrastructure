@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Previous-known-good configuration rollback result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version", "repository", "environment", "failed_target",
+    "previous_known_good_target", "policy", "status", "execution_outcome",
+    "verification_result", "reason", "observed_at"
+  ],
+  "properties": {
+    "contract_version": {"const": 1},
+    "repository": {"type": ["string", "null"]},
+    "environment": {"type": "string"},
+    "failed_target": {"$ref": "#/$defs/target"},
+    "previous_known_good_target": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/resolved_target"}]
+    },
+    "policy": {"type": ["string", "null"]},
+    "status": {"enum": ["ready", "notification_only", "blocked", "failed", "succeeded"]},
+    "execution_outcome": {"enum": ["not_attempted", "failed", "succeeded", "already_restored"]},
+    "verification_result": {"enum": ["not_run", "failed", "passed"]},
+    "reason": {"type": "string", "minLength": 1},
+    "observed_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "revision"],
+      "properties": {
+        "ref": {"type": "string"},
+        "revision": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "resolved_target": {
+      "allOf": [
+        {"$ref": "#/$defs/target"},
+        {"properties": {"revision": {"type": "string"}}}
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "succeeded"}}},
+      "then": {
+        "properties": {
+          "previous_known_good_target": {"$ref": "#/$defs/resolved_target"},
+          "execution_outcome": {"enum": ["succeeded", "already_restored"]},
+          "verification_result": {"const": "passed"}
+        }
+      }
+    }
+  ]
+}
