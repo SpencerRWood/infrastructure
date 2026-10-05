@@ -9,3 +9,10 @@ checks = ["pre-commit"]
 [release]
 semantic_release = true
 tag_merged_commit = true
+
+[delivery]
+# This repository releases configuration and applies it directly with Ansible.
+container_image = false
+infrastructure_promotion = false
+# Independent revision-bound runtime evidence remains required.
+runtime_verification = true
