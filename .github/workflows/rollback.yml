@@ -1,0 +1,81 @@
+---
+name: Roll back previous known-good configuration
+
+'on':
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      failed_target:
+        required: true
+        type: string
+      apply:
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      result:
+        description: Version 1 rollback result JSON; also retained as an artifact.
+        value: ${{ jobs.rollback.outputs.result }}
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Affected environment (infrastructure-dev only).
+        required: true
+        type: string
+      failed_target:
+        description: Failed immutable release tag, for example v0.20.2.
+        required: true
+        type: string
+      apply:
+        description: Execute rollback; false only selects and validates the target.
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-infrastructure-dev
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: [self-hosted, linux, x64, beelink, infrastructure]
+    environment: infrastructure-dev
+    timeout-minutes: 100
+    outputs:
+      result: ${{ steps.rollback.outputs.result }}
+    steps:
+      - name: Check out authoritative consumer contract
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Run rollback contract
+        id: rollback
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+          FAILED_TARGET: ${{ inputs.failed_target }}
+          APPLY: ${{ inputs.apply }}
+        run: |
+          set -uo pipefail
+          args=()
+          if [[ "$APPLY" == true ]]; then args+=(--apply); fi
+          python3 scripts/rollback.py --environment "$TARGET_ENVIRONMENT" \
+            --failed-target "$FAILED_TARGET" --json "${args[@]}" \
+            > "$RUNNER_TEMP/rollback-result.json"
+          result_code=$?
+          echo "result=$(cat "$RUNNER_TEMP/rollback-result.json")" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/rollback-result.json"
+          exit "$result_code"
+      - name: Retain structured rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-result
+          path: ${{ runner.temp }}/rollback-result.json
+          if-no-files-found: error
+          retention-days: 30

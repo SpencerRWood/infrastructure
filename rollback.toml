@@ -1,0 +1,8 @@
+# Consumer policy for deterministic configuration rollback; prod is unsupported.
+contract_version = 1
+repository = "SpencerRWood/infrastructure"
+environment = "infrastructure-dev"
+mode = "enabled"
+state_file = "/var/lib/github-actions-deployments/github-runner-infrastructure/infrastructure-dev.json"
+wrapper = "/usr/local/sbin/github-runner-infrastructure-deploy"
+operation_timeout_seconds = 1800

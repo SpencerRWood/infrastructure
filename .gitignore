@@ -41,6 +41,7 @@ Thumbs.db
 *.temp
 
 # Local tooling
+*.egg-info/
 .venv/
 .venv-codex-usage/
 uv.lock.bak
