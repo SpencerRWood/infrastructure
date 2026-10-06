@@ -38,7 +38,7 @@ portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.11.0@sha2
 openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.0@sha256:fa2ef486195e4ce69dfb88fe443afa0b5c01956702b611b209948562f275efb5
 rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.7.1@sha256:0d7d8c6bf7cca708f201f4da48c8a0d83776ca6833a922c6578ea72790fa8031
 # Candidate passed real Qwen health, readiness and 1024-dimensional output checks.
-rag_embedding_image_ref: ghcr.io/spencerrwood/rag-embedding:v0.7.0@sha256:b57fb73ed6c6f82e567c5a8b1ef7699f2e85682c333be20f5d4d0d3573868b76
+rag_embedding_image_ref: ghcr.io/spencerrwood/rag-embedding:v0.7.1@sha256:a5130144c1301be490112ee4bc41c2fd309c43e971f07730b68a66881792d629
 automerge_repair_image_ref: ghcr.io/spencerrwood/automerge-repair:v0.1.0@sha256:2c4965d39ccea05e9ef7edd5c78b5d5040573191fbca77c2aa1fc2e432936428
 # yamllint enable rule:line-length
 services:
