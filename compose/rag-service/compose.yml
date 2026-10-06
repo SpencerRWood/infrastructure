@@ -13,6 +13,9 @@ x-settings: &settings
   RAG_DAGSTER_URL: http://dagster-webserver:3000
   RAG_SOURCE_REVISION: ${RAG_SERVICE_SOURCE_REVISION:?required}
   RAG_RELEASE_REVISION: ${RAG_SERVICE_RELEASE_TAG:?required}
+  RAG_MCP_PATH: /mcp
+  RAG_MCP_ALLOWED_HOSTS: '["dev-rag-service.woodhost.cloud:*", "127.0.0.1:*", "localhost:*"]'
+  RAG_MCP_ALLOWED_ORIGINS: '["http://dev-rag-service.woodhost.cloud:8080"]'
 
 services:
   rag-service:
@@ -28,9 +31,9 @@ services:
         - -c
         - >-
           import urllib.request;
-          urllib.request.urlopen('http://127.0.0.1:8000/knowledge-bases?limit=1', timeout=3).close()
+          urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=8).close()
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 10
       start_period: 20s
 

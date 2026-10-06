@@ -128,3 +128,25 @@ if [[ -f "$events_env" ]]; then
 fi
 wait_for_route dev-rag-service.woodhost.cloud /health
 wait_for_route dev-rag-service.woodhost.cloud /knowledge-bases?limit=1
+
+# The API and code server must use the selected immutable artifact. Core
+# readiness is checked inside the API so this probe does not widen ingress.
+rag_env=${HEALTH_CHECK_RAG_ENV_FILE:-/srv/infrastructure/secrets/dev/rag-service-compose.env}
+rag_image=$(sed -n 's/^RAG_SERVICE_IMAGE_REF=//p' "$rag_env")
+rag_revision=$(sed -n 's/^RAG_SERVICE_SOURCE_REVISION=//p' "$rag_env")
+rag_release=$(sed -n 's/^RAG_SERVICE_RELEASE_TAG=//p' "$rag_env")
+test -n "$rag_image" && test -n "$rag_revision" && test -n "$rag_release"
+for service in rag-service rag-service-code; do
+  ids=$(docker ps -q --filter label=com.docker.compose.project=infrastructure-dev-rag-service \
+    --filter "label=com.docker.compose.service=$service")
+  test -n "$ids"
+  while IFS= read -r id; do
+    test "$(docker inspect --format '{{.Config.Image}}' "$id")" = "$rag_image"
+    test "$(docker inspect --format '{{.Image}}' "$id")" = "$(docker image inspect --format '{{.Id}}' "$rag_image")"
+    test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$rag_image")" = "$rag_revision"
+    if [[ "$service" == rag-service ]]; then
+      docker exec "$id" python -c 'import json,sys,urllib.request; ready=json.load(urllib.request.urlopen("http://127.0.0.1:8000/ready", timeout=8)); assert ready["status"] == "ready"; version=json.load(urllib.request.urlopen("http://127.0.0.1:8000/version", timeout=3)); assert version["source_revision"] == sys.argv[1]; assert version["release_revision"] == sys.argv[2]; assert version["version"] == sys.argv[2].removeprefix("v")' "$rag_revision" "$rag_release"
+    fi
+  done <<< "$ids"
+done
+echo 'OK RAG immutable image, revision, and core readiness'
