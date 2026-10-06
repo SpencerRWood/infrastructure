@@ -53,7 +53,7 @@ class RagIngressTests(unittest.TestCase):
                         with urlopen(request("/health"), timeout=2) as response:
                             self.assertEqual(response.status, 200)
                         break
-                    except URLError:
+                    except (URLError, ConnectionResetError):
                         if attempt == 29:
                             raise
                         time.sleep(0.1)
