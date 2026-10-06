@@ -5,7 +5,7 @@ infisical_bootstrap_directory: "{{ host_infrastructure_root }}/bootstrap/infisic
 infisical_env_file: "{{ infisical_bootstrap_directory }}/infisical.env"
 infisical_compose_env_file: "{{ host_infrastructure_secrets_root }}/infisical-compose.env"
 infisical_project_name: "infrastructure-{{ infrastructure_environment }}-infisical"
-infisical_image_tag: v0.165.16
+infisical_image_tag: v0.165.17
 infisical_postgres_network: "infrastructure-{{ infrastructure_environment }}-postgres"
 infisical_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
 infisical_required_environment:
