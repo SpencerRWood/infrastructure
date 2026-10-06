@@ -20,6 +20,10 @@ class EventsHealthTests(unittest.TestCase):
             root = Path(directory)
             (root / 'caddy.env').write_text('CADDY_HTTP_BIND=127.0.0.1:8080\n')
             (root / 'events.env').write_text('EVENTS_SERVICE_IMAGE_REF=expected-digest\n')
+            (root / 'rag.env').write_text(
+                'RAG_SERVICE_IMAGE_REF=expected-digest\n'
+                'RAG_SERVICE_SOURCE_REVISION=source\nRAG_SERVICE_RELEASE_TAG=v1\n'
+            )
             docker = root / 'docker'
             docker.write_text(
                 '#!/usr/bin/env bash\n'
@@ -29,6 +33,7 @@ class EventsHealthTests(unittest.TestCase):
                 'elif [[ "$2" == --format ]]; then echo "$FAKE_IMAGE"; '
                 'else echo \'{"Running": true, "Status": "healthy"}\'; fi;;\n'
                 'exec) exit "$FAKE_HEALTH";;\n'
+                'image) if [[ "$*" == *Config.Labels* ]]; then echo source; else echo "$FAKE_IMAGE"; fi;;\n'
                 'esac\n'
             )
             docker.chmod(0o755)
@@ -42,6 +47,7 @@ class EventsHealthTests(unittest.TestCase):
                     'PATH': str(root) + ':' + os.environ['PATH'],
                     'HEALTH_CHECK_CADDY_ENV_FILE': str(root / 'caddy.env'),
                     'HEALTH_CHECK_EVENTS_ENV_FILE': str(root / 'events.env'),
+                    'HEALTH_CHECK_RAG_ENV_FILE': str(root / 'rag.env'),
                     'HEALTH_CHECK_AUTOMERGE_ENV_FILE': str(root / 'unselected-automerge.env'),
                     'HEALTH_CHECK_RETRY_INTERVAL': '0',
                     'FAKE_IMAGE': image,

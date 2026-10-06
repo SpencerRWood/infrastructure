@@ -1,3 +1,8 @@
 http://dev-rag-service.woodhost.cloud:80 {
+	@untrusted_operations {
+		path /mcp /mcp/* /metrics /ready
+		not remote_ip 192.168.1.0/24 127.0.0.1 ::1
+	}
+	respond @untrusted_operations "Private dev access required" 403
 	reverse_proxy rag-service:8000
 }

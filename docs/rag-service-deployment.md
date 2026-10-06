@@ -9,6 +9,38 @@ Postgres and proxy networks. Dagster discovers `rag-service-code:4000` as
 require the code server and a successful knowledge-base read through Caddy.
 Production remains unselected; the role deliberately accepts only dev.
 
+## Private operational ingress and release verification
+
+The canonical Caddy route restricts `/mcp`, `/mcp/*`, `/metrics`, and `/ready`
+to direct connections from `192.168.1.0/24` or loopback. It uses `remote_ip`,
+never caller-supplied forwarding headers. The separate homelab edge proxy's Docker
+connection is outside this allowlist; an unauthenticated edge MCP request receives
+403. Private consumers use `http://dev-rag-service.woodhost.cloud:8080/mcp` on
+the existing LAN-restricted listener/firewall. Container ports remain unpublished.
+Infrastructure fixes the MCP path and allowed hosts/origins so secret-file settings
+cannot move the endpoint outside the protected path. Production remains disabled.
+
+The API health check uses `/ready`: migrated database and writable document storage
+are required; Dagster and embedding model-catalog states remain visible. Deployment
+health compares both API/code-server image refs with the selected digest pin, checks
+its OCI source label, and requires `/version` to match the source revision, release
+tag, and semantic version. This requires the RAG runtime diagnostics release;
+deliver the application change before this infrastructure change.
+
+Run the RAG repository's `wood repo verify --json` with its documented private
+URLs and expected artifact identity after deployment. That required verification
+launches ingestion through HTTP, observes the exact Dagster run succeed, compares
+HTTP retrieval with a protocol-level MCP search/fetch, checks tool annotations,
+and tests the denied edge path with spoofed forwarding headers. Retain its
+verification record/logs with the Story evidence. Candidate-image PostgreSQL/
+Dagster validation remains a release gate; the dev pin must consume that exact
+digest. A passing release or Compose health check alone does not prove this
+application end-to-end contract.
+
+The ingress contract test runs the actual canonical route in a disposable Caddy
+container, requiring 403 for untrusted MCP/metrics/readiness connections even with
+a forged forwarding header, and proving loopback access and normal liveness.
+
 ## Reviewed first-time setup
 
 Before merging the enabling manifest, provision database `rag_service` in the

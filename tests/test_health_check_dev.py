@@ -25,6 +25,9 @@ class HealthCheckTests(unittest.TestCase):
         report_inspect_broken_pipe: bool = False,
         rag_present: bool = True,
         rag_healthy: bool = True,
+        rag_image_matches: bool = True,
+        rag_running_image_matches: bool = True,
+        rag_api_ready: bool = True,
         automerge_selected: bool = False,
         automerge_present: bool = True,
         automerge_healthy: bool = True,
@@ -36,6 +39,10 @@ class HealthCheckTests(unittest.TestCase):
             bin_directory = root / "bin"
             bin_directory.mkdir()
             (root / "caddy.env").write_text("CADDY_HTTP_BIND=127.0.0.1:8080\n", encoding="utf-8")
+            (root / "rag.env").write_text(
+                "RAG_SERVICE_IMAGE_REF=syntax-only/rag:v1@sha256:fixture\n"
+                "RAG_SERVICE_SOURCE_REVISION=source\nRAG_SERVICE_RELEASE_TAG=v1\n"
+            )
             if automerge_selected:
                 (root / "automerge.env").write_text("AUTOMERGE_REPAIR_IMAGE_REF=syntax-only/automerge:test\n")
             docker = bin_directory / "docker"
@@ -46,12 +53,21 @@ class HealthCheckTests(unittest.TestCase):
                 '    [[ "$FAKE_AUTOMERGE_PRESENT" == true ]] && echo automerge1\n'
                 '  elif [[ "$*" == *rag-service-code* ]]; then\n'
                 '    [[ "$FAKE_RAG_PRESENT" == true ]] && echo rag1\n'
+                '  elif [[ "$*" == *service=rag-service* ]]; then echo ragapi1\n'
                 '  elif [[ "$*" == *openproject-reports-code* ]]; then\n'
                 '    [[ "$FAKE_REPORT_PRESENT" == true ]] && echo report1\n'
                 '  else echo container1; fi\n'
                 '  exit 0\n'
                 'elif [[ "$1" == exec && "$2" == automerge1 ]]; then\n'
                 '  [[ "$FAKE_AUTOMERGE_GRPC_READY" == true ]]; exit $?\n'
+                'elif [[ "$1" == exec && "$2" == ragapi1 ]]; then\n'
+                '  [[ "$FAKE_RAG_API_READY" == true ]]; exit $?\n'
+                'elif [[ "$*" == *rag* && "$*" == *Config.Image* ]]; then\n'
+                '  if [[ "$FAKE_RAG_IMAGE_MATCHES" == true ]]; then echo syntax-only/rag:v1@sha256:fixture; else echo wrong; fi\n'
+                'elif [[ "$*" == *rag* && "$*" == *.Image* ]]; then\n'
+                '  if [[ "$FAKE_RAG_RUNNING_IMAGE_MATCHES" == true ]]; then echo image-id; else echo wrong; fi\n'
+                'elif [[ "$1" == image && "$*" == *Config.Labels* ]]; then echo source\n'
+                'elif [[ "$1" == image && "$*" == *.Id* ]]; then echo image-id\n'
                 'elif [[ "$*" == *automerge1* && "$*" == *Config.Image* ]]; then\n'
                 '  if [[ "$FAKE_AUTOMERGE_IMAGE_MATCHES" == true ]]; then echo syntax-only/automerge:test; else echo wrong; fi\n'
                 'elif [[ "$*" == *automerge1* && "$*" == *State.Health.Status* ]]; then\n'
@@ -109,6 +125,10 @@ class HealthCheckTests(unittest.TestCase):
                 "FAKE_REPORT_INSPECT_BROKEN_PIPE": str(report_inspect_broken_pipe).lower(),
                 "FAKE_RAG_PRESENT": str(rag_present).lower(),
                 "FAKE_RAG_HEALTHY": str(rag_healthy).lower(),
+                "HEALTH_CHECK_RAG_ENV_FILE": str(root / "rag.env"),
+                "FAKE_RAG_IMAGE_MATCHES": str(rag_image_matches).lower(),
+                "FAKE_RAG_RUNNING_IMAGE_MATCHES": str(rag_running_image_matches).lower(),
+                "FAKE_RAG_API_READY": str(rag_api_ready).lower(),
                 "HEALTH_CHECK_AUTOMERGE_ENV_FILE": str(root / "automerge.env"),
                 "FAKE_AUTOMERGE_PRESENT": str(automerge_present).lower(),
                 "FAKE_AUTOMERGE_HEALTHY": str(automerge_healthy).lower(),
@@ -144,6 +164,19 @@ class HealthCheckTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(attempts, 4)
         self.assertIn("dev-rag-service.woodhost.cloud/knowledge-bases?limit=1", result.stderr)
+
+    def test_rag_requires_exact_artifact_and_core_readiness(self) -> None:
+        result, _ = self.run_health_check("200")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("OK RAG immutable image, revision, and core readiness", result.stdout)
+        for failure in (
+            {"rag_image_matches": False},
+            {"rag_running_image_matches": False},
+            {"rag_api_ready": False},
+        ):
+            with self.subTest(failure=failure):
+                result, _ = self.run_health_check("200", **failure)
+                self.assertNotEqual(result.returncode, 0)
 
     def test_rag_code_server_must_be_present_and_healthy(self) -> None:
         for present, healthy in ((False, True), (True, False)):
