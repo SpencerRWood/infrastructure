@@ -28,6 +28,10 @@ class HealthCheckTests(unittest.TestCase):
         rag_image_matches: bool = True,
         rag_running_image_matches: bool = True,
         rag_api_ready: bool = True,
+        embedding_present: bool = True,
+        embedding_healthy: bool = True,
+        embedding_image_matches: bool = True,
+        embedding_runtime_passes: bool = True,
         automerge_selected: bool = False,
         automerge_present: bool = True,
         automerge_healthy: bool = True,
@@ -42,6 +46,8 @@ class HealthCheckTests(unittest.TestCase):
             (root / "rag.env").write_text(
                 "RAG_SERVICE_IMAGE_REF=syntax-only/rag:v1@sha256:fixture\n"
                 "RAG_SERVICE_SOURCE_REVISION=source\nRAG_SERVICE_RELEASE_TAG=v1\n"
+                "RAG_EMBEDDING_IMAGE_REF=syntax-only/embedding:v1@sha256:fixture\n"
+                "RAG_EMBEDDING_SOURCE_REVISION=source\nRAG_EMBEDDING_RELEASE_TAG=v1\n"
             )
             if automerge_selected:
                 (root / "automerge.env").write_text("AUTOMERGE_REPAIR_IMAGE_REF=syntax-only/automerge:test\n")
@@ -49,6 +55,10 @@ class HealthCheckTests(unittest.TestCase):
             docker.write_text(
                 '#!/usr/bin/env bash\n'
                 'if [[ "$1" == ps ]]; then\n'
+                '  if [[ "$*" == *embedding-service* ]]; then\n'
+                '    [[ "$FAKE_EMBEDDING_PRESENT" == true ]] && echo embedding1\n'
+                '    exit 0\n'
+                '  fi\n'
                 '  if [[ "$*" == *automerge-repair-code* ]]; then\n'
                 '    [[ "$FAKE_AUTOMERGE_PRESENT" == true ]] && echo automerge1\n'
                 '  elif [[ "$*" == *rag-service-code* ]]; then\n'
@@ -60,6 +70,13 @@ class HealthCheckTests(unittest.TestCase):
                 '  exit 0\n'
                 'elif [[ "$1" == exec && "$2" == automerge1 ]]; then\n'
                 '  [[ "$FAKE_AUTOMERGE_GRPC_READY" == true ]]; exit $?\n'
+                'elif [[ "$1" == exec && "$2" == embedding1 ]]; then\n'
+                '  [[ "$FAKE_EMBEDDING_RUNTIME_PASSES" == true ]]; exit $?\n'
+                'elif [[ "$*" == *embedding1* && "$*" == *Config.Image* ]]; then\n'
+                '  if [[ "$FAKE_EMBEDDING_IMAGE_MATCHES" == true ]]; then echo syntax-only/embedding:v1@sha256:fixture; else echo wrong; fi\n'
+                'elif [[ "$*" == *embedding1* && "$*" == *State.Health.Status* ]]; then\n'
+                '  if [[ "$FAKE_EMBEDDING_HEALTHY" == true ]]; then echo healthy; else echo unhealthy; fi\n'
+                'elif [[ "$*" == *embedding1* && "$*" == *.Image* ]]; then echo image-id\n'
                 'elif [[ "$1" == exec && "$2" == ragapi1 ]]; then\n'
                 '  [[ "$FAKE_RAG_API_READY" == true ]]; exit $?\n'
                 'elif [[ "$*" == *rag* && "$*" == *Config.Image* ]]; then\n'
@@ -129,6 +146,10 @@ class HealthCheckTests(unittest.TestCase):
                 "FAKE_RAG_IMAGE_MATCHES": str(rag_image_matches).lower(),
                 "FAKE_RAG_RUNNING_IMAGE_MATCHES": str(rag_running_image_matches).lower(),
                 "FAKE_RAG_API_READY": str(rag_api_ready).lower(),
+                "FAKE_EMBEDDING_PRESENT": str(embedding_present).lower(),
+                "FAKE_EMBEDDING_HEALTHY": str(embedding_healthy).lower(),
+                "FAKE_EMBEDDING_IMAGE_MATCHES": str(embedding_image_matches).lower(),
+                "FAKE_EMBEDDING_RUNTIME_PASSES": str(embedding_runtime_passes).lower(),
                 "HEALTH_CHECK_AUTOMERGE_ENV_FILE": str(root / "automerge.env"),
                 "FAKE_AUTOMERGE_PRESENT": str(automerge_present).lower(),
                 "FAKE_AUTOMERGE_HEALTHY": str(automerge_healthy).lower(),
@@ -144,6 +165,18 @@ class HealthCheckTests(unittest.TestCase):
                 check=False,
             )
             return result, int(count_file.read_text()) if count_file.exists() else 0
+
+    def test_embedding_requires_image_identity_readiness_and_real_vectors(self) -> None:
+        result, _ = self.run_health_check("200")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("OK embedding immutable image", result.stdout)
+        for failure in (
+            {"embedding_present": False}, {"embedding_healthy": False},
+            {"embedding_image_matches": False}, {"embedding_runtime_passes": False},
+        ):
+            with self.subTest(failure=failure):
+                result, _ = self.run_health_check("200", **failure)
+                self.assertNotEqual(result.returncode, 0)
 
     def test_selected_automerge_requires_exact_image_and_grpc_readiness(self) -> None:
         result, _ = self.run_health_check("200", automerge_selected=True)

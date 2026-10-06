@@ -7,6 +7,10 @@
       - services.caddy | bool
       - services.dagster | bool
       - >-
+        rag_embedding_image_ref is match(
+        '^ghcr[.]io/spencerrwood/rag-embedding:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
+        )
+      - >-
         rag_service_image_ref is match(
         '^ghcr[.]io/spencerrwood/rag-service:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
         )
@@ -29,6 +33,56 @@
     owner: '1000'
     group: '1000'
     mode: '0770'
+  tags: [rag_service]
+
+- name: Create persistent embedding model cache for the non-root runtime
+  ansible.builtin.file:
+    path: "{{ rag_service_embedding_cache_path }}"
+    state: directory
+    owner: '1000'
+    group: '1000'
+    mode: '0770'
+  tags: [rag_service]
+
+- name: Pull the pinned embedding artifact
+  ansible.builtin.command:
+    argv: [docker, pull, "{{ rag_embedding_image_ref }}"]
+  environment:
+    DOCKER_CONFIG: "{{ rag_service_docker_config_directory }}"
+  register: rag_service_embedding_pull
+  changed_when: rag_service_embedding_pull.stdout is search('Downloaded newer image')
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Read embedding artifact identity
+  ansible.builtin.command:
+    argv:
+      - docker
+      - image
+      - inspect
+      - "{{ rag_embedding_image_ref }}"
+      - --format
+      - '{{ "{{json .Config.Labels}}" }}'
+  register: rag_service_embedding_image_labels
+  changed_when: false
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Retain embedding artifact source revision
+  ansible.builtin.set_fact:
+    rag_service_embedding_source_revision: >-
+      {{ (rag_service_embedding_image_labels.stdout | from_json).get('org.opencontainers.image.revision', '') }}
+  when: not ansible_check_mode
+  tags: [rag_service]
+
+- name: Require embedding artifact source and version identity
+  ansible.builtin.assert:
+    that:
+      - rag_service_embedding_source_revision is match('^[0-9a-f]{40}$')
+      - >-
+        (rag_service_embedding_image_labels.stdout | from_json).get('org.opencontainers.image.version', '')
+        == rag_embedding_image_ref.split(':')[1].split('@')[0]
+  when: not ansible_check_mode
   tags: [rag_service]
 
 - name: Resolve distinct RAG runtime and migration credentials from Infisical
@@ -94,6 +148,11 @@
   ansible.builtin.copy:
     content: |-
       RAG_SERVICE_PROJECT_NAME={{ rag_service_project_name }}
+      RAG_EMBEDDING_IMAGE_REF={{ rag_embedding_image_ref }}
+      RAG_EMBEDDING_RELEASE_TAG={{ rag_embedding_image_ref.split(':')[1].split('@')[0] }}
+      RAG_EMBEDDING_SOURCE_REVISION={{ rag_service_embedding_source_revision }}
+      RAG_EMBEDDING_MODEL_REVISION={{ rag_service_embedding_model_revision }}
+      RAG_EMBEDDING_CACHE_PATH={{ rag_service_embedding_cache_path }}
       RAG_SERVICE_IMAGE_REF={{ rag_service_image_ref }}
       RAG_SERVICE_RELEASE_TAG={{ rag_service_image_ref.split(':')[1].split('@')[0] }}
       RAG_SERVICE_SOURCE_REVISION={{ rag_service_source_revision }}
@@ -195,7 +254,8 @@
       - -d
       - --wait
       - --wait-timeout
-      - '120'
+      - '660'
+      - embedding-service
       - rag-service
       - rag-service-code
   environment:

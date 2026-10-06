@@ -1,4 +1,6 @@
 ---
+rag_service_embedding_cache_path: "{{ host_infrastructure_state_root }}/rag-embedding/models"
+rag_service_embedding_model_revision: 97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3
 rag_service_compose_directory: "{{ host_infrastructure_compose_root }}/rag-service"
 rag_service_state_directory: "{{ host_infrastructure_state_root }}/rag-service"
 rag_service_compose_env_file: "{{ host_infrastructure_secrets_root }}/rag-service-compose.env"

@@ -75,6 +75,11 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
   docker compose --env-file "$events_validation_env" -f compose/events-service/compose.yml config --quiet
   printf '%s\n' \
     'RAG_SERVICE_PROJECT_NAME=infrastructure-dev-rag-service' \
+    'RAG_EMBEDDING_IMAGE_REF=syntax-only/rag-embedding:test' \
+    'RAG_EMBEDDING_SOURCE_REVISION=21380620d3c951863a5abadae5e528360cbb73c5' \
+    'RAG_EMBEDDING_RELEASE_TAG=v0.7.0' \
+    'RAG_EMBEDDING_MODEL_REVISION=97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3' \
+    'RAG_EMBEDDING_CACHE_PATH=/tmp/rag-embedding-models' \
     'RAG_SERVICE_IMAGE_REF=ghcr.io/spencerrwood/rag-service:v0.1.0@sha256:83be558d8a7bb509d2b673f22d1b34438b354eb738ba7242a4157a9321653cf5' \
     'RAG_SERVICE_RELEASE_TAG=v0.1.0' \
     'RAG_SERVICE_SOURCE_REVISION=21380620d3c951863a5abadae5e528360cbb73c5' \
