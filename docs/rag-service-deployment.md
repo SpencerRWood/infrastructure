@@ -105,3 +105,47 @@ If rolling back the initial onboarding, explicitly stop the RAG Compose project
 after reviewing the target release, and retain its database, runtime files, and
 documents. Subsequent image rollbacks require compatibility with the current
 schema and should use a reviewed digest pin.
+# Separate Qwen embedding runtime
+
+Application implementation, dependency lock, Dockerfile, API and tests are in
+`rag-service/services/embedding/`; infrastructure deploys the separate
+`rag-embedding` image. The `embedding-service` Compose service has no published
+port or Caddy route. It joins an internal embedding network shared with the RAG
+API and code server, plus a separate outbound network for first-time Hugging
+Face downloads. It does not join the database or proxy networks or receive
+application/platform secret files.
+
+Both RAG roles explicitly use `RAG_EMBEDDING_PROVIDER=local`,
+`RAG_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B`, `RAG_EMBEDDING_DIMENSIONS=1024`
+and `RAG_EMBEDDING_ENDPOINT=http://embedding-service:8080/v1`. Existing index
+generations retain their recorded provider identity; changing configuration
+does not rewrite old generations. New ingestion uses the deployed endpoint.
+
+Ansible creates `/srv/infrastructure/state/rag-embedding/models` with UID/GID
+1000 and retains it across container replacement/rollback. The model revision
+is pinned separately from the image. The CPU runtime is limited to four cores
+and 6 GiB; first startup may download about 1.2 GB of weights. Readiness allows
+600 seconds for loading, and the Compose deployment waits up to 660 seconds.
+`/health` describes process health; `/ready` requires successfully loaded Qwen.
+The service's 25-second inference deadline is below the RAG client's 30 seconds.
+
+Before merging first-time enabling configuration, populate
+`rag_embedding_image_ref` with the verified `ghcr.io/spencerrwood/rag-embedding:vX.Y.Z@sha256:...`
+release identity. Missing/empty pins fail directly; there is no mutable-tag or
+alternate-provider fallback. The standard promotion helper cannot bootstrap an
+empty pin. Publish and verify the application candidate first, insert its
+actual released digest into this reviewed configuration, merge/deploy the
+infrastructure, then retry its initial embedding promotion. Future releases
+update the established pin through the existing promotion workflow.
+
+Deployment checks compare requested reference, running image ID and OCI source
+revision, invoke the application-owned real-model verifier inside the embedding
+container, and probe the stable endpoint from both RAG containers. Retain those
+outputs and image identity with deployment evidence. Run the existing
+`wood repo verify --json` from the released RAG checkout with the documented dev
+selectors to prove ingestion/retrieval/MCP and public-edge denial. Readiness and
+an embedding request alone do not satisfy Story 425's end-to-end closure gate.
+
+Rollback retains the model cache and all RAG database/document state. Restoring
+an older embedding artifact requires a compatible model and 1024-dimensional
+contract; it does not delete model cache entries or alter indexed generations.

@@ -23,6 +23,8 @@ class EventsHealthTests(unittest.TestCase):
             (root / 'rag.env').write_text(
                 'RAG_SERVICE_IMAGE_REF=expected-digest\n'
                 'RAG_SERVICE_SOURCE_REVISION=source\nRAG_SERVICE_RELEASE_TAG=v1\n'
+                'RAG_EMBEDDING_IMAGE_REF=expected-digest\n'
+                'RAG_EMBEDDING_SOURCE_REVISION=source\nRAG_EMBEDDING_RELEASE_TAG=v1\n'
             )
             docker = root / 'docker'
             docker.write_text(

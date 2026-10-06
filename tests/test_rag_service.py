@@ -72,6 +72,24 @@ class RagServiceTests(unittest.TestCase):
         self.assertNotIn("OPENPROJECT", source)
         self.assertNotIn("GOOGLE_DRIVE", source)
 
+    def test_embedding_is_independent_private_and_shared_by_both_rag_roles(self):
+        compose = yaml.safe_load((ROOT / "compose/rag-service/compose.yml").read_text())
+        embedding = compose["services"]["embedding-service"]
+        self.assertEqual(embedding["image"], "${RAG_EMBEDDING_IMAGE_REF:?required}")
+        self.assertNotIn("ports", embedding)
+        self.assertNotIn("env_file", embedding)
+        self.assertEqual(set(embedding["networks"]), {"embedding", "model-download"})
+        self.assertTrue(compose["networks"]["embedding"]["internal"])
+        self.assertIn(":/data/models", embedding["volumes"][0])
+        for role in ("rag-service", "rag-service-code"):
+            service = compose["services"][role]
+            settings = service["environment"]
+            self.assertEqual(settings["RAG_EMBEDDING_ENDPOINT"], "http://embedding-service:8080/v1")
+            self.assertEqual(settings["RAG_EMBEDDING_MODEL"], "Qwen/Qwen3-Embedding-0.6B")
+            self.assertEqual(settings["RAG_EMBEDDING_DIMENSIONS"], "1024")
+            self.assertIn("embedding", service["networks"])
+            self.assertEqual(service["depends_on"]["embedding-service"]["condition"], "service_healthy")
+
 
 if __name__ == "__main__":
     unittest.main()

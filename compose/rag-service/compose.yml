@@ -4,12 +4,18 @@ x-runtime: &runtime
   image: ${RAG_SERVICE_IMAGE_REF:?required}
   user: '1000:1000'
   restart: unless-stopped
-  networks: [postgres, proxy]
+  networks: [postgres, proxy, embedding]
 
 x-settings: &settings
   RAG_ENVIRONMENT: dev
   RAG_STORAGE_BACKEND: filesystem
   RAG_STORAGE_PATH: /data/documents
+  RAG_EMBEDDING_PROVIDER: local
+  RAG_EMBEDDING_MODEL: Qwen/Qwen3-Embedding-0.6B
+  RAG_EMBEDDING_DIMENSIONS: '1024'
+  RAG_EMBEDDING_ENDPOINT: http://embedding-service:8080/v1
+  RAG_EMBEDDING_TIMEOUT: '30'
+  RAG_EMBEDDING_BATCH_SIZE: '32'
   RAG_DAGSTER_URL: http://dagster-webserver:3000
   RAG_SOURCE_REVISION: ${RAG_SERVICE_SOURCE_REVISION:?required}
   RAG_RELEASE_REVISION: ${RAG_SERVICE_RELEASE_TAG:?required}
@@ -18,10 +24,44 @@ x-settings: &settings
   RAG_MCP_ALLOWED_ORIGINS: '["http://dev-rag-service.woodhost.cloud:8080"]'
 
 services:
+  embedding-service:
+    image: ${RAG_EMBEDDING_IMAGE_REF:?required}
+    user: '1000:1000'
+    restart: unless-stopped
+    networks: [embedding, model-download]
+    expose: ['8080']
+    environment:
+      RAG_EMBEDDING_MODEL: Qwen/Qwen3-Embedding-0.6B
+      RAG_EMBEDDING_DIMENSIONS: '1024'
+      RAG_EMBEDDING_MODEL_REVISION: ${RAG_EMBEDDING_MODEL_REVISION:?required}
+      RAG_EMBEDDING_CACHE_PATH: /data/models
+      RAG_EMBEDDING_TIMEOUT: '25'
+      RAG_EMBEDDING_THREADS: '4'
+      RAG_EMBEDDING_BATCH_SIZE: '32'
+      RAG_SOURCE_REVISION: ${RAG_EMBEDDING_SOURCE_REVISION:?required}
+      RAG_RELEASE_REVISION: ${RAG_EMBEDDING_RELEASE_TAG:?required}
+    volumes: ["${RAG_EMBEDDING_CACHE_PATH:?required}:/data/models"]
+    cpus: 4
+    mem_limit: 6g
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=3).close()
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 600s
+
   rag-service:
     <<: *runtime
     env_file: ["${RAG_SERVICE_RUNTIME_ENV_FILE:?required}"]
     environment: *settings
+    depends_on:
+      embedding-service: {condition: service_healthy}
     volumes: ["${RAG_SERVICE_DOCUMENTS_PATH:?required}:/data/documents"]
     expose: ['8000']
     healthcheck:
@@ -39,6 +79,8 @@ services:
 
   rag-service-code:
     <<: *runtime
+    depends_on:
+      embedding-service: {condition: service_healthy}
     env_file:
       - "${RAG_SERVICE_RUNTIME_ENV_FILE:?required}"
       - "${RAG_SERVICE_DAGSTER_ENV_FILE:?required}"
@@ -70,5 +112,7 @@ services:
     networks: [postgres]
 
 networks:
+  embedding: {internal: true}
+  model-download: {}
   postgres: {external: true, name: "${RAG_SERVICE_POSTGRES_NETWORK:?required}"}
   proxy: {external: true, name: "${RAG_SERVICE_PROXY_NETWORK:?required}"}

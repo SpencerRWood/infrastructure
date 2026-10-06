@@ -136,6 +136,20 @@ rag_image=$(sed -n 's/^RAG_SERVICE_IMAGE_REF=//p' "$rag_env")
 rag_revision=$(sed -n 's/^RAG_SERVICE_SOURCE_REVISION=//p' "$rag_env")
 rag_release=$(sed -n 's/^RAG_SERVICE_RELEASE_TAG=//p' "$rag_env")
 test -n "$rag_image" && test -n "$rag_revision" && test -n "$rag_release"
+embedding_image=$(sed -n 's/^RAG_EMBEDDING_IMAGE_REF=//p' "$rag_env")
+embedding_revision=$(sed -n 's/^RAG_EMBEDDING_SOURCE_REVISION=//p' "$rag_env")
+embedding_release=$(sed -n 's/^RAG_EMBEDDING_RELEASE_TAG=//p' "$rag_env")
+test -n "$embedding_image" && test -n "$embedding_revision" && test -n "$embedding_release"
+embedding_container=$(docker ps -q --filter label=com.docker.compose.project=infrastructure-dev-rag-service \
+  --filter label=com.docker.compose.service=embedding-service)
+test -n "$embedding_container"
+test "$(docker inspect --format '{{.State.Health.Status}}' "$embedding_container")" = healthy
+test "$(docker inspect --format '{{.Config.Image}}' "$embedding_container")" = "$embedding_image"
+test "$(docker inspect --format '{{.Image}}' "$embedding_container")" = "$(docker image inspect --format '{{.Id}}' "$embedding_image")"
+test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$embedding_image")" = "$embedding_revision"
+docker exec "$embedding_container" python -m rag_embedding.verification \
+  --url http://127.0.0.1:8080 --source-revision "$embedding_revision" --release-revision "$embedding_release"
+echo 'OK embedding immutable image, health, readiness, and Qwen vectors'
 for service in rag-service rag-service-code; do
   ids=$(docker ps -q --filter label=com.docker.compose.project=infrastructure-dev-rag-service \
     --filter "label=com.docker.compose.service=$service")
@@ -144,6 +158,7 @@ for service in rag-service rag-service-code; do
     test "$(docker inspect --format '{{.Config.Image}}' "$id")" = "$rag_image"
     test "$(docker inspect --format '{{.Image}}' "$id")" = "$(docker image inspect --format '{{.Id}}' "$rag_image")"
     test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$rag_image")" = "$rag_revision"
+    docker exec "$id" python -c 'import json,os,urllib.request; endpoint=os.environ["RAG_EMBEDDING_ENDPOINT"]; assert endpoint == "http://embedding-service:8080/v1"; assert os.environ["RAG_EMBEDDING_MODEL"] == "Qwen/Qwen3-Embedding-0.6B"; base=endpoint.removesuffix("/v1"); assert json.load(urllib.request.urlopen(base+"/health", timeout=3))["status"] == "ok"; ready=json.load(urllib.request.urlopen(base+"/ready", timeout=3)); assert ready["status"] == "ready" and ready["dimensions"] == 1024'
     if [[ "$service" == rag-service ]]; then
       docker exec "$id" python -c 'import json,sys,urllib.request; ready=json.load(urllib.request.urlopen("http://127.0.0.1:8000/ready", timeout=8)); assert ready["status"] == "ready"; version=json.load(urllib.request.urlopen("http://127.0.0.1:8000/version", timeout=3)); assert version["source_revision"] == sys.argv[1]; assert version["release_revision"] == sys.argv[2]; assert version["version"] == sys.argv[2].removeprefix("v")' "$rag_revision" "$rag_release"
     fi
