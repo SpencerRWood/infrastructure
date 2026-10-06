@@ -36,7 +36,7 @@ keycloak_hostname: dev-keycloak.woodhost.cloud
 events_service_image_ref: ghcr.io/spencerrwood/events-service:v0.5.1@sha256:336d0c1754bc90a727594f0154c463c5e28a2ce820505daef94337b0d7fc217c
 portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.11.0@sha256:abc93a08082b8b664b31a8cf35a1bc8f70c7408095d8be33ee37a8a301f710a0
 openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.0@sha256:fa2ef486195e4ce69dfb88fe443afa0b5c01956702b611b209948562f275efb5
-rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.6.0@sha256:3d699f8e4c91730f8e10695e06a8b550bb23b7b55eb15fd4fe30e52956a8ad94
+rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.7.0@sha256:f86c596523fa5dac5192bd12a98989e78b47b893953b1b1dedb870194a057d89
 automerge_repair_image_ref: ghcr.io/spencerrwood/automerge-repair:v0.1.0@sha256:2c4965d39ccea05e9ef7edd5c78b5d5040573191fbca77c2aa1fc2e432936428
 # yamllint enable rule:line-length
 services:
