@@ -1,5 +1,9 @@
 # infrastructure
 
+The [Recovery Verification consumer contract](docs/recovery-onboarding.md) exposes
+revision-bound manifests and non-destructive preflight. Configuration rollback
+reuses the existing contract; full-host reconstruction requires an isolated target.
+
 Infrastructure topology and portable runtime components for Wood environments.
 Application repositories keep source code, migrations, and releases.
 
