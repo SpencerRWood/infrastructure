@@ -206,8 +206,11 @@ class GatewayTests(unittest.TestCase):
             path = Path(directory) / 'Caddyfile'
             route = (ROOT / 'compose/overleaf/clsi.Caddyfile').read_text().replace('clsi:3013', '127.0.0.1:3013')
             path.write_text(route + '\n:3013 {\n @credential header Authorization *\n respond @credential "credential leaked" 500\n respond "fixture" 200\n}\n')
+            # Match the deployed config mode even when earlier secret tests
+            # leave a restrictive process umask. This contains no secrets.
+            path.chmod(0o644)
             try:
-                docker('run', '--rm', '-d', '--name', name, '-p', '127.0.0.1::8080',
+                docker('run', '-d', '--name', name, '-p', '127.0.0.1::8080',
                        '--read-only', '--tmpfs', '/data', '--tmpfs', '/config',
                        '--cap-drop', 'ALL', '--cap-add', 'NET_BIND_SERVICE',
                        '--security-opt', 'no-new-privileges:true',
@@ -227,7 +230,9 @@ class GatewayTests(unittest.TestCase):
                         break
                     except (URLError, ConnectionResetError):
                         if time.monotonic() >= deadline:
-                            self.fail('Gateway did not start within 30s:\n' + docker('logs', name))
+                            logs = subprocess.run(['docker', 'logs', name], text=True,
+                                                  capture_output=True, timeout=10)
+                            self.fail('Gateway did not start within 30s:\n' + logs.stdout + logs.stderr)
                         time.sleep(0.5)
                 for endpoint, data in [('/status', None), ('/project/test/compile', b'{}'),
                                        ('/project/test/build/test/output/output.pdf', None)]:
