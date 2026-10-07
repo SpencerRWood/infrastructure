@@ -88,11 +88,11 @@
   when: not ansible_check_mode
   tags: [infisical]
 
-- name: Start selected Infisical services
+- name: Start selected Infisical services and wait for readiness
   ansible.builtin.command:
     cmd: >-
       docker compose --env-file {{ infisical_compose_env_file }}
-      -f {{ infisical_compose_directory }}/compose.yml up -d
+      -f {{ infisical_compose_directory }}/compose.yml up -d --wait --wait-timeout 180
   register: infisical_up
   changed_when: infisical_up.stdout is search('Created|Started|Recreated')
   when: not ansible_check_mode
