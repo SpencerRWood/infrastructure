@@ -51,6 +51,7 @@ class EventsHealthTests(unittest.TestCase):
                     'HEALTH_CHECK_EVENTS_ENV_FILE': str(root / 'events.env'),
                     'HEALTH_CHECK_RAG_ENV_FILE': str(root / 'rag.env'),
                     'HEALTH_CHECK_AUTOMERGE_ENV_FILE': str(root / 'unselected-automerge.env'),
+                    'HEALTH_CHECK_OVERLEAF_ENV_FILE': str(root / 'unselected-overleaf.env'),
                     'HEALTH_CHECK_RETRY_INTERVAL': '0',
                     'FAKE_IMAGE': image,
                     'FAKE_HEALTH': health,
@@ -79,6 +80,15 @@ class EventsHealthTests(unittest.TestCase):
                 result = self.run_health('expected-digest', '0')
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertNotIn('OK Automerge Repair', result.stdout)
+
+    def test_host_overleaf_selection_does_not_enter_events_fixture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            host_env = Path(directory) / 'host-overleaf.env'
+            host_env.write_text('OVERLEAF_IMAGE=host-only-image\n')
+            with patch.dict(os.environ, {'HEALTH_CHECK_OVERLEAF_ENV_FILE': str(host_env)}):
+                result = self.run_health('expected-digest', '0')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn('OK Overleaf', result.stdout)
 
 
 class ResolverEnvironmentTests(unittest.TestCase):
