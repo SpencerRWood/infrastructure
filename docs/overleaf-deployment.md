@@ -65,8 +65,8 @@ ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
 ```
 
 This playbook rejects unrelated services/storage in Compose project `docs`,
-removes only the discovered Overleaf/Mongo/Redis/init containers and Mongo config
-volume, deletes the three retired data directories and Compose payloads, and
+removes only the discovered Overleaf/Mongo/Redis/init containers, Mongo config
+volumes and the initializer's anonymous data volume, deletes the three retired data directories and Compose payloads, and
 removes the old `docs.caddy` route. It never deletes replacement infrastructure
 state or runs during normal deploy/rollback. Removing containers also releases
 their endpoints; the empty retired Docker network can be left for Docker to

@@ -40,12 +40,14 @@
             length == 0
           - >-
             item.Mounts | selectattr('Type', 'equalto', 'volume') | map(attribute='Destination') |
-            difference(['/data/configdb']) | length == 0
+            difference(['/data/configdb'] +
+            (['/data/db'] if item.Config.Labels['com.docker.compose.service'] == 'mongo-init' else [])) |
+            length == 0
       loop: "{{ (overleaf_old_inspection.stdout | default('[]')) | from_json }}"
       no_log: true
       when: overleaf_old_ids.stdout_lines | length > 0
 
-    - name: Retain the exact discovered Mongo config volume names for deletion
+    - name: Retain the exact discovered retired Mongo volume names for deletion
       ansible.builtin.set_fact:
         overleaf_old_volumes: >-
           {{ (overleaf_old_inspection.stdout | default('[]') | from_json) |
@@ -60,7 +62,7 @@
       changed_when: true
       when: overleaf_old_ids.stdout_lines | length > 0 and not ansible_check_mode
 
-    - name: Remove the retired Mongo config volumes without forcing shared-volume removal
+    - name: Remove the retired Mongo volumes without forcing shared-volume removal
       ansible.builtin.command:
         argv: [docker, volume, rm, "{{ item }}"]
       loop: "{{ overleaf_old_volumes | default([]) }}"

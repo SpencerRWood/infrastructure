@@ -186,6 +186,12 @@ class CutoverSafetyTests(unittest.TestCase):
 
         self.assertTrue(permitted('overleaf', [{'Type': 'bind', 'Source': '/srv/docker/docs/overleaf_data'}]))
         self.assertTrue(permitted('mongo', [{'Type': 'volume', 'Destination': '/data/configdb'}]))
+        self.assertTrue(permitted('mongo-init', [
+            {'Type': 'volume', 'Destination': '/data/configdb'},
+            {'Type': 'volume', 'Destination': '/data/db'},
+        ]))
+        self.assertFalse(permitted('mongo', [{'Type': 'volume', 'Destination': '/data/db'}]))
+        self.assertFalse(permitted('overleaf', [{'Type': 'volume', 'Destination': '/data/db'}]))
         self.assertFalse(permitted('unrelated-service', []))
         self.assertFalse(permitted('mongo', [{'Type': 'bind', 'Source': '/srv/other-database'}]))
         self.assertFalse(permitted('mongo', [{'Type': 'volume', 'Destination': '/unrelated'}]))
