@@ -1,0 +1,158 @@
+---
+name: ${OVERLEAF_PROJECT_NAME:?required}
+services:
+  overleaf:
+    image: ${OVERLEAF_IMAGE:?required}
+    platform: linux/amd64
+    build: .
+    restart: unless-stopped
+    stop_grace_period: 60s
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: ${OVERLEAF_RUNTIME_ENV_FILE:?required}
+        format: raw
+    environment:
+      OVERLEAF_SITE_URL: https://overleaf.woodhost.cloud
+      OVERLEAF_APP_NAME: Wood Reports Dev
+      OVERLEAF_ALLOW_PUBLIC_ACCESS: 'false'
+      OVERLEAF_RESTRICT_INVITES_TO_EXISTING_ACCOUNTS: 'true'
+      OVERLEAF_ALLOW_ANONYMOUS_READ_AND_WRITE_SHARING: 'false'
+      OVERLEAF_MONGO_URL: mongodb://mongo/sharelatex?replicaSet=overleaf
+      OVERLEAF_REDIS_HOST: redis
+      REDIS_HOST: redis
+      OVERLEAF_BEHIND_PROXY: 'true'
+      OVERLEAF_SECURE_COOKIE: 'true'
+    volumes:
+      - ${OVERLEAF_STATE_PATH:?required}/editor:/var/lib/overleaf
+    networks: [database, proxy]
+    mem_limit: 1536m
+    cpus: 2
+    pids_limit: 512
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1/]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+  mongo:
+    image: mongo:8.0.16@sha256:4b58ebcb1dc7a7b4e84cd8ce9098d48764ae4478876898ff9551acf2ac4a6a6d
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 256
+    command: [mongod, --replSet, overleaf, --bind_ip_all]
+    volumes:
+      - ${OVERLEAF_STATE_PATH:?required}/mongo:/data/db
+      - ${OVERLEAF_STATE_PATH:?required}/mongo-config:/data/configdb
+    networks: [database]
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, 'quit(db.adminCommand({ping: 1}).ok ? 0 : 1)']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  mongo-init:
+    image: mongo:8.0.16@sha256:4b58ebcb1dc7a7b4e84cd8ce9098d48764ae4478876898ff9551acf2ac4a6a6d
+    restart: 'no'
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command:
+      - mongosh
+      - --host
+      - mongo
+      - --quiet
+      - --eval
+      - >-
+        try { rs.status() } catch (error) {
+        if (error.code !== 94) throw error;
+        rs.initiate({_id: 'overleaf', members: [{_id: 0, host: 'mongo:27017'}]}); }
+        let ready = false;
+        for (let n = 0; n < 60; n++) {
+        if (db.hello().isWritablePrimary) { ready = true; break; } sleep(1000); }
+        if (!ready) quit(1);
+    networks: [database]
+
+  redis:
+    image: redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 1
+    pids_limit: 128
+    command: [redis-server, --appendonly, 'yes']
+    volumes:
+      - ${OVERLEAF_STATE_PATH:?required}/redis:/data
+    networks: [database]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  clsi:
+    image: ${OVERLEAF_IMAGE:?required}
+    platform: linux/amd64
+    build: .
+    restart: unless-stopped
+    user: '1000:1000'
+    working_dir: /overleaf/services/clsi
+    entrypoint: [node, app.js]
+    environment:
+      OVERLEAF_CONFIG: /etc/overleaf/clsi-settings.js
+      COMPILE_SIZE_LIMIT: 20mb
+      HOME: /tmp
+      TEXMFVAR: /tmp/texmf-var
+    volumes:
+      - ./clsi-settings.js:/etc/overleaf/clsi-settings.js:ro
+      - ${OVERLEAF_STATE_PATH:?required}/compiler:/var/lib/overleaf/data
+    networks: [compiler]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1g
+    cpus: 2
+    pids_limit: 256
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:3013/status]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  clsi-gateway:
+    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    restart: unless-stopped
+    env_file:
+      - path: ${CLSI_GATEWAY_ENV_FILE:?required}
+        format: raw
+    volumes:
+      - ./clsi.Caddyfile:/etc/caddy/Caddyfile:ro
+    networks: [compiler, proxy]
+    depends_on:
+      clsi:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/data, /config]
+    cap_drop: [ALL]
+    # The official binary carries cap_net_bind_service; its bounding set must
+    # include that capability even when the configured listener uses port 8080.
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD-SHELL, "wget -S -O /dev/null http://127.0.0.1:8080/status 2>&1 | grep -q 'HTTP/1.1 401'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+networks:
+  database:
+    internal: true
+  compiler:
+    internal: true
+  proxy:
+    external: true
+    name: ${OVERLEAF_PROXY_NETWORK:?required}

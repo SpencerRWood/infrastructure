@@ -36,6 +36,13 @@ be a fresh independent cluster—dev database state is never promoted to prod.
 
 ## Ingress ownership
 
+Overleaf and standalone CLSI belong to infrastructure dev under Story #431.
+Their fresh state and private database/compiler networks replace the homelab
+docs stack. The editor and compiler share a frozen TeX image; report semantics,
+source compilation, branding and PDF acceptance remain in wood-reports.
+See [Overleaf deployment](overleaf-deployment.md) for the explicit cutover,
+authentication, persistence and verification contracts.
+
 On Beelink, homelab Caddy remains an independent edge proxy and owns LAN ports
 `80` and `443` plus the homelab `proxy` Docker network. Infrastructure dev
 Caddy is an independent runtime, bound only to `192.168.1.21:8080` and

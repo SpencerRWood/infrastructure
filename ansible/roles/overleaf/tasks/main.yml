@@ -1,0 +1,124 @@
+---
+- name: Require explicit dev selection and platform dependencies
+  ansible.builtin.assert:
+    that:
+      - infrastructure_environment == 'dev'
+      - services.caddy | bool
+      - services.infisical | bool
+    fail_msg: Overleaf is dev-only and requires Caddy and Infisical.
+  tags: [overleaf]
+
+- name: Create Overleaf component and fresh persistent state directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  loop:
+    - "{{ overleaf_compose_directory }}"
+    - "{{ overleaf_state_directory }}"
+    - "{{ overleaf_state_directory }}/editor"
+    - "{{ overleaf_state_directory }}/mongo"
+    - "{{ overleaf_state_directory }}/mongo-config"
+    - "{{ overleaf_state_directory }}/redis"
+  tags: [overleaf]
+
+- name: Create compiler state for the non-root runtime
+  ansible.builtin.file:
+    path: "{{ overleaf_state_directory }}/compiler/{{ item }}"
+    state: directory
+    owner: '1000'
+    group: '1000'
+    mode: '0700'
+  loop: ['', compiles, output, cache]
+  tags: [overleaf]
+
+- name: Resolve separated Overleaf and CLSI secrets from Infisical
+  ansible.builtin.command:
+    argv: >-
+      {{ ['/usr/local/sbin/resolve-infrastructure-infisical-env',
+          '--environment', 'dev', '--path', item.path, '--output', item.output] +
+         (item['keys'] | map('regex_replace', '^', '--require=') | list) }}
+  loop:
+    - path: /overleaf
+      output: "{{ overleaf_runtime_env_file }}"
+      keys: [OVERLEAF_INVITE_TOKEN_SECRET]
+    - path: /clsi
+      output: "{{ overleaf_gateway_env_file }}"
+      keys: [CLSI_USERNAME, CLSI_PASSWORD_HASH]
+    - path: /clsi
+      output: "{{ overleaf_verification_env_file }}"
+      keys: [CLSI_USERNAME, CLSI_PASSWORD]
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [overleaf]
+
+- name: Bind the Overleaf build tag to the frozen image recipe
+  ansible.builtin.set_fact:
+    overleaf_build_hash: >-
+      {{ lookup('ansible.builtin.file', role_path + '/../../../compose/overleaf/Dockerfile') | hash('sha256') }}
+  tags: [overleaf]
+
+- name: Deploy canonical Overleaf and standalone CLSI payloads
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/overleaf/"
+    dest: "{{ overleaf_compose_directory }}/"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [overleaf]
+
+- name: Deploy protected Overleaf Compose inputs
+  ansible.builtin.copy:
+    content: |-
+      OVERLEAF_PROJECT_NAME={{ overleaf_project_name }}
+      OVERLEAF_IMAGE={{ overleaf_image }}
+      OVERLEAF_STATE_PATH={{ overleaf_state_directory }}
+      OVERLEAF_RUNTIME_ENV_FILE={{ overleaf_runtime_env_file }}
+      CLSI_GATEWAY_ENV_FILE={{ overleaf_gateway_env_file }}
+      OVERLEAF_PROXY_NETWORK={{ overleaf_proxy_network }}
+    dest: "{{ overleaf_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [overleaf]
+
+- name: Install independent Overleaf and CLSI runtime verification
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../scripts/verify-overleaf.py"
+    dest: /usr/local/sbin/verify-infrastructure-overleaf
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [overleaf]
+
+- name: Validate Overleaf Compose before building or starting services
+  ansible.builtin.command:
+    argv: [docker, compose, --env-file, "{{ overleaf_compose_env_file }}", -f,
+           "{{ overleaf_compose_directory }}/compose.yml", config, --quiet]
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [overleaf]
+
+- name: Start fresh selected Overleaf and CLSI services with bounded readiness
+  ansible.builtin.command:
+    argv: [docker, compose, --env-file, "{{ overleaf_compose_env_file }}", -f,
+           "{{ overleaf_compose_directory }}/compose.yml", up, -d, --build,
+           --wait, --wait-timeout, '180']
+  register: overleaf_up
+  changed_when: overleaf_up.stderr is search('Created|Started|Recreated|Built')
+  no_log: true
+  when: not ansible_check_mode
+  tags: [overleaf]
+
+- name: Verify TLS ingress authentication and real LuaLaTeX compilation
+  ansible.builtin.command:
+    argv: [/usr/local/sbin/verify-infrastructure-overleaf, --credentials,
+           "{{ overleaf_verification_env_file }}"]
+  changed_when: false
+  when: not ansible_check_mode
+  tags: [overleaf]

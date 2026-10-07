@@ -1,0 +1,6 @@
+http://overleaf.woodhost.cloud {
+	reverse_proxy overleaf:80
+}
+http://clsi.woodhost.cloud {
+	reverse_proxy clsi-gateway:8080
+}

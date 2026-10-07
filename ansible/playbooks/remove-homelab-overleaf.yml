@@ -1,0 +1,80 @@
+---
+# One-time attended cutover, never imported by normal deployment or rollback.
+- name: Remove the retired homelab Overleaf stack and discard its state
+  hosts: infrastructure_hosts
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Require the explicitly authorized destructive dev cutover
+      ansible.builtin.assert:
+        that:
+          - overleaf_discard_homelab_state | default(false) | bool
+        fail_msg: Set overleaf_discard_homelab_state=true only for the approved fresh dev cutover.
+  tasks:
+    - name: Discover only the retired homelab docs project
+      ansible.builtin.command:
+        argv: [docker, ps, -aq, --filter, label=com.docker.compose.project=docs]
+      register: overleaf_old_ids
+      changed_when: false
+      check_mode: false
+
+    - name: Inspect the exact retired containers before removal
+      ansible.builtin.command:
+        argv: "{{ ['docker', 'inspect'] + overleaf_old_ids.stdout_lines }}"
+      register: overleaf_old_inspection
+      changed_when: false
+      no_log: true
+      check_mode: false
+      when: overleaf_old_ids.stdout_lines | length > 0
+
+    - name: Reject unrelated services or unexpected storage in the docs project
+      ansible.builtin.assert:
+        that:
+          - >-
+            item.Config.Labels['com.docker.compose.service'] in
+            ['overleaf', 'mongo', 'mongo-init', 'redis']
+          - >-
+            item.Mounts | selectattr('Type', 'equalto', 'bind') | map(attribute='Source') |
+            difference(['/srv/docker/docs/overleaf_data', '/srv/docker/docs/mongo_data',
+            '/srv/docker/docs/redis_data']) |
+            length == 0
+          - >-
+            item.Mounts | selectattr('Type', 'equalto', 'volume') | map(attribute='Destination') |
+            difference(['/data/configdb']) | length == 0
+      loop: "{{ (overleaf_old_inspection.stdout | default('[]')) | from_json }}"
+      no_log: true
+      when: overleaf_old_ids.stdout_lines | length > 0
+
+    - name: Retain the exact discovered Mongo config volume names for deletion
+      ansible.builtin.set_fact:
+        overleaf_old_volumes: >-
+          {{ (overleaf_old_inspection.stdout | default('[]') | from_json) |
+             map(attribute='Mounts') | flatten | selectattr('Type', 'equalto', 'volume') |
+             map(attribute='Name') | unique | list }}
+      no_log: true
+      when: overleaf_old_ids.stdout_lines | length > 0
+
+    - name: Stop and remove only the verified retired Overleaf containers
+      ansible.builtin.command:
+        argv: "{{ ['docker', 'rm', '--force'] + overleaf_old_ids.stdout_lines }}"
+      changed_when: true
+      when: overleaf_old_ids.stdout_lines | length > 0 and not ansible_check_mode
+
+    - name: Remove the retired Mongo config volumes without forcing shared-volume removal
+      ansible.builtin.command:
+        argv: [docker, volume, rm, "{{ item }}"]
+      loop: "{{ overleaf_old_volumes | default([]) }}"
+      changed_when: true
+      when: not ansible_check_mode
+
+    - name: Remove retired data, Compose files and the old duplicate UI route
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /srv/docker/docs/overleaf_data
+        - /srv/docker/docs/mongo_data
+        - /srv/docker/docs/redis_data
+        - /srv/docker/docs/docker-compose.yml
+        - /srv/homelab/compose/productivity/overleaf
+        - /srv/docker/proxy/config/sites/docs.caddy

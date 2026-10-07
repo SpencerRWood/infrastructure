@@ -1,5 +1,10 @@
 # Environments
 
+Overleaf and CLSI are selected only in dev. They use fresh infrastructure-owned
+state, independent MongoDB/Redis, and separately secured UI/compiler routes.
+The retired homelab state is discarded during a separately attended cutover;
+see [Overleaf deployment](overleaf-deployment.md).
+
 `ansible/playbooks/dev.yml` targets `ansible/inventory/dev` and loads
 `environments/dev.yml`. It explicitly enables Postgres and Caddy. Dev Caddy is
 bound to Beelink's LAN address `192.168.1.21` on `8080` and `8443`; UFW limits
