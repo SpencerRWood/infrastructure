@@ -157,6 +157,14 @@ class ComposeTests(unittest.TestCase):
 
 
 class CutoverSafetyTests(unittest.TestCase):
+    def test_editor_persistent_root_is_accessible_to_its_runtime_user(self):
+        tasks = yaml.safe_load((ROOT / 'ansible/roles/overleaf/tasks/main.yml').read_text())
+        editor = next(task['ansible.builtin.file'] for task in tasks
+                      if task.get('ansible.builtin.file', {}).get('path') == '{{ overleaf_state_directory }}/editor')
+        self.assertEqual((editor['owner'], editor['group'], editor['mode']), ('33', '33', '0700'))
+        root_directories = tasks[1]['loop']
+        self.assertNotIn('{{ overleaf_state_directory }}/editor', root_directories)
+
     def test_service_selection_rejects_production_or_missing_platform_dependencies(self):
         tasks = DataLoader().load_from_file(
             str(ROOT / 'ansible/roles/overleaf/tasks/main.yml'), trusted_as_template=True,
