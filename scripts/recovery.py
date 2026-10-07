@@ -84,7 +84,7 @@ def command_check(root, config, tool, args, check_id):
     }
 
 
-def preflight(root, declaration, config, run_syntax=True):
+def preflight(root, declaration, config, run_syntax=True, include_external=True):
     target = declaration["targets"][0]
     for command in (
         *target["entrypoints"].values(),
@@ -111,12 +111,14 @@ def preflight(root, declaration, config, run_syntax=True):
         ])
     else:
         checks.append({"id": "syntax", "state": "skipped", "reason": "not_requested"})
-    checks.append({
-        "id": "external_prerequisites", "state": "unavailable",
-        "reason": "secrets_backups_storage_artifacts_not_probed",
-    })
+    if include_external:
+        checks.append({
+            "id": "external_prerequisites", "state": "unavailable",
+            "reason": "secrets_backups_storage_artifacts_not_probed",
+        })
     states = {check["state"] for check in checks}
-    state = "failed" if "failed" in states else "unavailable"
+    state = next((item for item in ("failed", "unavailable", "skipped")
+                  if item in states), "passed")
     return {
         "schema_version": "1", "mode": "preflight", "readiness_state": state,
         "checks": checks,
@@ -144,7 +146,11 @@ def bootstrap_plan(root, declaration, config):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("operation", choices=["manifest", "preflight", "bootstrap"])
+    parser.add_argument("--local-only", action="store_true",
+                        help="Validate local configuration; caller owns external probes")
     args = parser.parse_args(argv)
+    if args.local_only and args.operation != "preflight":
+        parser.error("--local-only requires preflight")
     try:
         declaration, config = manifest(ROOT)
         if args.operation == "manifest":
@@ -154,8 +160,10 @@ def main(argv=None):
             result = bootstrap_plan(ROOT, declaration, config)
             status = 3
         else:
-            result = preflight(ROOT, declaration, config)
-            status = {"failed": 1, "unavailable": 4}[result["readiness_state"]]
+            result = preflight(ROOT, declaration, config,
+                               include_external=not args.local_only)
+            status = {"passed": 0, "failed": 1, "unavailable": 4,
+                      "skipped": 3}[result["readiness_state"]]
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
         result = {"schema_version": "1", "state": "failed", "reason": "invalid_input"}
         status = 2
