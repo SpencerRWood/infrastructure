@@ -36,7 +36,9 @@ repos:
           sh -c 'ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
           -i ansible/inventory/dev ansible/playbooks/dev.yml --syntax-check &&
           ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
-          -i ansible/inventory/prod ansible/playbooks/prod.yml --syntax-check'
+          -i ansible/inventory/prod ansible/playbooks/prod.yml --syntax-check &&
+          ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
+          -i ansible/inventory/dev ansible/playbooks/remove-homelab-overleaf.yml --syntax-check'
         language: system
         pass_filenames: false
       - id: ansible-lint

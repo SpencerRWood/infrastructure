@@ -104,6 +104,14 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
     'AUTOMERGE_REPAIR_PROXY_NETWORK=syntax-proxy' >"$automerge_validation_env"
   docker compose --env-file "$automerge_validation_env" -f compose/automerge-repair/compose.yml config --quiet
   env \
+    OVERLEAF_PROJECT_NAME=syntax-overleaf \
+    OVERLEAF_IMAGE=syntax-only/overleaf:test \
+    OVERLEAF_STATE_PATH=/tmp/overleaf-syntax \
+    OVERLEAF_RUNTIME_ENV_FILE=/dev/null \
+    CLSI_GATEWAY_ENV_FILE=/dev/null \
+    OVERLEAF_PROXY_NETWORK=syntax-proxy \
+    docker compose -f compose/overleaf/compose.yml config --quiet
+  env \
     INFISICAL_PROJECT_NAME=infrastructure-dev-infisical \
     INFISICAL_IMAGE_TAG=test \
     INFISICAL_RUNTIME_ENV_FILE=/dev/null \

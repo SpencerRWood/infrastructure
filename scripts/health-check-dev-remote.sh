@@ -165,3 +165,20 @@ for service in rag-service rag-service-code; do
   done <<< "$ids"
 done
 echo 'OK RAG immutable image, revision, and core readiness'
+
+# A selected Overleaf stack must pass a real TLS/authentication/compile probe.
+overleaf_env=${HEALTH_CHECK_OVERLEAF_ENV_FILE:-/srv/infrastructure/secrets/dev/overleaf-compose.env}
+if [[ -f "$overleaf_env" ]]; then
+  overleaf_image=$(sed -n 's/^OVERLEAF_IMAGE=//p' "$overleaf_env")
+  test -n "$overleaf_image"
+  for service in overleaf clsi; do
+    id=$(docker ps -q --filter label=com.docker.compose.project=infrastructure-dev-overleaf \
+      --filter "label=com.docker.compose.service=$service")
+    test -n "$id"
+    test "$(docker inspect --format '{{.Config.Image}}' "$id")" = "$overleaf_image"
+    test "$(docker inspect --format '{{.State.Health.Status}}' "$id")" = healthy
+  done
+  /usr/local/sbin/verify-infrastructure-overleaf \
+    --credentials /srv/infrastructure/secrets/runtime/clsi-verification.env
+  echo 'OK Overleaf and CLSI immutable build, TLS, authentication and LuaLaTeX'
+fi

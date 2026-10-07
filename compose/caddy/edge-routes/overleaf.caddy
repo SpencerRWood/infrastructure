@@ -1,0 +1,8 @@
+# Dev service routes use the existing edge TLS and administrator network policy.
+overleaf.woodhost.cloud, clsi.woodhost.cloud {
+	import cloudflare_tls
+	import security_headers
+	import admin_ip_allowlist
+	encode zstd gzip
+	reverse_proxy 192.168.1.21:8080
+}

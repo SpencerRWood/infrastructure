@@ -1,0 +1,20 @@
+{
+	admin off
+	auto_https off
+}
+:8080 {
+	# Authenticate every request, including health and output-file downloads.
+	basic_auth {
+		{$CLSI_USERNAME} {$CLSI_PASSWORD_HASH}
+	}
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy clsi:3013 {
+		# The compiler has no use for the caller's authentication credential.
+		header_up -Authorization
+		transport http {
+			response_header_timeout 180s
+		}
+	}
+}

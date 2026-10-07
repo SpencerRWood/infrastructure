@@ -42,6 +42,7 @@ rag_embedding_image_ref: ghcr.io/spencerrwood/rag-embedding:v0.7.1@sha256:a51301
 automerge_repair_image_ref: ghcr.io/spencerrwood/automerge-repair:v0.1.0@sha256:2c4965d39ccea05e9ef7edd5c78b5d5040573191fbca77c2aa1fc2e432936428
 # yamllint enable rule:line-length
 services:
+  overleaf: true
   automerge_repair: true
   events_service: true
   postgres: true

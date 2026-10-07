@@ -1,0 +1,11 @@
+---
+overleaf_compose_directory: "{{ host_infrastructure_compose_root }}/overleaf"
+overleaf_state_directory: "{{ host_infrastructure_state_root }}/overleaf-dev"
+overleaf_compose_env_file: "{{ host_infrastructure_secrets_root }}/overleaf-compose.env"
+overleaf_runtime_env_file: /srv/infrastructure/secrets/runtime/overleaf.env
+overleaf_gateway_env_file: /srv/infrastructure/secrets/runtime/clsi-gateway.env
+overleaf_verification_env_file: /srv/infrastructure/secrets/runtime/clsi-verification.env
+overleaf_project_name: infrastructure-dev-overleaf
+overleaf_proxy_network: infrastructure-dev-proxy
+# The local tag binds the image to the checked-in Dockerfile contents.
+overleaf_image: "local/infrastructure-overleaf:{{ overleaf_build_hash }}"

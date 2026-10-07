@@ -78,3 +78,9 @@
         name: automerge_repair
       when: services.automerge_repair | default(false) | bool
       tags: [automerge_repair]
+
+    - name: Deploy selected Overleaf and CLSI component
+      ansible.builtin.include_role:
+        name: overleaf
+      when: services.overleaf | default(false) | bool
+      tags: [overleaf]
