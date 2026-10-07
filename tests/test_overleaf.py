@@ -214,7 +214,11 @@ class GatewayTests(unittest.TestCase):
                        '-e', 'CLSI_USERNAME=fixture', '-e', 'CLSI_PASSWORD_HASH=' + password_hash,
                        '-v', str(path) + ':/etc/caddy/Caddyfile:ro', IMAGE)
                 base = 'http://' + docker('port', name, '8080/tcp')
-                for attempt in range(30):
+                # Hosted runners can take longer to start Caddy than dev hosts.
+                # Allow a bounded 30s window and retain the fixture's logs when
+                # readiness fails so startup errors are diagnosable in CI.
+                deadline = time.monotonic() + 30
+                while True:
                     try:
                         urlopen(base + '/status', timeout=2).close()
                     except HTTPError as error:
@@ -222,9 +226,9 @@ class GatewayTests(unittest.TestCase):
                         error.close()
                         break
                     except (URLError, ConnectionResetError):
-                        if attempt == 29:
-                            raise
-                        time.sleep(0.1)
+                        if time.monotonic() >= deadline:
+                            self.fail('Gateway did not start within 30s:\n' + docker('logs', name))
+                        time.sleep(0.5)
                 for endpoint, data in [('/status', None), ('/project/test/compile', b'{}'),
                                        ('/project/test/build/test/output/output.pdf', None)]:
                     for auth in (None, 'Basic ' + base64.b64encode(b'fixture:wrong').decode()):
