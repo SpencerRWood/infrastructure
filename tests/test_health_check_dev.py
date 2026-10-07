@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "health-check-dev-remote.sh"
@@ -151,6 +152,7 @@ class HealthCheckTests(unittest.TestCase):
                 "FAKE_EMBEDDING_IMAGE_MATCHES": str(embedding_image_matches).lower(),
                 "FAKE_EMBEDDING_RUNTIME_PASSES": str(embedding_runtime_passes).lower(),
                 "HEALTH_CHECK_AUTOMERGE_ENV_FILE": str(root / "automerge.env"),
+                "HEALTH_CHECK_OVERLEAF_ENV_FILE": str(root / "unselected-overleaf.env"),
                 "FAKE_AUTOMERGE_PRESENT": str(automerge_present).lower(),
                 "FAKE_AUTOMERGE_HEALTHY": str(automerge_healthy).lower(),
                 "FAKE_AUTOMERGE_IMAGE_MATCHES": str(automerge_image_matches).lower(),
@@ -165,6 +167,15 @@ class HealthCheckTests(unittest.TestCase):
                 check=False,
             )
             return result, int(count_file.read_text()) if count_file.exists() else 0
+
+    def test_host_overleaf_selection_does_not_enter_health_fixture(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            host_env = Path(directory) / "host-overleaf.env"
+            host_env.write_text("OVERLEAF_IMAGE=host-only-image\n")
+            with patch.dict(os.environ, {"HEALTH_CHECK_OVERLEAF_ENV_FILE": str(host_env)}):
+                result, _ = self.run_health_check("200")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("OK Overleaf", result.stdout)
 
     def test_embedding_requires_image_identity_readiness_and_real_vectors(self) -> None:
         result, _ = self.run_health_check("200")
