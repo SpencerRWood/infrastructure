@@ -79,7 +79,7 @@ services:
     networks: [database]
 
   redis:
-    image: redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98
+    image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     restart: unless-stopped
     mem_limit: 128m
     cpus: 1
