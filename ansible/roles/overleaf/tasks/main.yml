@@ -18,10 +18,18 @@
   loop:
     - "{{ overleaf_compose_directory }}"
     - "{{ overleaf_state_directory }}"
-    - "{{ overleaf_state_directory }}/editor"
     - "{{ overleaf_state_directory }}/mongo"
     - "{{ overleaf_state_directory }}/mongo-config"
     - "{{ overleaf_state_directory }}/redis"
+  tags: [overleaf]
+
+- name: Allow the editor runtime to access its private persistent root
+  ansible.builtin.file:
+    path: "{{ overleaf_state_directory }}/editor"
+    state: directory
+    owner: '33'
+    group: '33'
+    mode: '0700'
   tags: [overleaf]
 
 - name: Create compiler state for the non-root runtime

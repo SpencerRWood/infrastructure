@@ -75,8 +75,11 @@ or backup is part of this explicitly requested fresh start.
 
 Then deploy the infrastructure dev release through its standard Ansible workflow.
 The role creates `/srv/infrastructure/state/overleaf-dev/{editor,mongo,mongo-config,
-redis,compiler}`; this fresh namespace does not reuse homelab paths. MongoDB is a
-single-node replica set and initialization waits for a writable primary. Redis
+redis,compiler}`; this fresh namespace does not reuse homelab paths.
+The editor mount root is private to its `www-data` runtime (UID/GID 33); its
+parent remains root-only on the host. Root ownership with mode `0700` on the
+mounted editor directory prevents web services from accessing their data.
+MongoDB is a single-node replica set and initialization waits for a writable primary. Redis
 uses AOF persistence. Initial image construction installs the full TeX distribution
 and may take substantially longer than container readiness (bounded to 180s).
 Create the initial editor administrator using Overleaf's supported admin-user
