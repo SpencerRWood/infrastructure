@@ -137,6 +137,19 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual("invalid_input", json.loads(result.stdout)["reason"])
         self.assertNotIn("do-not-echo", result.stdout + result.stderr)
 
+    def test_local_only_scope_does_not_mask_syntax_failures(self):
+        for state, expected in (("passed", "passed"), ("failed", "failed"),
+                                ("unavailable", "unavailable")):
+            with patch.object(RECOVERY, "command_check", return_value={
+                "id": "syntax", "state": state, "reason": "command_result",
+            }):
+                result = RECOVERY.preflight(self.root, self.declaration, self.config,
+                                            include_external=False)
+            self.assertEqual(expected, result["readiness_state"])
+            self.assertNotIn("external_prerequisites", [c["id"] for c in result["checks"]])
+        args = self.declaration["targets"][0]["validation_commands"][0]["command"]["args"]
+        self.assertEqual(["preflight", "--local-only"], args)
+
 
 if __name__ == "__main__":
     unittest.main()
