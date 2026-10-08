@@ -23,6 +23,20 @@ digest/TeX repository change, a fresh build, compilation verification and a
 compatible MongoDB upgrade plan. The derived image is local infrastructure
 configuration, following the existing Dagster build convention.
 
+MongoDB remains on the verified 8.0 line and Redis on 7.4; Renovate permits
+patch and digest updates within those lines for this component only. Moving
+either dependency to another line requires a separate compatibility review.
+On 2026-10-08 the pinned MongoDB 9.0.2 binary refused to start on Beelink's
+`7.0.0-34-generic` kernel, reporting the Linux 6.19+ incompatibility tracked in
+[SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912). Release v0.27.5
+failed and rolled back to v0.27.3. MongoDB 8.0.16 and Redis 7.4.11 are the
+verified restored versions; no MongoDB 9 data migration was performed.
+Before changing component directories or persistent state, the role now runs
+the selected MongoDB binary's `--version` in a disposable, network-isolated
+container with no host mounts. A kernel guard failure stops deployment with a
+visible diagnostic. This preflight does not prove data-format compatibility
+or application readiness; the normal startup and compilation probes still apply.
+
 `overleaf.woodhost.cloud` routes to the editor. `clsi.woodhost.cloud` routes to
 a dedicated Caddy gateway. The existing edge Caddy supplies TLS and administrator
 IP allowlisting; it forwards to the independent infrastructure listener on

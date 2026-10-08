@@ -17,6 +17,7 @@ from uuid import uuid4
 
 import yaml
 from ansible.parsing.dataloader import DataLoader
+from ansible.plugins.loader import init_plugin_loader
 from ansible.template import Templar
 
 ROOT = Path(__file__).parents[1]
@@ -172,8 +173,27 @@ class CutoverSafetyTests(unittest.TestCase):
         editor = next(task['ansible.builtin.file'] for task in tasks
                       if task.get('ansible.builtin.file', {}).get('path') == '{{ overleaf_state_directory }}/editor')
         self.assertEqual((editor['owner'], editor['group'], editor['mode']), ('33', '33', '0700'))
-        root_directories = tasks[1]['loop']
+        root_directories = next(task['loop'] for task in tasks
+                                if task['name'] == 'Create Overleaf component and fresh persistent state directories')
         self.assertNotIn('{{ overleaf_state_directory }}/editor', root_directories)
+
+    def test_mongo_host_preflight_precedes_state_changes_and_uses_selected_image(self):
+        init_plugin_loader()
+        tasks = DataLoader().load_from_file(
+            str(ROOT / 'ansible/roles/overleaf/tasks/main.yml'), trusted_as_template=True,
+        )
+        preflight = tasks[1]
+        templar = Templar(loader=DataLoader(),
+                          variables={'role_path': str(ROOT / 'ansible/roles/overleaf')})
+        argv = templar.template(preflight['ansible.builtin.command']['argv'])
+        compose = yaml.safe_load((ROOT / 'compose/overleaf/compose.yml').read_text())
+        self.assertEqual(argv, ['timeout', '120', 'docker', 'run', '--rm', '--network',
+                               'none', '--read-only', '--entrypoint', 'mongod',
+                               compose['services']['mongo']['image'], '--version'])
+        self.assertEqual(compose['services']['mongo-init']['image'], argv[-2])
+        self.assertFalse(preflight['changed_when'])
+        self.assertEqual(preflight['when'], 'not ansible_check_mode')
+        self.assertTrue(any('ansible.builtin.file' in task for task in tasks[2:]))
 
     def test_service_selection_rejects_production_or_missing_platform_dependencies(self):
         tasks = DataLoader().load_from_file(
