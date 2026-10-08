@@ -40,7 +40,7 @@ services:
       start_period: 90s
 
   mongo:
-    image: mongo:8.0.16@sha256:4b58ebcb1dc7a7b4e84cd8ce9098d48764ae4478876898ff9551acf2ac4a6a6d
+    image: mongo:9.0.2@sha256:bac22ea7710d774103dcad3ec8ac13cba1eb378f488e3ce8a6b3a1adf2ba9dcc
     restart: unless-stopped
     mem_limit: 512m
     cpus: 1
@@ -57,7 +57,7 @@ services:
       retries: 12
 
   mongo-init:
-    image: mongo:8.0.16@sha256:4b58ebcb1dc7a7b4e84cd8ce9098d48764ae4478876898ff9551acf2ac4a6a6d
+    image: mongo:9.0.2@sha256:bac22ea7710d774103dcad3ec8ac13cba1eb378f488e3ce8a6b3a1adf2ba9dcc
     restart: 'no'
     depends_on:
       mongo:
