@@ -43,9 +43,9 @@ class Opener:
 
     def open(self, request, timeout):
         self.assert_timeout(timeout)
-        if isinstance(request, str):
-            return Response()
         self.requests.append(request)
+        if request.full_url == 'https://overleaf.woodhost.cloud/login':
+            return Response()
         if not request.has_header('Authorization'):
             if self.deny:
                 raise HTTPError(request.full_url, 401, 'denied', {}, io.BytesIO())
@@ -69,6 +69,20 @@ class Opener:
 
 
 class VerificationTests(unittest.TestCase):
+    def test_every_request_identifies_the_verification_client(self):
+        class IdentifiedOpener(Opener):
+            def open(self, request, timeout):
+                if request.get_header('User-agent') != 'infrastructure-overleaf-verification/1.0':
+                    raise HTTPError(request.full_url, 403, 'unidentified client', {}, io.BytesIO())
+                return super().open(request, timeout)
+
+        opener = IdentifiedOpener()
+        result = VERIFY.verify({'CLSI_USERNAME': 'fixture', 'CLSI_PASSWORD': 'test'}, opener=opener)
+        self.assertEqual(result['status'], 'passed')
+        self.assertEqual(len(opener.requests), 8)
+        self.assertFalse(opener.requests[0].has_header('Authorization'))
+        self.assertEqual(opener.requests[-1].get_method(), 'DELETE')
+
     def test_success_authenticates_download_and_cleans_its_own_project(self):
         opener = Opener()
         result = VERIFY.verify({'CLSI_USERNAME': 'fixture', 'CLSI_PASSWORD': 'test'}, opener=opener)

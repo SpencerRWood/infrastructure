@@ -100,6 +100,10 @@ from the same HTTPS origin and cleanup of its unique test project. The standard
 dev release health script also checks the selected image and healthy editor/CLSI
 containers before running the probe. No report-domain client or PDF acceptance
 rules are introduced; those remain in wood-reports Stories #432–#435.
+Every smoke-test request identifies itself as
+`infrastructure-overleaf-verification/1.0`, including anonymous denial probes and
+cleanup. This avoids ingress rejection of Python's default client identifier;
+TLS validation, authentication and redirect restrictions still apply.
 
 Future dev documents require coordinated backups: stop editor and compiler writes,
 take a MongoDB dump and copy editor/Redis state together, encrypt the backup and

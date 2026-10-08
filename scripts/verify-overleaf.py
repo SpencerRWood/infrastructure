@@ -13,6 +13,7 @@ import uuid
 from pathlib import Path
 
 MAX_RESPONSE = 20 * 1024 * 1024
+USER_AGENT = 'infrastructure-overleaf-verification/1.0'
 SOURCE = r"""\documentclass{article}
 \usepackage{fontspec,tabularray,graphicx,xcolor}
 \begin{document}Infrastructure compiler smoke test.
@@ -62,7 +63,9 @@ def verify(values, *, opener=None):
     ).decode()
 
     def request(url, *, method='GET', body=None, authenticated=True):
-        headers = {'Authorization': auth} if authenticated else {}
+        headers = {'User-Agent': USER_AGENT}
+        if authenticated:
+            headers['Authorization'] = auth
         if body is not None:
             headers['Content-Type'] = 'application/json'
         req = urllib.request.Request(url, data=body, headers=headers, method=method)
@@ -72,7 +75,10 @@ def verify(values, *, opener=None):
             return read_bounded(response)
 
     # TLS validation is enabled; no insecure switch or credential-bearing redirect.
-    with opener.open('https://overleaf.woodhost.cloud/login', timeout=10) as response:
+    editor_request = urllib.request.Request(
+        'https://overleaf.woodhost.cloud/login', headers={'User-Agent': USER_AGENT}
+    )
+    with opener.open(editor_request, timeout=10) as response:
         if response.status != 200:
             raise ValueError('editor endpoint is not ready')
     for path in ('/status', '/project/000000000000000000000000/compile',
@@ -114,7 +120,8 @@ def verify(values, *, opener=None):
     finally:
         # Remove only the generated smoke-test project, including failed builds.
         req = urllib.request.Request(base + '/project/' + project,
-                                     headers={'Authorization': auth}, method='DELETE')
+                                     headers={'Authorization': auth, 'User-Agent': USER_AGENT},
+                                     method='DELETE')
         with opener.open(req, timeout=10) as response:
             if response.status not in (200, 204):
                 raise ValueError('smoke project cleanup failed')
