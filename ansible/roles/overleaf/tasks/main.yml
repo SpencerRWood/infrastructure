@@ -8,6 +8,27 @@
     fail_msg: Overleaf is dev-only and requires Caddy and Infisical.
   tags: [overleaf]
 
+- name: Check selected MongoDB binary on the host before changing persistent state
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - '120'
+      - docker
+      - run
+      - --rm
+      - --network
+      - none
+      - --read-only
+      - --entrypoint
+      - mongod
+      - >-
+        {{ (lookup('ansible.builtin.file', role_path + '/../../../compose/overleaf/compose.yml') |
+            from_yaml).services.mongo.image }}
+      - --version
+  changed_when: false
+  when: not ansible_check_mode
+  tags: [overleaf]
+
 - name: Create Overleaf component and fresh persistent state directories
   ansible.builtin.file:
     path: "{{ item }}"

@@ -45,6 +45,18 @@
       "automerge": false
     },
     {
+      "description": "Keep Overleaf MongoDB on the verified 8.0 release line; other lines need application, kernel and data-upgrade validation.",
+      "matchFileNames": ["compose/overleaf/compose.yml"],
+      "matchPackageNames": ["mongo"],
+      "allowedVersions": ">=8.0.0 <8.1.0"
+    },
+    {
+      "description": "Keep Overleaf Redis on the verified 7.4 release line until a separate compatibility review.",
+      "matchFileNames": ["compose/overleaf/compose.yml"],
+      "matchPackageNames": ["redis"],
+      "allowedVersions": ">=7.4.0 <7.5.0"
+    },
+    {
       "description": "PostgreSQL compatibility-major transitions require explicit review, including digest pinning.",
       "matchPackageNames": ["pgvector/pgvector"],
       "matchNewValue": "/-pg(?:1[7-9]|[2-9][0-9]+)-/",
