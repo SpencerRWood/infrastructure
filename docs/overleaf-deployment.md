@@ -23,14 +23,18 @@ digest/TeX repository change, a fresh build, compilation verification and a
 compatible MongoDB upgrade plan. The derived image is local infrastructure
 configuration, following the existing Dagster build convention.
 
-MongoDB remains on the verified 8.0 line and Redis on 7.4; Renovate permits
-patch and digest updates within those lines for this component only. Moving
-either dependency to another line requires a separate compatibility review.
+MongoDB is temporarily held at the verified 8.0.16 version and Redis on 7.4;
+Renovate permits MongoDB digest updates and Redis patch/digest updates for this
+component only. Moving either dependency outside these limits requires a
+separate compatibility review. The MongoDB hold also defers newer security
+patches, so revisit it after validating a compatible image/kernel combination.
 On 2026-10-08 the pinned MongoDB 9.0.2 binary refused to start on Beelink's
 `7.0.0-34-generic` kernel, reporting the Linux 6.19+ incompatibility tracked in
 [SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912). Release v0.27.5
 failed and rolled back to v0.27.3. MongoDB 8.0.16 and Redis 7.4.11 are the
-verified restored versions; no MongoDB 9 data migration was performed.
+verified restored versions; no MongoDB 9 data migration was performed. Renovate
+subsequently automerged MongoDB 8.0.32, whose isolated binary probe produced the
+same kernel incompatibility, motivating the exact-version hold.
 Before changing component directories or persistent state, the role now runs
 the selected MongoDB binary's `--version` in a disposable, network-isolated
 container with no host mounts. A kernel guard failure stops deployment with a
@@ -96,6 +100,12 @@ mounted editor directory prevents web services from accessing their data.
 MongoDB is a single-node replica set and initialization waits for a writable primary. Redis
 uses AOF persistence. Initial image construction installs the full TeX distribution
 and may take substantially longer than container readiness (bounded to 180s).
+Database mount roots remain private to their image runtime accounts: MongoDB
+uses UID/GID 999/999 and Redis uses 999/1000. Ordinary deployments preserve these
+owners rather than resetting live database directories to root, which causes
+MongoDB permission failures and process termination before Compose can converge.
+The role manages only the mount roots; it does not recursively rewrite database
+files or remove state.
 Create the initial editor administrator using Overleaf's supported admin-user
 script in the new editor container. Self-signup and anonymous editing are disabled.
 

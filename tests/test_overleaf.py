@@ -168,6 +168,29 @@ class ComposeTests(unittest.TestCase):
 
 
 class CutoverSafetyTests(unittest.TestCase):
+    def test_database_state_remains_accessible_during_repeat_deployments(self):
+        tasks = DataLoader().load_from_file(
+            str(ROOT / 'ansible/roles/overleaf/tasks/main.yml'), trusted_as_template=True,
+        )
+        task = next(task for task in tasks
+                    if task['name'] == 'Preserve database runtime ownership of private persistent directories')
+        rendered = {}
+        for item in task['loop']:
+            templar = Templar(variables={'overleaf_state_directory': '/state', 'item': item})
+            directory = templar.template(task['ansible.builtin.file'])
+            rendered[directory['path']] = (directory['owner'], directory['group'], directory['mode'])
+        self.assertEqual(rendered, {
+            '/state/mongo': ('999', '999', '0700'),
+            '/state/mongo-config': ('999', '999', '0700'),
+            '/state/redis': ('999', '1000', '0700'),
+        })
+        root_task = next(task for task in tasks
+                         if task['name'] == 'Create Overleaf component and fresh persistent state directories')
+        root_paths = Templar(variables={'overleaf_state_directory': '/state',
+                                       'overleaf_compose_directory': '/compose'}).template(root_task['loop'])
+        self.assertTrue(set(rendered).isdisjoint(root_paths))
+        self.assertNotIn('recurse', task['ansible.builtin.file'])
+
     def test_editor_persistent_root_is_accessible_to_its_runtime_user(self):
         tasks = yaml.safe_load((ROOT / 'ansible/roles/overleaf/tasks/main.yml').read_text())
         editor = next(task['ansible.builtin.file'] for task in tasks

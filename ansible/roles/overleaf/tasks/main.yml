@@ -39,9 +39,19 @@
   loop:
     - "{{ overleaf_compose_directory }}"
     - "{{ overleaf_state_directory }}"
-    - "{{ overleaf_state_directory }}/mongo"
-    - "{{ overleaf_state_directory }}/mongo-config"
-    - "{{ overleaf_state_directory }}/redis"
+  tags: [overleaf]
+
+- name: Preserve database runtime ownership of private persistent directories
+  ansible.builtin.file:
+    path: "{{ overleaf_state_directory }}/{{ item.path }}"
+    state: directory
+    owner: '{{ item.owner }}'
+    group: '{{ item.group }}'
+    mode: '0700'
+  loop:
+    - {path: mongo, owner: '999', group: '999'}
+    - {path: mongo-config, owner: '999', group: '999'}
+    - {path: redis, owner: '999', group: '1000'}
   tags: [overleaf]
 
 - name: Allow the editor runtime to access its private persistent root
