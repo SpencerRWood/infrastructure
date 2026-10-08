@@ -1,6 +1,7 @@
 """Check environment opt-in, code-location wiring, and credential isolation."""
 
 from pathlib import Path
+import tomllib
 import unittest
 
 from jinja2 import Environment
@@ -10,6 +11,18 @@ ROOT = Path(__file__).parents[1]
 
 
 class AutomergeRepairTests(unittest.TestCase):
+    def test_incident_policy_matches_platform_automerge_and_deployment_targets(self):
+        policy = tomllib.loads((ROOT / "compose/automerge-repair/policy.toml").read_text())
+        expected = {"infrastructure": "infrastructure-dev", "homelab": "homelab"}
+        for name, target in expected.items():
+            repository = policy["repositories"][name]
+            self.assertEqual(repository["full_name"], f"SpencerRWood/{name}")
+            self.assertEqual(repository["renovate_login"], "renovate[bot]")
+            self.assertEqual(repository["automerge_mode"], "platform-squash")
+            self.assertEqual(repository["deployment_environments"], {"dev": target})
+            self.assertFalse(repository["repair_enabled"])
+            self.assertEqual(repository["rollback"], "notification-only")
+
     def test_only_dev_selects_a_digest_qualified_release(self):
         dev = yaml.safe_load((ROOT / "environments/dev.yml").read_text())
         prod = yaml.safe_load((ROOT / "environments/prod.yml").read_text())
