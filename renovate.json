@@ -45,10 +45,10 @@
       "automerge": false
     },
     {
-      "description": "Keep Overleaf MongoDB on the verified 8.0 release line; other lines need application, kernel and data-upgrade validation.",
+      "description": "Temporarily hold Overleaf MongoDB at the verified host-compatible version; 8.0.32 and 9.0.2 reject the current kernel. Revisit after host compatibility validation.",
       "matchFileNames": ["compose/overleaf/compose.yml"],
       "matchPackageNames": ["mongo"],
-      "allowedVersions": ">=8.0.0 <8.1.0"
+      "allowedVersions": "8.0.16"
     },
     {
       "description": "Keep Overleaf Redis on the verified 7.4 release line until a separate compatibility review.",
