@@ -43,9 +43,9 @@ class Opener:
 
     def open(self, request, timeout):
         self.assert_timeout(timeout)
-        if isinstance(request, str):
-            return Response()
         self.requests.append(request)
+        if request.full_url == 'https://overleaf.woodhost.cloud/login':
+            return Response()
         if not request.has_header('Authorization'):
             if self.deny:
                 raise HTTPError(request.full_url, 401, 'denied', {}, io.BytesIO())
@@ -82,6 +82,16 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(download.get_header('Authorization'), post.get_header('Authorization'))
         self.assertEqual(opener.requests[-1].get_method(), 'DELETE')
         self.assertEqual(opener.requests[-1].full_url, post.full_url.removesuffix('/compile'))
+
+    def test_every_request_identifies_the_verification_client_without_editor_credentials(self):
+        opener = Opener()
+        VERIFY.verify({'CLSI_USERNAME': 'fixture', 'CLSI_PASSWORD': 'test'}, opener=opener)
+        self.assertTrue(opener.requests)
+        for request in opener.requests:
+            self.assertEqual(request.get_header('User-agent'),
+                             'Wood-Infrastructure-Verification/1.0')
+        self.assertEqual(opener.requests[0].full_url, 'https://overleaf.woodhost.cloud/login')
+        self.assertFalse(opener.requests[0].has_header('Authorization'))
 
     def test_auth_bypass_compile_failure_unsafe_output_and_cleanup_failure_are_rejected(self):
         for arguments in ({'deny': False}, {'compile_status': 'error'},

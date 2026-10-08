@@ -101,6 +101,12 @@ dev release health script also checks the selected image and healthy editor/CLSI
 containers before running the probe. No report-domain client or PDF acceptance
 rules are introduced; those remain in wood-reports Stories #432–#435.
 
+The probe identifies every request as `Wood-Infrastructure-Verification/1.0`,
+including the editor check and project cleanup. The default Python urllib user
+agent is rejected by the edge browser-integrity check (HTTP 403, error 1010).
+The explicit client identity preserves TLS, IP allowlisting and compiler
+authentication; it requires no ingress-policy exception or browser interaction.
+
 Future dev documents require coordinated backups: stop editor and compiler writes,
 take a MongoDB dump and copy editor/Redis state together, encrypt the backup and
 store it off-host, then restart and verify. Compiler state is disposable. Restore
