@@ -65,3 +65,8 @@ token = { env = "GITHUB_TOKEN" }
 
 [tool.semantic_release.publish]
 upload_to_vcs_release = true
+
+[tool.wood.architecture]
+domain = "infrastructure"
+capability = "hosting-deployment"
+kind = "infrastructure-configuration"
