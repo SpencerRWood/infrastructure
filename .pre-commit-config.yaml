@@ -17,6 +17,16 @@ repos:
       - id: detect-private-key
   - repo: local
     hooks:
+      - id: weekly-recovery-ansible
+        name: Weekly recovery Ansible syntax and lint
+        entry: >-
+          sh -c 'ANSIBLE_CONFIG=recovery/ansible.cfg uv run ansible-playbook
+          -i localhost, recovery/weekly.yml --syntax-check &&
+          ANSIBLE_CONFIG=recovery/ansible.cfg uv run ansible-lint
+          recovery/weekly.yml'
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: yamllint
         name: YAML lint
         entry: uv run yamllint .

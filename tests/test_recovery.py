@@ -36,6 +36,7 @@ class RecoveryTests(unittest.TestCase):
         self.config = source["preflight"]
         files = [
             "recovery/consumer.v1.json", "scripts/recovery.py", "scripts/rollback.py",
+            "scripts/weekly_recovery.py",
             self.config["inventory_file"], self.config["playbook"],
             self.config["ansible_config"], *self.config["runbooks"],
         ]
@@ -61,7 +62,7 @@ class RecoveryTests(unittest.TestCase):
 
     def test_manifest_pins_exact_clean_checkout_without_provider_dependency(self):
         self.assertEqual(self.git("rev-parse", "HEAD"), self.declaration["targets"][0]["revision"])
-        self.assertEqual(["readiness"], self.declaration["targets"][0]["allowed_verification_levels"])
+        self.assertEqual(["readiness", "verification"], self.declaration["targets"][0]["allowed_verification_levels"])
         self.assertNotIn("recovery_verification", (self.root / "scripts/recovery.py").read_text())
         command = self.declaration["targets"][0]["entrypoints"]["recovery"]
         self.assertEqual("scripts/rollback.py", command["entrypoint"])
@@ -147,7 +148,7 @@ class RecoveryTests(unittest.TestCase):
                                             include_external=False)
             self.assertEqual(expected, result["readiness_state"])
             self.assertNotIn("external_prerequisites", [c["id"] for c in result["checks"]])
-        args = self.declaration["targets"][0]["validation_commands"][0]["command"]["args"]
+        args = next(check["command"]["args"] for check in self.declaration["targets"][0]["validation_commands"] if check["id"] == "consumer_preflight")
         self.assertEqual(["preflight", "--local-only"], args)
 
 

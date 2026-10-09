@@ -22,6 +22,16 @@ dev = [
 [tool.uv]
 package = false
 
+[tool.wood.verify]
+version = 1
+retry_safe = true
+
+[[tool.wood.verify.checks]]
+name = "weekly-local-recovery"
+argv = ["uv", "run", "--frozen", "scripts/weekly_recovery.py", "--deadline-seconds", "40"]
+required = true
+timeout_seconds = 60
+
 [tool.setuptools]
 packages = []
 

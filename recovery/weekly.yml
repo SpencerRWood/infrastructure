@@ -1,0 +1,27 @@
+---
+- name: Verify approved isolated infrastructure recovery payload
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Validate temporary workspace boundary
+      ansible.builtin.assert:
+        that:
+          - recovery_workspace is match('^/tmp/rv-[A-Za-z0-9_-]+$')
+    - name: Recover canonical Compose declaration into temporary storage
+      ansible.builtin.copy:
+        src: "../compose/postgres/compose.yml"
+        dest: "{{ recovery_workspace }}/recovered-compose.yml"
+        mode: '0600'
+    - name: Render canonical application provisioning SQL with synthetic inputs
+      ansible.builtin.template:
+        src: "../ansible/roles/postgres/templates/application.sql.j2"
+        dest: "{{ recovery_workspace }}/application.sql"
+        mode: '0600'
+      vars:
+        postgres_application:
+          role: weekly_application
+          database: weekly_application
+        postgres_application_credential:
+          password: synthetic-weekly-fixture-unused-credential

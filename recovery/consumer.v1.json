@@ -25,6 +25,15 @@
     },
     "validation_commands": [
       {
+        "id": "consumer_weekly",
+        "levels": ["verification"],
+        "command": {
+          "entrypoint": "scripts/weekly_recovery.py",
+          "args": [],
+          "timeout_seconds": 300
+        }
+      },
+      {
         "id": "consumer_preflight",
         "levels": [
           "readiness"
@@ -109,7 +118,7 @@
       }
     ],
     "allowed_verification_levels": [
-      "readiness"
+      "readiness", "verification"
     ],
     "cadence_overrides": []
   },
