@@ -154,7 +154,8 @@ class WeeklyTests(unittest.TestCase):
                     return b"incorrect"
                 return b""
             with patch.object(WEEKLY, "command", side_effect=output):
-                WEEKLY.restore_postgres(checks, Path(directory))
+                with patch.object(WEEKLY.shutil, "which", return_value="/fixture/postgres"):
+                    WEEKLY.restore_postgres(checks, Path(directory))
             self.assertEqual("passed", checks[0]["state"])
             self.assertTrue(all(check["state"] == "failed" for check in checks[1:]))
 
