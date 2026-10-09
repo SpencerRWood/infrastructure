@@ -1,0 +1,11 @@
+{
+  "idempotence_safe": true,
+  "allowed_second_run_changes": 0,
+  "check_mode_exclusions": {
+    "secret_resolution": "requires_credentialed_isolated_host",
+    "compose_start": "check_mode_cannot_prove_service_start",
+    "live_storage": "requires_isolated_mount_namespace",
+    "firewall": "requires_isolated_network_namespace"
+  },
+  "backup_sha256": "93502650cfb9c6538db1be83f0c9d902782a0892e44febb746dc323a39235f99"
+}
