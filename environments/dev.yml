@@ -34,7 +34,7 @@ keycloak_hostname: dev-keycloak.woodhost.cloud
 # The complete image reference is intentionally kept on one line for auditing.
 # yamllint disable rule:line-length
 events_service_image_ref: ghcr.io/spencerrwood/events-service:v0.5.1@sha256:336d0c1754bc90a727594f0154c463c5e28a2ce820505daef94337b0d7fc217c
-portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.11.0@sha256:abc93a08082b8b664b31a8cf35a1bc8f70c7408095d8be33ee37a8a301f710a0
+portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.11.1@sha256:6751630cb2391fb881116debd7240f50fb584e95e1921ca29298cc2e91140706
 openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.0@sha256:fa2ef486195e4ce69dfb88fe443afa0b5c01956702b611b209948562f275efb5
 rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.7.1@sha256:0d7d8c6bf7cca708f201f4da48c8a0d83776ca6833a922c6578ea72790fa8031
 # Candidate passed real Qwen health, readiness and 1024-dimensional output checks.
