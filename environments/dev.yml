@@ -33,13 +33,13 @@ dagster_restore_backup_path: /srv/infrastructure/backups/dagster/dagster-final.d
 keycloak_hostname: dev-keycloak.woodhost.cloud
 # The complete image reference is intentionally kept on one line for auditing.
 # yamllint disable rule:line-length
-events_service_image_ref: ghcr.io/spencerrwood/events-service:v0.5.1@sha256:336d0c1754bc90a727594f0154c463c5e28a2ce820505daef94337b0d7fc217c
+events_service_image_ref: ghcr.io/spencerrwood/events-service:v0.5.2@sha256:b36852dad81459f65e7b0c4e9a0bf9b289abd2e27a49dfbb75792fe80f9b9da6
 portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.11.1@sha256:6751630cb2391fb881116debd7240f50fb584e95e1921ca29298cc2e91140706
-openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.0@sha256:fa2ef486195e4ce69dfb88fe443afa0b5c01956702b611b209948562f275efb5
+openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.1@sha256:4589ccb8e74e56e59c3179f01e2bcd5ecf3b85124aff714135fb36114070de10
 rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.7.2@sha256:c5048af0308c3470deb48952519d753194c4bd489794f2c2ee6acec5ea845d3d
 # Candidate passed real Qwen health, readiness and 1024-dimensional output checks.
 rag_embedding_image_ref: ghcr.io/spencerrwood/rag-embedding:v0.7.2@sha256:4147219fecc76103994ec7425444a906b9155e88de48a65136b63d1f881c82a4
-automerge_repair_image_ref: ghcr.io/spencerrwood/automerge-repair:v0.2.0@sha256:49b3748676704fd7af023fa3499f366d187c59f1f522461cda5913d4167a1554
+automerge_repair_image_ref: ghcr.io/spencerrwood/automerge-repair:v0.2.1@sha256:baa602f0b4dc72d26a6152f9777d536b12e96cf1b292786b7ad22888844c925e
 # yamllint enable rule:line-length
 services:
   overleaf: true
