@@ -1,0 +1,139 @@
+---
+- name: Require explicit recovery runtime activation inputs
+  ansible.builtin.assert:
+    that:
+      - infrastructure_environment == 'dev'
+      - services.dagster | bool
+      - services.postgres | bool
+      - >-
+        recovery_verification_image_ref is match(
+        '^ghcr[.]io/spencerrwood/recovery-verification:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
+        )
+      - recovery_verification_config_source | length > 0
+    fail_msg: Recovery Verification needs a published immutable release and reviewed runtime configuration.
+  tags: [recovery_verification]
+
+- name: Create Recovery Verification component and durable evidence directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ recovery_verification_compose_directory }}", owner: 'root', mode: '0755'}
+    - {path: "{{ recovery_verification_state_directory }}", owner: '10001', mode: '0700'}
+  tags: [recovery_verification]
+
+- name: Register selected Recovery Verification with the existing secret refresh service
+  ansible.builtin.copy:
+    content: >-
+      {{ infrastructure_infisical_runtime_services | combine(
+         {'recovery-verification': recovery_verification_secret_contract}) | to_nice_json }}
+    dest: /etc/infrastructure/infisical-runtime-services.json
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [recovery_verification]
+
+- name: Resolve scoped recovery runtime secrets through the existing resolver
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/resolve-infrastructure-infisical-env
+      - --environment
+      - dev
+      - --path
+      - /recovery-verification
+      - --output
+      - "{{ recovery_verification_runtime_env_file }}"
+      - --require
+      - DAGSTER_POSTGRES_PASSWORD
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [recovery_verification]
+
+- name: Install reviewed non-secret recovery orchestration configuration
+  ansible.builtin.copy:
+    src: "{{ recovery_verification_config_source }}"
+    dest: "{{ recovery_verification_compose_directory }}/orchestration.json"
+    owner: root
+    group: root
+    mode: '0644'
+  register: recovery_verification_config
+  tags: [recovery_verification]
+
+- name: Deploy Recovery Verification Compose settings
+  ansible.builtin.copy:
+    content: |-
+      RECOVERY_PROJECT_NAME=infrastructure-dev-recovery-verification
+      RECOVERY_IMAGE_REF={{ recovery_verification_image_ref }}
+      RECOVERY_RUNTIME_ENV_FILE={{ recovery_verification_runtime_env_file }}
+      RECOVERY_CONFIG_PATH={{ recovery_verification_compose_directory }}/orchestration.json
+      RECOVERY_STATE_PATH={{ recovery_verification_state_directory }}
+      RECOVERY_CHECKOUTS_PATH={{ recovery_verification_checkout_directory }}
+      RECOVERY_STORAGE_PATH={{ recovery_verification_storage_directory }}
+      RECOVERY_DAGSTER_CONFIG_PATH={{ host_infrastructure_compose_root }}/dagster/config
+      RECOVERY_DAGSTER_LOCAL_PATH={{ host_infrastructure_state_root }}/dagster/local
+      RECOVERY_POSTGRES_NETWORK=infrastructure-dev-postgres
+      RECOVERY_PROXY_NETWORK=infrastructure-dev-proxy
+    dest: "{{ recovery_verification_compose_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  tags: [recovery_verification]
+
+- name: Deploy canonical Recovery Verification payload
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/recovery-verification/compose.yml"
+    dest: "{{ recovery_verification_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [recovery_verification]
+
+- name: Start and health-gate the exact Recovery Verification release
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ recovery_verification_compose_env_file }}"
+      - -f
+      - "{{ recovery_verification_compose_directory }}/compose.yml"
+      - up
+      - -d
+      - --pull
+      - always
+      - --wait
+      - --wait-timeout
+      - '120'
+  environment:
+    DOCKER_CONFIG: "{{ recovery_verification_docker_config_directory }}"
+  register: recovery_verification_up
+  changed_when: >-
+    (recovery_verification_up.stdout + recovery_verification_up.stderr)
+    is search('Created|Started|Recreated')
+  when: not ansible_check_mode
+  tags: [recovery_verification]
+
+- name: Reload the existing Dagster control plane after recovery location readiness
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ host_infrastructure_secrets_root }}/dagster-compose.env"
+      - -f
+      - "{{ host_infrastructure_compose_root }}/dagster/compose.yml"
+      - restart
+      - dagster-webserver
+      - dagster-daemon
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - >-
+      recovery_verification_up.changed or recovery_verification_config.changed or
+      (dagster_workspace.changed | default(false))
+  tags: [recovery_verification]

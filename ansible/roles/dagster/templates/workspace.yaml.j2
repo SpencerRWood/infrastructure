@@ -2,3 +2,6 @@
 {% if services.automerge_repair | default(false) | bool %}
   - grpc_server: {host: automerge-repair-code, port: 4000, location_name: automerge-repair}
 {% endif %}
+{% if services.recovery_verification | default(false) | bool %}
+  - grpc_server: {host: recovery-verification-code, port: 4000, location_name: recovery-verification}
+{% endif %}

@@ -1,0 +1,40 @@
+---
+name: ${RECOVERY_PROJECT_NAME:?required}
+services:
+  recovery-verification-code:
+    image: ${RECOVERY_IMAGE_REF:?required}
+    user: '10001:10001'
+    group_add: ['1000']
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    env_file: ["${RECOVERY_RUNTIME_ENV_FILE:?required}"]
+    environment:
+      DAGSTER_HOME: /opt/dagster/dagster_home
+      DAGSTER_GRPC_PORT: '4000'
+      DAGSTER_POSTGRES_HOST: postgres
+      DAGSTER_POSTGRES_PORT: '5432'
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_POSTGRES_USER: dagster
+      RECOVERY_ORCHESTRATION_CONFIG: /etc/recovery-verification/orchestration.json
+      RECOVERY_LOCAL_STORAGE: '1'
+    expose: ['4000']
+    volumes:
+      - "${RECOVERY_CONFIG_PATH:?required}:/etc/recovery-verification/orchestration.json:ro"
+      - "${RECOVERY_CHECKOUTS_PATH:?required}:/opt/recovery/checkouts:ro"
+      - "${RECOVERY_STATE_PATH:?required}:/opt/recovery/state"
+      - "${RECOVERY_STORAGE_PATH:?required}:/mnt/wood-server-nas:ro"
+      - "${RECOVERY_DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
+      - "${RECOVERY_DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
+    networks: [postgres, proxy]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - dagster api grpc-health-check -p 4000 && recovery-verification-health
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+networks:
+  postgres: {external: true, name: "${RECOVERY_POSTGRES_NETWORK:?required}"}
+  proxy: {external: true, name: "${RECOVERY_PROXY_NETWORK:?required}"}
