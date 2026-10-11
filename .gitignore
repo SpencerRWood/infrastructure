@@ -49,5 +49,3 @@ uv.lock.bak
 .pytest_cache/
 __pycache__/
 *.py[cod]
-
-AGENTS.md
