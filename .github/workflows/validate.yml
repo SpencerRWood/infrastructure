@@ -16,5 +16,5 @@ jobs:
     uses: SpencerRWood/workflows/.github/workflows/validate.yml@9307f9b80141f4ed9c463af360a1b13a49ca3353
     with:
       workflow_revision: 9307f9b80141f4ed9c463af360a1b13a49ca3353
-      publish_commit_status: true
+      publish_commit_status: ${{ github.event_name == 'pull_request' }}
       status_context: infrastructure-validation

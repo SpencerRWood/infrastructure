@@ -59,6 +59,12 @@ class WorkflowGovernanceTests(unittest.TestCase):
         self.assertIn('self-hosted', job['runs-on'])
         self.assertTrue(any('scripts/rollback.py' in step.get('run', '') for step in job['steps']))
 
+    def test_commit_status_mirroring_is_pr_only(self):
+        validate = yaml.safe_load((ROOT / 'validate.yml').read_text())
+        inputs = validate['jobs']['validation']['with']
+        self.assertEqual(inputs['publish_commit_status'], "${{ github.event_name == 'pull_request' }}")
+        self.assertEqual(inputs['status_context'], 'infrastructure-validation')
+
 
 if __name__ == '__main__':
     unittest.main()
