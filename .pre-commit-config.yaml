@@ -17,6 +17,14 @@ repos:
       - id: detect-private-key
   - repo: local
     hooks:
+      - id: workflow-governance
+        name: Publication and deployment workflow contracts
+        entry: >-
+          uv run python -m unittest discover
+          -s tests -p test_workflow_governance.py
+        language: system
+        pass_filenames: false
+        files: ^(\.github/workflows/|tests/test_workflow_governance\.py)
       - id: weekly-recovery-ansible
         name: Weekly recovery Ansible syntax and lint
         entry: >-

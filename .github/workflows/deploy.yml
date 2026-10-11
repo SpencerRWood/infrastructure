@@ -4,6 +4,11 @@ name: Deploy released infrastructure development configuration
 'on':
   workflow_call:
     inputs:
+      deployment_approved:
+        description: Confirm separate deployment or rollback authorization.
+        required: false
+        type: boolean
+        default: false
       ref:
         description: Immutable repository release tag.
         required: true
@@ -15,6 +20,11 @@ name: Deploy released infrastructure development configuration
         default: false
   workflow_dispatch:
     inputs:
+      deployment_approved:
+        description: Confirm separate deployment or rollback authorization.
+        required: true
+        type: boolean
+        default: false
       release:
         description: >-
           Existing release tag; leave empty to deploy the latest release.
@@ -27,14 +37,24 @@ permissions:
 
 jobs:
   resolve-release:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.deployment_approved == true
     uses: SpencerRWood/workflows/.github/workflows/resolve-release.yml@v1
     with:
       ref: ${{ inputs.ref || inputs.release }}
 
   deploy-dev:
     needs: resolve-release
-    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@v1
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.deployment_approved == true
+    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@9307f9b80141f4ed9c463af360a1b13a49ca3353
     with:
+      require_approval: true
+      approved: ${{ inputs.deployment_approved }}
       repository: ${{ github.repository }}
       ref: ${{ needs.resolve-release.outputs.ref }}
       skip_superseded: ${{ inputs.skip_superseded || false }}

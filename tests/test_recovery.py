@@ -73,6 +73,17 @@ class RecoveryTests(unittest.TestCase):
         with self.assertRaises(RECOVERY.InvalidInput):
             RECOVERY.manifest(self.root)
 
+    def test_preflight_provenance_identifies_checked_configuration(self):
+        with patch.object(RECOVERY, "command_check", return_value={
+            "id": "syntax", "state": "passed", "reason": "command_passed",
+        }):
+            result = RECOVERY.preflight(self.root, self.declaration, self.config,
+                                        include_external=False)
+        self.assertEqual([self.config["playbook"]], result["provenance"]["playbooks"])
+        self.assertEqual([self.config["inventory"]], result["provenance"]["inventories"])
+        self.assertEqual([], result["provenance"]["backups"])
+        self.assertEqual(self.git("rev-parse", "HEAD"), self.declaration["targets"][0]["revision"])
+
     def test_wrong_repository_cannot_export_consumer_identity(self):
         self.git("remote", "set-url", "origin", "https://github.com/other/repository.git")
         with self.assertRaises(RECOVERY.InvalidInput):
