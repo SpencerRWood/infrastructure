@@ -84,3 +84,9 @@
         name: overleaf
       when: services.overleaf | default(false) | bool
       tags: [overleaf]
+
+    - name: Deploy explicitly selected Recovery Verification code location
+      ansible.builtin.include_role:
+        name: recovery_verification
+      when: services.recovery_verification | default(false) | bool
+      tags: [recovery_verification]
