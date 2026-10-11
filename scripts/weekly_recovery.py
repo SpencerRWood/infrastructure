@@ -253,8 +253,22 @@ def verify(deadline_seconds=240):
     states = {check["state"] for check in checks}
     state = next((value for value in ("failed", "unavailable", "skipped")
                   if value in states), "passed")
+    restored = next((check for check in checks if check["phase"] == "restore"), {})
+    provenance = {
+        "playbooks": ["recovery/weekly.yml"],
+        "inventories": None,
+        "inline_inventory": "localhost",
+        "backups": [{
+            "source_id": "representative_postgres",
+            "kind": "representative_fixture",
+            "artifact_sha256": restored.get("artifact_sha256"),
+            # Neither Git checkout mtime nor verification time proves the
+            # fixture's backup creation time. Preserve that absence explicitly.
+            "timestamp": None,
+        }],
+    }
     return {"schema_version": "1", "mode": "verification",
-            "readiness_state": state, "checks": checks}
+            "readiness_state": state, "checks": checks, "provenance": provenance}
 
 
 def main():

@@ -122,6 +122,12 @@ def preflight(root, declaration, config, run_syntax=True, include_external=True)
     return {
         "schema_version": "1", "mode": "preflight", "readiness_state": state,
         "checks": checks,
+        "provenance": {
+            "playbooks": [config["playbook"]],
+            "inventories": [config["inventory"]],
+            "inline_inventory": None,
+            "backups": [],
+        },
     }
 
 

@@ -47,3 +47,20 @@ deployments are part of this Story's local validation.
 `wood repo verify --json` runs the required `weekly-local-recovery` check. That
 entrypoint uses a 40-second internal deadline, leaving cleanup time within Wood's
 60-second bound. Wood retains the normalized record and full sanitized output.
+# Execution provenance (OP-499)
+
+Preflight results include the consumer-owned playbook and inventory identifiers
+actually checked. Weekly results identify `recovery/weekly.yml`, the inline
+localhost inventory and the representative fixture restored, with its observed
+SHA-256 from the restore check. The provider binds the result to the checked-out
+revision and preserves it in native reports and the readiness scorecard.
+
+The fixture is explicitly classified `representative_fixture`, separate from
+declared production recovery backup sources. Its backup creation timestamp is
+null because it is not recorded; neither checkout mtime nor verification time
+is a substitute. Unobserved production backup metadata remains unavailable.
+No runtime credentials, raw command output or temporary resource paths are added.
+
+Coordinate these additive result fields with the OP-499 provider contract before
+delivery; older strict providers reject fields they do not support. Local metadata
+patches do not authorize deployment or alter recovery/restore execution behavior.
