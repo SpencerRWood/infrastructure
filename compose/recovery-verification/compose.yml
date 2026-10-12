@@ -28,6 +28,7 @@ services:
       - "${RECOVERY_CHECKOUTS_PATH:?required}:/opt/recovery/checkouts:ro"
       - "${RECOVERY_STATE_PATH:?required}:/opt/recovery/state"
       - "${RECOVERY_STORAGE_PATH:?required}:/mnt/wood-server-nas:ro"
+      - "${RECOVERY_OFF_NAS_BACKUPS_PATH:?required}:/srv/recovery-backups/nas-metadata:ro"
       - "${RECOVERY_DAGSTER_CONFIG_PATH:?required}:/opt/dagster/dagster_home:ro"
       - "${RECOVERY_DAGSTER_LOCAL_PATH:?required}:/opt/dagster/local"
     networks: [postgres, proxy]

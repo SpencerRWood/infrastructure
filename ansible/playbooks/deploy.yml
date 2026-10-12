@@ -85,6 +85,12 @@
       when: services.overleaf | default(false) | bool
       tags: [overleaf]
 
+    - name: Deploy explicitly selected recovery backup producer
+      ansible.builtin.include_role:
+        name: backups
+      when: services.backups | default(false) | bool
+      tags: [backups]
+
     - name: Deploy explicitly selected Recovery Verification code location
       ansible.builtin.include_role:
         name: recovery_verification

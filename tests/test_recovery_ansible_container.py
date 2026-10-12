@@ -119,6 +119,7 @@ class RecoveryAnsibleContainerTests(unittest.TestCase):
                 'RECOVERY_CHECKOUTS_PATH': '/tmp/disposable-checkouts',
                 'RECOVERY_STATE_PATH': '/tmp/disposable-state',
                 'RECOVERY_STORAGE_PATH': '/tmp/disposable-storage',
+                'RECOVERY_OFF_NAS_BACKUPS_PATH': '/tmp/disposable-nas-metadata',
                 'RECOVERY_DAGSTER_CONFIG_PATH': '/tmp/disposable-dagster-config',
                 'RECOVERY_DAGSTER_LOCAL_PATH': '/tmp/disposable-dagster-local',
                 'RECOVERY_POSTGRES_NETWORK': 'syntax-postgres',

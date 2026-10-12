@@ -1,0 +1,86 @@
+---
+- name: Require the selected environment backup configuration
+  ansible.builtin.assert:
+    that:
+      - backups_configuration.consumer == 'infrastructure'
+      - backups_configuration.environment == infrastructure_environment
+      - backups_configuration.schedule.kind == 'cron'
+      - backups_configuration.retention.pruning_enabled == false
+    fail_msg: Configure the selected environment's backup contract before deployment.
+
+- name: Install the backup schema validator runtime
+  ansible.builtin.command: python3 -c "import jsonschema"
+  register: backups_schema_runtime
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: [backups]
+
+- name: Install the missing backup schema validator package
+  ansible.builtin.package:
+    name: python3-jsonschema
+    state: present
+  when: backups_schema_runtime.rc != 0
+  tags: [backups]
+
+- name: Create protected backup configuration directory
+  ansible.builtin.file:
+    path: /etc/infrastructure
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  tags: [backups]
+
+- name: Install the repository-owned recovery backup producer
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../scripts/recovery-backup.py"
+    dest: /usr/local/sbin/infrastructure-recovery-backup
+    owner: root
+    group: root
+    mode: '0700'
+  tags: [backups]
+
+- name: Install the backup configuration schema
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../recovery/backup-config.schema.json"
+    dest: /etc/infrastructure/recovery-backup.schema.json
+    owner: root
+    group: root
+    mode: '0600'
+  tags: [backups]
+
+- name: Install the protected schema-validated backup configuration
+  ansible.builtin.copy:
+    content: "{{ backups_runtime_configuration | to_nice_json }}\n"
+    dest: /etc/infrastructure/recovery-backup.json
+    owner: root
+    group: root
+    mode: '0600'
+    validate: >-
+      /usr/local/sbin/infrastructure-recovery-backup --config %s
+      --schema /etc/infrastructure/recovery-backup.schema.json --validate-config
+  vars:
+    backups_runtime_configuration: >-
+      {{ backups_configuration | combine({
+        'quiesce_authorized': backups_quiesce_authorized | bool,
+        'encryption_recipient': backups_encryption_recipient
+      }) }}
+  tags: [backups]
+
+
+- name: Install the recovery key encryption tool
+  ansible.builtin.package:
+    name: age
+    state: present
+  when: backups_encryption_recipient | length > 0
+
+- name: Schedule the infrastructure-owned nightly backup
+  ansible.builtin.cron:
+    name: infrastructure recovery backup
+    user: "{{ backups_configuration.schedule.user }}"
+    hour: "{{ backups_configuration.schedule.hour }}"
+    minute: "{{ backups_configuration.schedule.minute }}"
+    job: >-
+      /usr/local/sbin/infrastructure-recovery-backup
+      --config /etc/infrastructure/recovery-backup.json

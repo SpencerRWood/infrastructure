@@ -73,6 +73,7 @@
       RECOVERY_STATE_PATH={{ recovery_verification_state_directory }}
       RECOVERY_CHECKOUTS_PATH={{ recovery_verification_checkout_directory }}
       RECOVERY_STORAGE_PATH={{ recovery_verification_storage_directory }}
+      RECOVERY_OFF_NAS_BACKUPS_PATH={{ recovery_verification_off_nas_backup_directory }}
       RECOVERY_DAGSTER_CONFIG_PATH={{ host_infrastructure_compose_root }}/dagster/config
       RECOVERY_DAGSTER_LOCAL_PATH={{ host_infrastructure_state_root }}/dagster/local
       RECOVERY_POSTGRES_NETWORK=infrastructure-dev-postgres

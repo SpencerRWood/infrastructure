@@ -35,7 +35,7 @@
         "levels": ["verification"],
         "command": {
           "entrypoint": "scripts/weekly_recovery.py",
-          "args": [],
+          "args": ["--real-backups"],
           "timeout_seconds": 300
         }
       },
@@ -66,14 +66,9 @@
         "reference": "repo://environments/dev.yml"
       },
       {
-        "id": "postgres_state",
+        "id": "backups_mount",
         "kind": "storage",
-        "reference": "path:///srv/infrastructure/state/postgres/data"
-      },
-      {
-        "id": "infisical_bootstrap",
-        "kind": "storage",
-        "reference": "path:///srv/infrastructure/bootstrap/infisical/infisical.env"
+        "reference": "mount:///mnt/wood-server-nas/backup_server"
       },
       {
         "id": "runtime_secret_names",
@@ -98,7 +93,7 @@
       {
         "id": "database_recovery",
         "kind": "runbook",
-        "reference": "repo://docs/postgres-migration-inventory.md"
+        "reference": "repo://docs/recovery-backups.md"
       },
       {
         "id": "ansible",
@@ -113,13 +108,8 @@
     ],
     "backup_sources": [
       {
-        "id": "dagster_cutover",
-        "reference": "path:///srv/infrastructure/backups/dagster/dagster-final.dump",
-        "max_age_seconds": 86400
-      },
-      {
-        "id": "cluster_cutovers",
-        "reference": "path:///srv/infrastructure/backups/wood-data-platform",
+        "id": "current_recovery_group",
+        "reference": "path:///mnt/wood-server-nas/backup_server/swood-server/infrastructure-dev/current.json",
         "max_age_seconds": 86400
       }
     ],
@@ -139,6 +129,7 @@
       "docs/secrets.md",
       "docs/infisical-bootstrap.md",
       "docs/postgres-migration-inventory.md",
+      "docs/recovery-backups.md",
       "docs/rollback-contract.md"
     ]
   }

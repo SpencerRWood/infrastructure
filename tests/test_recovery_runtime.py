@@ -57,6 +57,7 @@ class RecoveryRuntimeTests(unittest.TestCase):
         self.assertNotIn('/var/run/docker.sock', str(code))
         self.assertIn('${RECOVERY_CHECKOUTS_PATH:?required}:/opt/recovery/checkouts:ro', code['volumes'])
         self.assertIn('${RECOVERY_STORAGE_PATH:?required}:/mnt/wood-server-nas:ro', code['volumes'])
+        self.assertIn('${RECOVERY_OFF_NAS_BACKUPS_PATH:?required}:/srv/recovery-backups/nas-metadata:ro', code['volumes'])
         self.assertIn('${RECOVERY_STATE_PATH:?required}:/opt/recovery/state', code['volumes'])
         self.assertIn('recovery-verification-health', code['healthcheck']['test'][-1])
 

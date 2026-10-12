@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Backup verification policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "consumer",
+    "environment",
+    "postgres_container",
+    "max_age_seconds",
+    "pointer",
+    "required_sources",
+    "restore_database",
+    "representative_queries"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "consumer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "postgres_container": {
+      "type": "string",
+      "minLength": 1
+    },
+    "max_age_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "pointer": {
+      "type": "string",
+      "pattern": "^/"
+    },
+    "required_sources": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "minItems": 2
+    },
+    "restore_database": {
+      "type": "string",
+      "minLength": 1
+    },
+    "restore_file_source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "representative_queries": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "off_source_copy_root": {
+      "type": "string",
+      "pattern": "^/"
+    },
+    "off_source_copy_sources": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  }
+}
