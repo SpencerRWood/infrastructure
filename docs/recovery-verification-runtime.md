@@ -3,8 +3,11 @@
 The optional `recovery_verification` role deploys an independently versioned,
 digest-qualified `ghcr.io/spencerrwood/recovery-verification:vX.Y.Z@sha256:...`
 release through the existing explicitly authorized infrastructure deployment
-path. It does not build or publish the provider. Both environment selectors are
-false; adding the component never activates it or production schedules.
+path. It does not build or publish the provider. The dev manifest selects the
+published v0.6.0 digest and `environments/recovery-verification-dev.json`;
+production remains disabled. Deployment does not start schedules or the change
+sensor, which remain stopped by default. Live notifications and isolated monthly
+test mode are disabled in this configuration.
 
 Before separate activation approval, supply `recovery_verification_image_ref`
 from a verified published artifact and `recovery_verification_config_source` from
@@ -13,6 +16,24 @@ image digest is committed. Existing Dagster/Postgres must already be selected;
 the role is dev-control-plane scoped, matching existing code-location conventions.
 Production selection is a separate infrastructure decision, not implied by this
 component. Keep provider Story integration on release/v0.6.0 and consumers on main.
+
+Before deploying this selection, verify that the existing Infisical resolver can
+read `DAGSTER_POSTGRES_PASSWORD` from `Infrastructure Dev`, environment `dev`,
+path `/recovery-verification`. This must be the canonical shared Dagster database
+credential; never generate an independent password or copy credentials into Git.
+Prepare independent, clean clones of `SpencerRWood/infrastructure` and
+`SpencerRWood/homelab` in the checkout directory below, at reviewed immutable
+revisions. The initial exported manifests record infrastructure
+`00a42cf569b617d4953f8829dc079435106b231e` and homelab
+`40962d7b2fb6bb05da469336bd05549d7175b858`; explicit consumer manifest exports
+refresh the actual clean revisions for each run. Advancing these clones is an
+attended operation under the shared operation lock.
+
+The configuration declares existing consumer backup references exactly as
+exported. Infrastructure state and bootstrap paths outside the mounted NAS are
+not visible in this container; readiness must report them unavailable. Missing
+or stale backup inputs, metadata credentials and unresolved artifact catalogs
+prevent full operational acceptance and must be resolved before enabling cadence.
 
 Runtime inputs are resolved only from `/recovery-verification` by the existing
 Infisical resolver into a protected runtime env file. Prepare scoped
