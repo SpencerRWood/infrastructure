@@ -41,8 +41,14 @@ rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.7.2@sha256:c5048af030
 rag_embedding_image_ref: ghcr.io/spencerrwood/rag-embedding:v0.7.2@sha256:4147219fecc76103994ec7425444a906b9155e88de48a65136b63d1f881c82a4
 automerge_repair_image_ref: ghcr.io/spencerrwood/automerge-repair:v0.2.1@sha256:baa602f0b4dc72d26a6152f9777d536b12e96cf1b292786b7ad22888844c925e
 # yamllint enable rule:line-length
+# Independently published provider; rollout requires the scoped runtime secret
+# and clean consumer clones described in docs/recovery-verification-runtime.md.
+# yamllint disable rule:line-length
+recovery_verification_image_ref: ghcr.io/spencerrwood/recovery-verification:v0.6.0@sha256:7c35fd41f3aa95a7597367b88ff4d0752fe57b5978523ee2b417f115d546a6dd
+recovery_verification_config_source: "{{ playbook_dir }}/../../environments/recovery-verification-dev.json"
+# yamllint enable rule:line-length
 services:
-  recovery_verification: false
+  recovery_verification: true
   overleaf: true
   automerge_repair: true
   events_service: true

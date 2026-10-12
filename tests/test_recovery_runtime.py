@@ -1,5 +1,6 @@
 """Recovery code-location registration cannot enable runtime activation by itself."""
 
+import json
 from pathlib import Path
 import unittest
 
@@ -11,11 +12,22 @@ ROOT = Path(__file__).parents[1]
 
 
 class RecoveryRuntimeTests(unittest.TestCase):
-    def test_runtime_selection_is_disabled_in_both_environments(self):
-        for name in ('dev', 'prod'):
-            environment = yaml.safe_load((ROOT / f'environments/{name}.yml').read_text())
-            self.assertFalse(environment['services']['recovery_verification'])
-            self.assertNotIn('recovery_verification_image_ref', environment)
+    def test_runtime_selection_is_dev_only_with_immutable_image(self):
+        production = yaml.safe_load((ROOT / 'environments/prod.yml').read_text())
+        self.assertFalse(production['services']['recovery_verification'])
+        self.assertNotIn('recovery_verification_image_ref', production)
+        development = yaml.safe_load((ROOT / 'environments/dev.yml').read_text())
+        self.assertTrue(development['services']['recovery_verification'])
+        self.assertRegex(development['recovery_verification_image_ref'],
+                         r'^ghcr\.io/spencerrwood/recovery-verification:v\d+\.\d+\.\d+@sha256:[0-9a-f]{64}$')
+        config = json.loads((ROOT / 'environments/recovery-verification-dev.json').read_text())
+        self.assertEqual(config['environment'], 'infrastructure-dev')
+        self.assertFalse(config['isolated_test_mode'])
+        self.assertFalse(config['notifications_enabled'])
+        manifest = json.loads(config['manifest_json'])
+        targets = {target['id'] for target in manifest['targets']}
+        self.assertEqual(targets, set(config['checkouts']))
+        self.assertEqual(targets, set(config['manifest_exports']))
 
     def test_workspace_respects_explicit_selection(self):
         source = (ROOT / 'ansible/roles/dagster/templates/workspace.yaml.j2').read_text()
