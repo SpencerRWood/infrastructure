@@ -34,6 +34,13 @@ class RecoveryRuntimeTests(unittest.TestCase):
         code = yaml.safe_load((ROOT / 'compose/recovery-verification/compose.yml').read_text())['services']['recovery-verification-code']
         self.assertEqual(code['user'], '10001:10001')
         self.assertTrue(code['read_only'])
+        self.assertEqual(code['tmpfs'], [
+            '/tmp',
+            '/home/app/.ansible:rw,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=0700',
+        ])
+        self.assertEqual(code['cap_drop'], ['ALL'])
+        self.assertEqual(code['security_opt'], ['no-new-privileges:true'])
+        self.assertNotIn('ANSIBLE_LOCAL_TEMP', code['environment'])
         self.assertNotIn('ports', code)
         self.assertNotIn('/var/run/docker.sock', str(code))
         self.assertIn('${RECOVERY_CHECKOUTS_PATH:?required}:/opt/recovery/checkouts:ro', code['volumes'])
