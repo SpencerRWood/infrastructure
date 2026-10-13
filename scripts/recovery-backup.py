@@ -299,7 +299,8 @@ def produce(config):
     recipient = config.get('encryption_recipient', '')
     if not re.fullmatch('age1[0-9a-z]{58}', recipient):
         raise BackupFailure('backup_encryption_recipient_required')
-    if not config.get('independent_custody_verified', False):
+    if (config.get('independent_custody_verified') is not True
+            and config.get('temporary_operator_custody_authorized') is not True):
         raise BackupFailure('independent_key_custody_required')
     # Exercise the recipient and age runtime before touching application writers.
     with tempfile.TemporaryDirectory(prefix='backup-encryption-') as temporary:
@@ -428,7 +429,10 @@ def produce(config):
                         'artifacts': artifacts, 'backup_available': True,
                         'integrity_verified': True,
                         'restore_verification': {'result': 'not_run', 'completed_at': None},
-                        'application_recovery_verified': False}
+                        'application_recovery_verified': False,
+                        'independent_custody_verified': config['independent_custody_verified'],
+                        'temporary_operator_custody_authorized': config.get('temporary_operator_custody_authorized', False),
+                        'disaster_recovery_ready': False}
             manifest = stage / 'manifest.json'
             with manifest.open('w') as stream:
                 json.dump(document, stream, indent=2)

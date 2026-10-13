@@ -6,10 +6,21 @@ public recipient) and `independent_custody_verified`. The initial recipient is
 Each environment may use a different recipient, with the same value in its
 `recovery/backup-policy.yml`. SSH recipients and private values are rejected.
 The producer probes the age runtime before pausing writers and refuses to run
-until independent custody is verified. Set the custody flag only after an
+unless independent custody is verified or temporary operator custody is explicitly
+authorized. Set the independent custody flag only after an
 authorized independently recoverable destination passes a decryption check.
 
-Initial custody is pending. A protected local identity was generated with
+The user explicitly accepts temporary operator-held custody on the FileVault-enabled
+MacBook for initial encrypted operations. The existing identity remains mode 0600;
+its recipient and disposable encryption/decryption roundtrip are verified. Set
+`temporary_operator_custody_authorized: true` only for this approved operational
+exception. Keep `independent_custody_verified: false`: manifests record both facts
+and never attest full disaster-recovery readiness. Independent encrypted USB
+custody and recovery testing remain a separately tracked follow-up requirement:
+[OP-543](https://projects.woodhost.cloud/work_packages/543).
+This producer policy does not authorize key transfers or relax restore protections.
+
+Initial independent custody is pending. A protected local identity was generated with
 age-keygen on the operator machine, outside Beelink and Infisical. This local
 file is not yet verified independent recovery custody. No private identity is
 committed, documented, logged, sent to Drive or installed on backup services.

@@ -63,7 +63,9 @@
   vars:
     backups_runtime_configuration: >-
       {{ backups_configuration | combine({
-        'quiesce_authorized': backups_quiesce_authorized | bool
+        'quiesce_authorized': backups_quiesce_authorized | bool,
+        'temporary_operator_custody_authorized':
+          backups_temporary_operator_custody_authorized | bool
       }) }}
   tags: [backups]
 
