@@ -118,11 +118,19 @@ def preflight(root, declaration, config, run_syntax=True, include_external=True)
         })
     # The provider invokes this same consumer interface with --local-only.
     # Artifact checks use only the read-only backup namespace, never live data.
+    backup_provenance = []
     try:
         from recovery_manifest import load_policy, validate
         policy = load_policy(root / 'recovery/backup-policy.yml')
-        validate(policy['pointer'], policy)
+        backup_manifest, _, manifest_sha256 = validate(policy['pointer'], policy)
+        backup_provenance.append({'source_id': 'current_recovery_group', 'kind': 'recovery_backup',
+                                  'artifact_sha256': manifest_sha256, 'timestamp': backup_manifest['completed_at']})
         checks.append({'id': 'current_backup_group', 'state': 'passed', 'reason': 'backup_group_integrity_verified'})
+        custody_verified = backup_manifest.get('independent_custody_verified') is True
+        checks.append({'id': 'independent_key_custody',
+                       'state': 'passed' if custody_verified else 'failed',
+                       'reason': 'independent_key_custody_verified' if custody_verified
+                                 else 'independent_key_custody_unverified'})
     except ImportError:
         checks.append({'id': 'current_backup_group', 'state': 'unavailable',
                        'reason': 'backup_schema_runtime_unavailable'})
@@ -144,7 +152,7 @@ def preflight(root, declaration, config, run_syntax=True, include_external=True)
             "playbooks": [config["playbook"]],
             "inventories": [config["inventory"]],
             "inline_inventory": None,
-            "backups": [],
+            "backups": backup_provenance,
         },
     }
 

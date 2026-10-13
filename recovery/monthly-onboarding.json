@@ -1,0 +1,18 @@
+{
+  "schema_version": "1",
+  "coordinating_story": 500,
+  "capability_story": 498,
+  "status": "blocked_pending_approved_disposable_provider",
+  "provider": null,
+  "vm_identity": null,
+  "proposed_limits": {"concurrent_vms": 1, "vcpus": 4, "memory_gib": 16, "disk_gib": 100, "maximum_lifetime_minutes": 120},
+  "required_authorizations": ["provider_and_vm_identity", "isolated_network_and_inventory", "drill_only_secret_identity", "encrypted_backup_copy_and_key_handling", "resource_destruction_and_cleanup"],
+  "production_access": false,
+  "production_restore": false,
+  "source_writes": false,
+  "required_phases": ["provision", "bootstrap", "dependencies", "secrets", "recovery", "restore", "workloads", "validation", "cleanup"],
+  "required_proofs": ["normal_consumer_bootstrap_in_blank_guest", "no_production_routes_mounts_credentials_or_jobs", "exact_consumer_and_artifact_revisions", "restore_group_manifest_and_artifact_hashes", "workload_health_and_application_queries", "cleanup_of_guest_credentials_state_and_provider_resources"],
+  "rollback": "Abort on the first unsuccessful phase; independently destroy only the owned disposable resource and verify deletion. Retain sanitized evidence; never retry an unreconciled cleanup failure.",
+  "capability_implemented": false,
+  "capability_verified": false
+}

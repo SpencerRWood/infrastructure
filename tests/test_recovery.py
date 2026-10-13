@@ -86,6 +86,23 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual([], result["provenance"]["backups"])
         self.assertEqual(self.git("rev-parse", "HEAD"), self.declaration["targets"][0]["revision"])
 
+    def test_current_preflight_binds_verified_complete_group(self):
+        import recovery_manifest
+        with patch.object(recovery_manifest, 'load_policy', return_value={'pointer': '/read-only/current.json'}), \
+                patch.object(recovery_manifest, 'validate', return_value=({'completed_at': '2026-10-13T13:23:54+00:00'}, self.root, 'a' * 64)), \
+                patch.object(RECOVERY, 'command_check', return_value={'id': 'syntax', 'state': 'passed', 'reason': 'command_passed'}):
+            result = RECOVERY.preflight(self.root, self.declaration, self.config, include_external=False)
+        self.assertEqual(result['provenance']['backups'], [{'source_id': 'current_recovery_group',
+            'kind': 'recovery_backup', 'artifact_sha256': 'a' * 64, 'timestamp': '2026-10-13T13:23:54+00:00'}])
+
+    def test_failed_group_validation_never_attaches_passing_provenance(self):
+        import recovery_manifest
+        with patch.object(recovery_manifest, 'load_policy', return_value={'pointer': '/read-only/current.json'}), \
+                patch.object(recovery_manifest, 'validate', side_effect=recovery_manifest.InvalidBackup('backup_checksum_mismatch')):
+            result = RECOVERY.preflight(self.root, self.declaration, self.config, run_syntax=False, include_external=False)
+        self.assertEqual(result['readiness_state'], 'failed')
+        self.assertEqual(result['provenance']['backups'], [])
+
     def test_wrong_repository_cannot_export_consumer_identity(self):
         self.git("remote", "set-url", "origin", "https://github.com/other/repository.git")
         with self.assertRaises(RECOVERY.InvalidInput):
@@ -164,11 +181,12 @@ class RecoveryTests(unittest.TestCase):
                     patch.object(RECOVERY, "command_check", return_value={
                         "id": "syntax", "state": "passed", "reason": "command_passed",
                     }), patch('recovery_manifest.load_policy', return_value={'pointer': '/unused'}), \
-                    patch('recovery_manifest.validate', side_effect=error):
+                    patch('recovery_manifest.validate', side_effect=error,
+                          return_value=({'completed_at': '2026-10-13T13:23:54+00:00', 'independent_custody_verified': True}, self.root, 'a' * 64)):
                 result = RECOVERY.preflight(self.root, self.declaration, self.config,
                                             include_external=False)
             self.assertEqual(expected, result['readiness_state'])
-            self.assertEqual(reason, result['checks'][-1]['reason'])
+            self.assertEqual(reason, next(c['reason'] for c in result['checks'] if c['id'] == 'current_backup_group'))
             self.assertNotIn('private-path', json.dumps(result))
 
     def test_local_only_scope_does_not_mask_syntax_failures(self):

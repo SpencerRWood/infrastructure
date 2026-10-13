@@ -63,7 +63,7 @@
       {
         "id": "application_images",
         "kind": "artifact",
-        "reference": "repo://environments/dev.yml"
+        "reference": "repo://recovery/artifacts.v1.json"
       },
       {
         "id": "backups_mount",
@@ -73,7 +73,7 @@
       {
         "id": "runtime_secret_names",
         "kind": "secret",
-        "reference": "infisical://Infrastructure%20Dev/dev#environments/dev.yml:infrastructure_infisical_runtime_services"
+        "reference": "infisical://Infrastructure%20Dev/dev#recovery/runtime-secrets.v1.json:services"
       },
       {
         "id": "ci_ghcr",

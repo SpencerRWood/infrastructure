@@ -38,6 +38,23 @@ class ConsumerSelectionTests(unittest.TestCase):
         self.assertEqual(result['state'], 'passed')
         self.assertEqual(result['consumers'][0]['revision'], 'a' * 40)
 
+    def test_preparation_preserves_controls_and_updates_only_reviewed_identity(self):
+        self.config['cadence'] = {'daily': '0 6 * * *'}
+        self.config['notifications_enabled'] = True
+        self.path.write_text(json.dumps(self.config))
+        updated = self.target | {'revision': 'b' * 40}
+        with patch.object(SELECTION.subprocess, 'run', return_value=self.process(updated)):
+            result = SELECTION.verify(self.path, self.root, prepare=True)
+        self.assertEqual(result['configuration']['cadence'], self.config['cadence'])
+        self.assertTrue(result['configuration']['notifications_enabled'])
+        self.assertEqual(json.loads(result['configuration']['manifest_json'])['targets'], [updated])
+        self.assertEqual(json.loads(self.path.read_text()), self.config)
+
+    def test_preparation_rejects_different_consumer(self):
+        with patch.object(SELECTION.subprocess, 'run', return_value=self.process(self.target | {'id': 'other'})):
+            with self.assertRaisesRegex(ValueError, 'identity_selection_mismatch'):
+                SELECTION.verify(self.path, self.root, prepare=True)
+
     def test_old_revision_and_old_backup_pointer_are_rejected(self):
         for changed in ({'revision': 'b' * 40}, {'backup_sources': [{'id': 'migration_snapshot', 'reference': 'path:///old'}]}):
             with self.subTest(changed=changed), patch.object(SELECTION.subprocess, 'run', return_value=self.process(self.target | changed)):
