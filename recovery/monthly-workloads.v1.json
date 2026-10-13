@@ -1,0 +1,10 @@
+{
+  "schema_version": "1",
+  "capability_verified": false,
+  "required_services": ["dagster-webserver", "dagster-user-code", "openproject-reports", "openwebui", "keycloak", "infisical", "portfolio-website", "rag-service", "rag-service-code", "embedding-service", "events-broker", "events-notify", "recovery-verification", "automerge-repair", "overleaf", "clsi", "clsi-gateway"],
+  "disabled_production_workers": ["dagster-daemon", "dagster-codex-usage"],
+  "credential_scope": "drill-only",
+  "network": "guest-internal-only",
+  "workload_recipes": null,
+  "recipe_dependency": "Approved guest image architecture, independent local image exports and drill-only credentials are required before exact runtime recipes can be bound."
+}

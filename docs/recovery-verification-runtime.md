@@ -69,7 +69,8 @@ prevent full operational acceptance and must be resolved before enabling cadence
 Runtime inputs are resolved only from `/recovery-verification` by the existing
 Infisical resolver into a protected runtime env file. Prepare scoped
 `DAGSTER_POSTGRES_PASSWORD`, metadata-only `RECOVERY_INFISICAL_URL`,
-`RECOVERY_INFISICAL_PROJECTS`, `RECOVERY_INFISICAL_TOKEN`, and, only after live alert
+`RECOVERY_INFISICAL_PROJECTS`, `RECOVERY_INFISICAL_CLIENT_ID` and
+`RECOVERY_INFISICAL_CLIENT_SECRET`, and, only after live alert
 approval, source-bound `RECOVERY_EVENTS_URL`/`RECOVERY_EVENTS_TOKEN`. The selected
 role registers this service with the existing secret-refresh contract after the
 other components; disabled selection does not alter that runtime registry.

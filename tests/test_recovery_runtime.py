@@ -101,7 +101,8 @@ class RecoveryRuntimeTests(unittest.TestCase):
                 recovery_verification_notifications_enabled=enabled,
             ))
             self.assertEqual(keys, ['DAGSTER_POSTGRES_PASSWORD', 'RECOVERY_INFISICAL_URL',
-                                    'RECOVERY_INFISICAL_PROJECTS', 'RECOVERY_INFISICAL_TOKEN',
+                                    'RECOVERY_INFISICAL_PROJECTS', 'RECOVERY_INFISICAL_CLIENT_ID',
+                                    'RECOVERY_INFISICAL_CLIENT_SECRET',
                                     'RECOVERY_GHCR_USERNAME', 'RECOVERY_GHCR_TOKEN'] + (
                 ['RECOVERY_EVENTS_URL', 'RECOVERY_EVENTS_TOKEN'] if enabled else []
             ))

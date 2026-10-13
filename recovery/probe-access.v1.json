@@ -11,6 +11,13 @@
     "name": "recovery-verification-metadata",
     "organization_role": "no-access",
     "values_access": false,
+    "authentication": "universal-auth",
+    "permission_action": "describeSecret",
+    "access_token_ttl_seconds": 900,
+    "access_token_max_ttl_seconds": 900,
+    "client_secret_ttl_days": 30,
+    "rotate_before_days": 21,
+    "revocation": "Revoke the client secret and exact project memberships; existing access tokens expire within 900 seconds.",
     "scopes": [
       {"project": "Infrastructure Dev", "environment": "dev", "catalog": "recovery/runtime-secrets.v1.json"},
       {"project": "Homelab", "environment": "homelab", "catalog": "homelab/ansible/inventory/group_vars/homelab.yml:infisical_runtime_services"},
@@ -18,7 +25,7 @@
     ]
   },
   "registry_identity": {"registry": "ghcr.io", "permission": "read:packages", "write_access": false},
-  "required_runtime_names": ["RECOVERY_INFISICAL_URL", "RECOVERY_INFISICAL_PROJECTS", "RECOVERY_INFISICAL_TOKEN", "RECOVERY_GHCR_USERNAME", "RECOVERY_GHCR_TOKEN"],
+  "required_runtime_names": ["RECOVERY_INFISICAL_URL", "RECOVERY_INFISICAL_PROJECTS", "RECOVERY_INFISICAL_CLIENT_ID", "RECOVERY_INFISICAL_CLIENT_SECRET", "RECOVERY_GHCR_USERNAME", "RECOVERY_GHCR_TOKEN"],
   "privileged_configuration_approved": false,
   "issued_credentials_verified": false
 }
