@@ -38,7 +38,7 @@ class BackupTests(unittest.TestCase):
     def test_resumed_writer_still_fails_at_health_deadline(self):
         state = json.dumps({'Running': True, 'Health': {'Status': 'unhealthy'}})
         with patch.object(BACKUP, 'command', return_value=state), \
-                patch.object(BACKUP.time, 'monotonic', side_effect=[0, 91]):
+                patch.object(BACKUP.time, 'monotonic', side_effect=[0, 181]):
             with self.assertRaisesRegex(BACKUP.BackupFailure, 'writer_resume_health_failed'):
                 BACKUP.writer_health('application')
 

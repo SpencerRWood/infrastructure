@@ -278,14 +278,14 @@ def encrypt_artifact(path, recipient):
 
 
 def writer_health(container):
-    deadline = time.monotonic() + 90
+    deadline = time.monotonic() + 180
     while True:
         state = json.loads(command(['docker', 'inspect', '--format', '{{json .State}}', container]))
         health = state.get('Health', {}).get('Status', 'healthy')
         if state['Running'] and health == 'healthy':
             return
         if not state['Running'] or time.monotonic() >= deadline:
-            raise BackupFailure('writer_resume_health_failed')
+            raise BackupFailure('writer_resume_health_failed:' + container)
         time.sleep(2)
 
 
