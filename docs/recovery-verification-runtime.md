@@ -1,5 +1,35 @@
 # Recovery Verification code location (OP-500)
 
+## Reviewed consumer selection
+
+The checked-in orchestration manifest selects infrastructure revision
+`68bee36d8a21b9e103cc9d01605e02b2d307253b` and homelab revision
+`54d2ed7db82d8296efee2e88a652f9953f479f13`. Both declare the consumer-owned
+`current_recovery_group` pointer under the approved recovery NFS namespace.
+The producer atomically advances that pointer; no backup group ID is selected
+in deployment configuration. Consumer preflight verifies the group inventory,
+source timestamps, ciphertext checksums, age recipient and off-source copies.
+
+Before updating active orchestration or resolving secrets, the role runs
+`scripts/verify-recovery-consumers.py` as verifier UID 10001. Its reviewed manifest
+must exactly match each clean checkout's export, including repository revision,
+backup sources, dependency declarations and real-backup weekly arguments.
+An old checkout or old manifest fails deployment instead of evaluating migration
+fixtures. The verifier never fetches, resets or changes these checkouts.
+
+Checkout advancement is a separate attended deployment operation. Retain the
+previous clones and configuration for rollback, inspect active Dagster/backup
+operations and acquire the existing recovery operation lock before swapping
+reviewed clean clones. Preserve notification activation/cutoff, policy, cadence,
+history and sensor state from the current reviewed runtime configuration. The
+change sensor can select weekly verification when consumer recovery code changes;
+coordinate its cursor with the approved advancement rather than allowing an
+unreviewed restore run. Do not fabricate history entries from OP-542 evidence.
+
+The source selection check is a deployment gate, not operational readiness.
+OP-543 independent custody and unsupported isolated bootstrap remain unresolved;
+weekly fixture evidence does not attest to current production backup restoration.
+
 The optional `recovery_verification` role deploys an independently versioned,
 digest-qualified `ghcr.io/spencerrwood/recovery-verification:vX.Y.Z@sha256:...`
 release through the existing explicitly authorized infrastructure deployment
