@@ -92,6 +92,12 @@ receive one Caddy route fragment only when they migrate. Development URLs use
 Dagster's canonical dev runtime is `compose/dagster/` (webserver, daemon, the
 existing gRPC user-code server, the Codex usage code server, and the pinned
 OpenProject Reports code server).
+The shared runtime image is built locally from `compose/dagster/Dockerfile` as
+`local/infrastructure-dagster`; `dagster_version` pins Python packages installed
+during that build, not a published `dagster/dagster` Docker image. Renovate does
+not look up this local image. Dagster package upgrades require a coordinated
+review of the image tag, core and library versions, and repository dependency pins.
+Renovate continues tracking the other published infrastructure images.
 The report code server reads `OPENPROJECT_BASE_URL`, `OPENPROJECT_API_TOKEN`,
 `GOOGLE_DRIVE_CREDENTIALS_JSON`, and `GOOGLE_DRIVE_FOLDER_ID` from the protected
 Infisical-resolved Dagster environment file. Dagster loads it as the

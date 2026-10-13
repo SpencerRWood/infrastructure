@@ -84,13 +84,6 @@
       "matchStrings": ["openwebui_image_tag: (?<currentValue>[^\\s]+)"],
       "depNameTemplate": "ghcr.io/open-webui/open-webui",
       "datasourceTemplate": "docker"
-    },
-    {
-      "customType": "regex",
-      "fileMatch": ["^ansible/roles/dagster/defaults/main\\.yml$"],
-      "matchStrings": ["dagster_version: (?<currentValue>[^\\s]+)"],
-      "depNameTemplate": "dagster/dagster",
-      "datasourceTemplate": "docker"
     }
   ]
 }
