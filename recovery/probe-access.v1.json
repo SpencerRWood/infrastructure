@@ -1,0 +1,24 @@
+{
+  "schema_version": "1",
+  "api_url": "https://dev-infisical.woodhost.cloud",
+  "project_mapping": {
+    "Infrastructure Dev": "7ea10433-2eeb-4c57-95a9-b793dd40c7a4",
+    "Homelab": "0fe0b621-17b3-44a1-9c61-43df3a175580",
+    "CI": "33c5aed5-165f-4ef3-845a-2f9d0f9c06d5"
+  },
+  "runtime_folder": {"project": "Infrastructure Dev", "environment": "dev", "path": "/recovery-verification"},
+  "metadata_identity": {
+    "name": "recovery-verification-metadata",
+    "organization_role": "no-access",
+    "values_access": false,
+    "scopes": [
+      {"project": "Infrastructure Dev", "environment": "dev", "catalog": "recovery/runtime-secrets.v1.json"},
+      {"project": "Homelab", "environment": "homelab", "catalog": "homelab/ansible/inventory/group_vars/homelab.yml:infisical_runtime_services"},
+      {"project": "CI", "environment": "ci", "path": "/github", "names": ["WEBSITE_PORTFOLIO_GHCR_TOKEN"]}
+    ]
+  },
+  "registry_identity": {"registry": "ghcr.io", "permission": "read:packages", "write_access": false},
+  "required_runtime_names": ["RECOVERY_INFISICAL_URL", "RECOVERY_INFISICAL_PROJECTS", "RECOVERY_INFISICAL_TOKEN", "RECOVERY_GHCR_USERNAME", "RECOVERY_GHCR_TOKEN"],
+  "privileged_configuration_approved": false,
+  "issued_credentials_verified": false
+}

@@ -68,7 +68,7 @@ def verify(policy_file, deadline_seconds=240):
         raise RestoreFailure('restore_execution_interrupted')
     try:
         policy = load_policy(policy_file)
-        manifest, group, _ = validate(policy['pointer'], policy)
+        manifest, group, manifest_sha256 = validate(policy['pointer'], policy)
         selected = next((item for item in manifest['artifacts']
                          if item['source'] == policy['restore_database'] and item['format'] in {'postgres-custom', 'postgres-custom-age'}), None)
         if not selected:
@@ -76,9 +76,9 @@ def verify(policy_file, deadline_seconds=240):
         database = policy['restore_database']
         if not re.fullmatch('[a-z][a-z0-9_]{0,62}', database) or database == 'postgres':
             raise RestoreFailure('isolated_database_name_invalid')
-        checksum = selected['sha256']
+        checksum = manifest_sha256
         backups.append({'source_id': 'current_recovery_group', 'kind': 'recovery_backup',
-                        'artifact_sha256': checksum, 'timestamp': selected['completed_at']})
+                        'artifact_sha256': checksum, 'timestamp': manifest['completed_at']})
         if os.geteuid() == 0:
             raise RestoreFailure('restore_requires_unprivileged_user', 'unavailable')
         for tool in ('postgres', 'initdb', 'pg_ctl', 'psql', 'pg_restore', 'createdb', 'pg_amcheck'):
@@ -120,7 +120,9 @@ def verify(policy_file, deadline_seconds=240):
         run(['psql', '-X', *connection, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-f', str(globals_file)], workspace)
         # Ownership and ACLs are restored, unlike a no-owner/no-acl fixture test.
         run(['pg_restore', *connection, '--create', '--exit-on-error', '--no-tablespaces', '--dbname=postgres', str(dump)], workspace, 120)
-        observation('restore', 'passed', 'representative_real_database_restored', checksum)
+        observation('restore', 'passed', 'representative_real_database_restored', selected['sha256'])
+        checks.append({'id': 'backup_group_manifest', 'phase': 'restore', 'state': 'passed',
+                       'reason': 'restored_group_manifest_verified', 'artifact_sha256': manifest_sha256})
         def query(sql):
             return run(['psql', '-X', *connection, '-d', database, '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql], workspace)
         if query("SELECT count(*)>0 FROM pg_class WHERE relkind='r' AND relnamespace IN (SELECT oid FROM pg_namespace WHERE nspname NOT IN ('pg_catalog','information_schema'));") != 't':

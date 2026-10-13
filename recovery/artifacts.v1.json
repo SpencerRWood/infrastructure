@@ -1,0 +1,22 @@
+{
+  "schema_version": "1",
+  "references": [
+    "build://compose/dagster/Dockerfile",
+    "build://compose/overleaf/Dockerfile",
+    "oci://caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
+    "oci://ghcr.io/open-webui/open-webui@sha256:6a773e5c3a246b65cbe74ce942b294292c0e5f81c138f703d111bc162f7d7c3d",
+    "oci://ghcr.io/spencerrwood/automerge-repair:v0.2.1@sha256:baa602f0b4dc72d26a6152f9777d536b12e96cf1b292786b7ad22888844c925e",
+    "oci://ghcr.io/spencerrwood/events-service:v0.6.0@sha256:f4745cbb62a6d33b4195ecf2b3f3a14021841bce424c1cd133aef14f75160b51",
+    "oci://ghcr.io/spencerrwood/openproject-reports:v0.2.1@sha256:4589ccb8e74e56e59c3179f01e2bcd5ecf3b85124aff714135fb36114070de10",
+    "oci://ghcr.io/spencerrwood/portfolio-website:v0.11.1@sha256:6751630cb2391fb881116debd7240f50fb584e95e1921ca29298cc2e91140706",
+    "oci://ghcr.io/spencerrwood/rag-embedding:v0.7.2@sha256:4147219fecc76103994ec7425444a906b9155e88de48a65136b63d1f881c82a4",
+    "oci://ghcr.io/spencerrwood/rag-service:v0.7.2@sha256:c5048af0308c3470deb48952519d753194c4bd489794f2c2ee6acec5ea845d3d",
+    "oci://ghcr.io/spencerrwood/recovery-verification:v0.7.0@sha256:4e5c2ca87507e0e50f02fce3466222588eefb0539013b50d220f4f6cf8a09ab8",
+    "oci://infisical/infisical@sha256:35922d4d088bffba484526720f16b5c540ca4fb4696d239f16b65333e07e6732",
+    "oci://mongo@sha256:4b58ebcb1dc7a7b4e84cd8ce9098d48764ae4478876898ff9551acf2ac4a6a6d",
+    "oci://pgvector/pgvector@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a",
+    "oci://quay.io/keycloak/keycloak@sha256:b0f60d489d51c5d113390bdf5461d4c06e6051be026c05549f2e1e10ec352bcc",
+    "oci://redis@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0",
+    "oci://redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499"
+  ]
+}

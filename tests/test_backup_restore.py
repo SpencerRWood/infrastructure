@@ -19,7 +19,7 @@ class RestoreTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         (self.root / 'database.dump').write_bytes(b'PGDMP-fixture')
         (self.root / 'globals.sql').write_bytes(b'-- globals')
-        self.manifest = {'artifacts': [
+        self.manifest = {'completed_at': '2026-10-12T20:00:00+00:00', 'artifacts': [
             {'source': 'application', 'artifact': 'database.dump', 'format': 'postgres-custom',
              'sha256': backup_restore.digest(self.root / 'database.dump'), 'completed_at': '2026-10-12T20:00:00+00:00',
              'recovery_prerequisites': {'roles_artifact': 'globals.sql', 'extensions': ['plpgsql'],
@@ -112,6 +112,26 @@ class RestoreTests(unittest.TestCase):
             result = backup_restore.verify(self.policy)
         self.assertEqual(result['readiness_state'], 'unavailable')
         self.assertEqual(result['checks'][0]['reason'], 'required_database_locale_unavailable')
+
+    def test_success_binds_group_even_when_database_payload_is_unchanged(self):
+        def command(argv, workspace, timeout=60):
+            if 'pg_available_extensions' in ' '.join(argv):
+                return 'plpgsql'
+            if argv == ['locale', '-a']:
+                return 'C\nPOSIX'
+            return 't' if argv[0] == 'psql' else ''
+        results = []
+        for group_digest in ('a' * 64, 'b' * 64):
+            with patch.object(backup_restore, 'validate', return_value=(self.manifest, self.root, group_digest)), \
+                    patch.object(backup_restore.os, 'geteuid', return_value=10001), \
+                    patch.object(backup_restore.shutil, 'which', return_value='/fixture/tool'), \
+                    patch.object(backup_restore, 'run', side_effect=command):
+                results.append(backup_restore.verify(self.policy))
+        self.assertTrue(all(r['readiness_state'] == 'passed' for r in results))
+        self.assertNotEqual(results[0]['provenance']['backups'], results[1]['provenance']['backups'])
+        for result, expected in zip(results, ('a' * 64, 'b' * 64)):
+            self.assertEqual(result['provenance']['backups'][0]['artifact_sha256'], expected)
+            self.assertTrue(any(c.get('artifact_sha256') == expected and c['phase'] == 'restore' for c in result['checks']))
 
     def test_missing_decryption_identity_never_launches_postgres_and_cleans_copy(self):
         entry = self.manifest['artifacts'][0]
