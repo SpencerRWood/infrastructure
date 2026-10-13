@@ -57,7 +57,8 @@ def check_destination(config):
         raise BackupFailure('backup_destination_identity_mismatch')
     root = Path(destination['root'])
     if (not root.is_absolute() or '..' in root.parts or mount.is_symlink()
-            or root == mount or not root.is_relative_to(mount)):
+            or (root == mount and (root == Path('/') or destination['fstype'] not in {'nfs', 'nfs4'}))
+            or not root.is_relative_to(mount)):
         raise BackupFailure('backup_destination_path_invalid')
     # Reject symlink redirection before creating anything on the destination.
     for parent in (root, *root.parents):
@@ -145,6 +146,7 @@ def backup_files(config, stage, add):
         prerequisites = {'source_paths': [str(value) for value in paths],
                          'consistency': 'writers_quiesced',
                          'sqlite_databases_integrity_verified': sqlite_count,
+                         'historical_sqlite_members': component.get('historical_sqlite_members', []),
                          'excluded_disposable_state': component.get('exclude', []),
                          'sqlite_engine': component.get('sqlite_engine', 'python-sqlite3')}
         add(path, component['id'], 'tar-gzip', prerequisites, started)
@@ -183,6 +185,9 @@ def backup_files(config, stage, add):
 
 def validate_file_archive(path, component):
     """Validate archive bytes and SQLite copies, never connect to source files."""
+    historical = set(component.get('historical_sqlite_members', []))
+    if historical & set(component.get('required_sqlite_members', [])):
+        raise BackupFailure('historical_sqlite_member_is_required')
     databases = []
     database_members = set()
     members = 0
@@ -199,13 +204,14 @@ def validate_file_archive(path, component):
                     suffix = next((value for value in ('-wal', '-shm') if member.name.endswith(value)), '')
                     name = member.name[:-len(suffix)] if suffix else member.name
                     target = workspace / (hashlib.sha256(name.encode()).hexdigest() + '.db' + suffix)
-                    if database or suffix:
+                    if database:
+                        database_members.add(member.name)
+                    if (database or suffix) and name not in historical:
                         with target.open('wb') as copy:
                             copy.write(header)
                             shutil.copyfileobj(stream, copy, 1024 * 1024)
                         if database:
                             databases.append(target)
-                            database_members.add(member.name)
                     else:
                         while stream.read(1024 * 1024):
                             pass
@@ -278,7 +284,7 @@ def writer_health(container):
         health = state.get('Health', {}).get('Status', 'healthy')
         if state['Running'] and health == 'healthy':
             return
-        if not state['Running'] or health == 'unhealthy' or time.monotonic() >= deadline:
+        if not state['Running'] or time.monotonic() >= deadline:
             raise BackupFailure('writer_resume_health_failed')
         time.sleep(2)
 
@@ -312,8 +318,13 @@ def produce(config):
         raise BackupFailure('application_consistency_contract_missing')
     if writers and not config.get('quiesce_authorized', False):
         raise BackupFailure('service_quiescence_approval_required')
-    root.mkdir(parents=True, exist_ok=True, mode=0o700)
     reader_gid = config.get('reader_gid')
+    # Root-squashed NFS preserves nonzero supplementary groups. Limit this
+    # permission to the producer process, so its required chgrp is authorized
+    # without changing NAS accounts or granting the verifier owner access.
+    if reader_gid is not None and os.geteuid() == 0:
+        os.setgroups(sorted(set(os.getgroups()) | {reader_gid}))
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
     if reader_gid is not None:
         os.chown(root, -1, reader_gid)
         root.chmod(0o750)
@@ -405,7 +416,14 @@ def produce(config):
                     command(['docker', 'stop', '--time', '60', container], timeout=90)
             recovery_point = timestamp()
             databases = backup_postgres(config, stage, add)
-            backup_files(config, stage, add)
+            for kind in ('files', 'mongo', 'redis'):
+                for component in config.get(kind, []):
+                    selected = config | {'files': [], 'mongo': [], 'redis': [], kind: [component]}
+                    try:
+                        backup_files(selected, stage, add)
+                    except (BackupFailure, subprocess.TimeoutExpired, OSError) as error:
+                        reason = str(error) if isinstance(error, BackupFailure) else type(error).__name__
+                        raise BackupFailure('application_component_failed:' + component['id'] + ':' + reason) from error
             # Restart writers before marking production complete. A restart failure
             # leaves the last published manifest untouched and is a backup failure.
             for container in reversed(stopped.copy()):
@@ -469,6 +487,7 @@ def produce(config):
                 os.close(directory)
             return {'status': 'completed', 'consumer': config['consumer'], 'group': group}
         finally:
+            original_failure = sys.exc_info()[1]
             signal.alarm(0)
             termination_handler = signal.signal(signal.SIGTERM, signal.SIG_IGN)
             restart_failed = False
@@ -484,7 +503,8 @@ def produce(config):
                 pointer.unlink()
             signal.signal(signal.SIGTERM, termination_handler)
             if restart_failed:
-                raise BackupFailure('backup_failed_and_writer_restart_failed')
+                reason = str(original_failure) if isinstance(original_failure, BackupFailure) else type(original_failure).__name__
+                raise BackupFailure('backup_failed_and_writer_restart_failed:' + reason)
 
 
 def main():

@@ -10,7 +10,9 @@
         '^ghcr[.]io/spencerrwood/recovery-verification:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
         )
       - recovery_verification_config_source | length > 0
-      - backups_configuration.independent_custody_verified | bool
+      - >-
+        (backups_configuration.independent_custody_verified | bool) or
+        (backups_temporary_operator_custody_authorized | default(false) | bool)
     fail_msg: Recovery Verification needs a published immutable release and reviewed runtime configuration.
   tags: [recovery_verification]
 
@@ -37,6 +39,15 @@
     mode: '0644'
   tags: [recovery_verification]
 
+- name: Install the runtime resolver without recovery identity provisioning
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../scripts/resolve-infisical-env.py"
+    dest: /usr/local/sbin/resolve-infrastructure-infisical-env
+    owner: root
+    group: root
+    mode: '0700'
+  tags: [recovery_verification]
+
 - name: Resolve scoped recovery runtime secrets through the existing resolver
   ansible.builtin.command:
     argv:
@@ -54,20 +65,32 @@
   when: not ansible_check_mode
   tags: [recovery_verification]
 
-- name: Resolve only the verifier backup identity into a protected file
+- name: Inspect the operator-provisioned verifier-only backup identity
+  ansible.builtin.stat:
+    path: "{{ recovery_verification_backup_identity_file }}"
+  register: recovery_verification_identity
+  tags: [recovery_verification]
+
+- name: Require protected verifier-only identity access
+  ansible.builtin.assert:
+    that:
+      - recovery_verification_identity.stat.isreg | default(false)
+      - recovery_verification_identity.stat.uid == 10001
+      - recovery_verification_identity.stat.gid == 10001
+      - recovery_verification_identity.stat.mode == '0600'
+    fail_msg: Provision the approved identity through the operator's protected SSH channel before deployment.
+  tags: [recovery_verification]
+
+- name: Verify the provisioned identity matches the preserved encryption recipient
   ansible.builtin.command:
     argv:
-      - /usr/local/sbin/resolve-infrastructure-infisical-env
-      - --environment
-      - dev
-      - --path
-      - /recovery-verification
-      - --age-identity-output
+      - age-keygen
+      - -y
       - "{{ recovery_verification_backup_identity_file }}"
-      - --recipient
-      - "{{ backups_configuration.encryption_recipient }}"
-      - --require
-      - BACKUP_AGE_IDENTITY
+  register: recovery_verification_recipient
+  failed_when: >-
+    recovery_verification_recipient.rc != 0 or
+    recovery_verification_recipient.stdout != backups_configuration.encryption_recipient
   changed_when: false
   no_log: true
   when: not ansible_check_mode

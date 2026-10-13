@@ -4,7 +4,7 @@ The optional `recovery_verification` role deploys an independently versioned,
 digest-qualified `ghcr.io/spencerrwood/recovery-verification:vX.Y.Z@sha256:...`
 release through the existing explicitly authorized infrastructure deployment
 path. It does not build or publish the provider. The dev manifest selects the
-published v0.6.0 digest and `environments/recovery-verification-dev.json`;
+published v0.6.1 digest and `environments/recovery-verification-dev.json`;
 production remains disabled. Deployment does not start schedules or the change
 sensor, which remain stopped by default. Live notifications and isolated monthly
 test mode are disabled in this configuration.
@@ -15,7 +15,8 @@ the reviewed non-secret provider orchestration configuration. No placeholder
 image digest is committed. Existing Dagster/Postgres must already be selected;
 the role is dev-control-plane scoped, matching existing code-location conventions.
 Production selection is a separate infrastructure decision, not implied by this
-component. Keep provider Story integration on release/v0.6.0 and consumers on main.
+component. Provider releases follow their approved release branch; consumers
+retain their existing trunk targets.
 
 Before deploying this selection, verify that the existing Infisical resolver can
 read `DAGSTER_POSTGRES_PASSWORD` from `Infrastructure Dev`, environment `dev`,
@@ -42,6 +43,15 @@ Infisical resolver into a protected runtime env file. Prepare scoped
 approval, source-bound `RECOVERY_EVENTS_URL`/`RECOVERY_EVENTS_TOKEN`. The selected
 role registers this service with the existing secret-refresh contract after the
 other components; disabled selection does not alter that runtime registry.
+The backup decryption identity is provisioned separately through the approved
+operator SSH channel, owned by UID/GID 10001 with mode 0600. It is mounted read
+only into the verifier and must derive the configured public recipient. Recovery
+key custody does not use Infisical or Bitwarden. Explicit temporary operator
+custody permits initial verification while independent custody and disaster
+recovery readiness remain false. The verifier-only
+`ansible/playbooks/dev-recovery-verification.yml` preserves existing orchestration
+settings when supplied the reviewed current configuration.
+
 Never put token values in Git, Dagster run config or evidence. The role uses the
 existing runner registry credential and changes no publication/deployment trigger.
 

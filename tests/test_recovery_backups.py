@@ -27,6 +27,21 @@ MANIFEST = load('manifest', 'recovery_manifest.py')
 
 
 class BackupTests(unittest.TestCase):
+    def test_resumed_writer_waits_for_transient_unhealthy_state(self):
+        states = [json.dumps({'Running': True, 'Health': {'Status': 'unhealthy'}}),
+                  json.dumps({'Running': True, 'Health': {'Status': 'healthy'}})]
+        with patch.object(BACKUP, 'command', side_effect=states), \
+                patch.object(BACKUP.time, 'sleep') as sleep:
+            BACKUP.writer_health('application')
+        sleep.assert_called_once_with(2)
+
+    def test_resumed_writer_still_fails_at_health_deadline(self):
+        state = json.dumps({'Running': True, 'Health': {'Status': 'unhealthy'}})
+        with patch.object(BACKUP, 'command', return_value=state), \
+                patch.object(BACKUP.time, 'monotonic', side_effect=[0, 91]):
+            with self.assertRaisesRegex(BACKUP.BackupFailure, 'writer_resume_health_failed'):
+                BACKUP.writer_health('application')
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -204,6 +219,20 @@ class BackupTests(unittest.TestCase):
         self.assertTrue(all((path.parent / row['artifact']).stat().st_mode & 0o777 == 0o640
                             for row in manifest['artifacts']))
 
+    def test_dedicated_destination_mount_root_requires_exact_identity(self):
+        self.config['destination']['root'] = str(self.mount)
+        with patch.object(BACKUP, 'command', side_effect=self.fake_command):
+            self.assertEqual(BACKUP.check_destination(self.config), self.mount)
+        unexpected = json.dumps({'filesystems': [{'target': str(self.mount.parent),
+                                                'source': 'wrong-nas:/old-share', 'fstype': 'nfs'}]})
+        with patch.object(BACKUP, 'command', return_value=unexpected):
+            with self.assertRaisesRegex(BACKUP.BackupFailure, 'backup_destination_identity_mismatch'):
+                BACKUP.check_destination(self.config)
+        self.config['destination'].update(root='/', mount='/')
+        with patch.object(BACKUP, 'command', side_effect=self.fake_command):
+            with self.assertRaisesRegex(BACKUP.BackupFailure, 'backup_destination_path_invalid'):
+                BACKUP.check_destination(self.config)
+
     def test_missing_key_recipient_never_pauses_writers(self):
         self.config.pop('encryption_recipient')
         self.config.update(files=[{'id': 'keys', 'sensitive': True, 'paths': ['/protected/keys']}],
@@ -291,6 +320,17 @@ class BackupTests(unittest.TestCase):
             stream.add(database, arcname='application.db')
         with self.assertRaises(BACKUP.BackupFailure):
             BACKUP.validate_file_archive(archive, {})
+        before = archive.read_bytes()
+        self.assertEqual(BACKUP.validate_file_archive(
+            archive, {'historical_sqlite_members': ['application.db']}), 0)
+        self.assertEqual(archive.read_bytes(), before)
+        with self.assertRaisesRegex(BACKUP.BackupFailure, 'historical_sqlite_member_is_required'):
+            BACKUP.validate_file_archive(archive, {
+                'historical_sqlite_members': ['application.db'],
+                'required_sqlite_members': ['application.db'],
+            })
+        with self.assertRaises(BACKUP.BackupFailure):
+            BACKUP.validate_file_archive(archive, {'historical_sqlite_members': ['other.db']})
 
     def test_native_sqlite_uses_only_disposable_copy_and_removes_resources(self):
         component = {'sqlite_container': 'active-plex'}

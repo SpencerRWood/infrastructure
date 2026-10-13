@@ -1,0 +1,12 @@
+---
+- name: Deploy only the approved development recovery verifier
+  hosts: infrastructure_hosts
+  become: true
+  gather_facts: false
+  vars:
+    infrastructure_environment: dev
+  vars_files:
+    - "{{ playbook_dir }}/../roles/host/defaults/main.yml"
+    - "{{ playbook_dir }}/../../environments/dev.yml"
+  roles:
+    - role: recovery_verification
