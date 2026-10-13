@@ -33,7 +33,7 @@ dagster_restore_backup_path: /srv/infrastructure/backups/dagster/dagster-final.d
 keycloak_hostname: dev-keycloak.woodhost.cloud
 # The complete image reference is intentionally kept on one line for auditing.
 # yamllint disable rule:line-length
-events_service_image_ref: ghcr.io/spencerrwood/events-service:v0.5.3@sha256:7b7713e31a79a3cc4b9e616e4e0251942039882611fe421904bb30e8a34688af
+events_service_image_ref: ghcr.io/spencerrwood/events-service:v0.6.0@sha256:f4745cbb62a6d33b4195ecf2b3f3a14021841bce424c1cd133aef14f75160b51
 portfolio_website_image_ref: ghcr.io/spencerrwood/portfolio-website:v0.11.1@sha256:6751630cb2391fb881116debd7240f50fb584e95e1921ca29298cc2e91140706
 openproject_reports_image_ref: ghcr.io/spencerrwood/openproject-reports:v0.2.1@sha256:4589ccb8e74e56e59c3179f01e2bcd5ecf3b85124aff714135fb36114070de10
 rag_service_image_ref: ghcr.io/spencerrwood/rag-service:v0.7.2@sha256:c5048af0308c3470deb48952519d753194c4bd489794f2c2ee6acec5ea845d3d
@@ -44,7 +44,7 @@ automerge_repair_image_ref: ghcr.io/spencerrwood/automerge-repair:v0.2.1@sha256:
 # Independently published provider; rollout requires the scoped runtime secret
 # and clean consumer clones described in docs/recovery-verification-runtime.md.
 # yamllint disable rule:line-length
-recovery_verification_image_ref: ghcr.io/spencerrwood/recovery-verification:v0.6.2@sha256:f8ce1d0f8d2c7f1d811b5ca22cf901f788a0978daa038f116b92df5a6706cf64
+recovery_verification_image_ref: ghcr.io/spencerrwood/recovery-verification:v0.7.0@sha256:4e5c2ca87507e0e50f02fce3466222588eefb0539013b50d220f4f6cf8a09ab8
 recovery_verification_config_source: "{{ playbook_dir }}/../../environments/recovery-verification-dev.json"
 # yamllint enable rule:line-length
 recovery_verification_notifications_enabled: true
