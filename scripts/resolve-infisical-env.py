@@ -31,16 +31,10 @@ def resolve(args):
     if not args.require or len(set(args.require)) != len(args.require) or any(not re.fullmatch(r'[A-Z][A-Z0-9_]*', k) for k in args.require):
         raise ValueError('invalid required keys')
     output = pathlib.Path(args.output) if args.output else None
-    age_output = pathlib.Path(args.age_identity_output) if args.age_identity_output else None
-    if age_output is not None:
-        if (args.path != '/recovery-verification' or args.require != ['BACKUP_AGE_IDENTITY']
-                or age_output != RUNTIME_ROOT / 'recovery-backup.agekey'
-                or not re.fullmatch(r'age1[0-9a-z]{58}', args.recipient or '')):
-            raise ValueError('invalid age identity request')
     if output is not None:
         if output.parent != RUNTIME_ROOT or output.suffix != '.env' or not re.fullmatch(r'[a-z][a-z0-9-]*\.env', output.name):
             raise ValueError('invalid output path')
-    elif age_output is None and args.require != [args.stdout_key]:
+    elif args.require != [args.stdout_key]:
         raise ValueError('stdout resolution requires exactly the selected key')
     identity_path = IDENTITY.with_name('infisical-' + args.environment + '.json')
     protected(identity_path)
@@ -60,8 +54,8 @@ def resolve(args):
         raise ValueError('authentication failed')
     env=os.environ.copy()
     env.update(INFISICAL_TOKEN=token,INFISICAL_API_URL=api_url,INFISICAL_DOMAIN=api_url,INFISICAL_DISABLE_UPDATE_CHECK='true')
-    if args.stdout_key or age_output is not None:
-        key = 'BACKUP_AGE_IDENTITY' if age_output is not None else args.stdout_key
+    if args.stdout_key:
+        key = args.stdout_key
         cmd=['infisical','secrets','get',key,'--plain',
              '--env='+args.environment,'--path='+args.path,
              '--projectId='+identity['project_id'],'--domain='+api_url,
@@ -72,37 +66,6 @@ def resolve(args):
         if result.returncode:
             raise ValueError('secret resolution failed')
         value=result.stdout.rstrip('\n')
-        if age_output is not None:
-            if not re.fullmatch(r'AGE-SECRET-KEY-1[0-9A-Z]{58}', value):
-                raise ValueError('invalid age identity')
-            RUNTIME_ROOT.mkdir(mode=0o700, parents=True, exist_ok=True)
-            directory = RUNTIME_ROOT.stat()
-            if directory.st_uid != 0 or stat.S_IMODE(directory.st_mode) != 0o700:
-                raise ValueError('runtime directory permissions are invalid')
-            if age_output.is_symlink():
-                raise ValueError('invalid identity destination')
-            fd, temporary = tempfile.mkstemp(prefix='.age-identity-', dir=RUNTIME_ROOT)
-            try:
-                with os.fdopen(fd, 'w') as stream:
-                    stream.write(value + '\n')
-                    stream.flush()
-                    os.fsync(stream.fileno())
-                check = subprocess.run(['age-keygen', '-y', temporary], capture_output=True,
-                                       text=True, timeout=10, check=False)
-                if check.returncode or check.stdout.strip() != args.recipient:
-                    raise ValueError('age recipient mismatch')
-                os.chown(temporary, 10001, 10001)
-                os.chmod(temporary, 0o600)
-                if age_output.exists() and age_output.read_text() == value + '\n':
-                    metadata = age_output.stat()
-                    if metadata.st_uid != 10001 or stat.S_IMODE(metadata.st_mode) != 0o600:
-                        raise ValueError('identity permissions invalid')
-                    return
-                os.replace(temporary, age_output)
-            finally:
-                if os.path.exists(temporary):
-                    os.unlink(temporary)
-            return
         if not re.fullmatch(r'[\x21-\x7e]+',value):
             raise ValueError('invalid secret value')
         print(value)
@@ -161,8 +124,6 @@ if __name__ == '__main__':
     destination=parser.add_mutually_exclusive_group(required=True)
     destination.add_argument('--output')
     destination.add_argument('--stdout-key')
-    destination.add_argument('--age-identity-output')
-    parser.add_argument('--recipient')
     parser.add_argument('--require',action='append',required=True)
     try:resolve(parser.parse_args())
     except Exception:

@@ -43,8 +43,15 @@ and archive restoration alone must not claim these passed.
 
 The audited development destination is
 `/mnt/wood-server-nas/backup_server/swood-server/infrastructure-dev` on exactly
-`192.168.1.10:/volume1/backup_server`, filesystem `nfs`. A wrong or absent mount
+`192.168.1.10:/volume1/recovery_backups/infrastructure-dev`, filesystem `nfs`.
+The destination itself must be the dedicated mount; the old parent
+`backup_server` mount cannot satisfy this identity check. A wrong or absent mount
 fails before destination creation. A local host directory is not a substitute.
+The backup-only role persists and mounts this export before installing the
+producer schedule. Its systemd mount requires the existing parent mount; that
+parent and unrelated NFS entries retain their existing definitions. Test
+persistence by stopping and starting only the dedicated mount unit, then
+checking its exact source. No production reboot is required.
 The NAS survives application-host failure. An off-NAS copy and NAS encryption at
 rest are currently unverified; full NAS disaster recovery remains unaccepted.
 All new PostgreSQL, file, MongoDB, Redis and Infisical recovery-key artifacts
@@ -56,9 +63,22 @@ nonempty, format-checked and SHA-256 hashed. A complete immutable group is renam
 into place, then `current.json` is atomically replaced. Verifiers follow this
 pointer and never scan temporary directories. Failure preserves the previous
 pointer and all historical artifacts without refreshing their source timestamp.
-Temporary artifacts are private. Completed directories are root-owned `0750`
+Temporary artifacts are private. Completed directories are producer-owned `0750`
 and files `0640` for verifier GID 10001; that group receives read access, not write
 access. No secret contents appear in manifests or diagnostics.
+
+An explicit `historical_sqlite_members` list preserves specified historical
+copies in encrypted archives without treating them as current recovery inputs.
+It cannot overlap required SQLite members. All unclassified SQLite databases
+remain integrity-gated, and manifests disclose the historical classification.
+
+The dedicated export retains root squash and preserves verifier UID/GID10001.
+The producer adds the configured reader GID only to its own supplementary groups
+before destination writes, permitting its required group assignment after root
+mapping without changing NAS account membership. Actual producer publication,
+private staging, verifier write-denial and unrelated-user denial tests must pass
+before rollout. The existing backup_server export and historical artifacts remain
+unchanged; a read-only container bind is not the NAS permission test.
 
 The proposed retention is 14 daily, 8 weekly and 12 monthly recovery points.
 Pruning is not implemented or enabled: existing backup deletion requires separate

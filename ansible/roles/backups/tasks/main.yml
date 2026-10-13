@@ -8,6 +8,38 @@
       - backups_configuration.retention.pruning_enabled == false
     fail_msg: Configure the selected environment's backup contract before deployment.
 
+- name: Persist and establish the dedicated backup export
+  ansible.posix.mount:
+    path: "{{ backups_configuration.destination.mount }}"
+    src: "{{ backups_configuration.destination.source }}"
+    fstype: "{{ backups_configuration.destination.fstype }}"
+    opts: "vers=3,rw,hard,proto=tcp,_netdev,x-systemd.requires-mounts-for=/mnt/wood-server-nas/backup_server"
+    state: mounted
+    dump: '0'
+    passno: '0'
+
+- name: Read the mounted backup destination identity
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - --json
+      - --mountpoint
+      - "{{ backups_configuration.destination.mount }}"
+      - --output
+      - TARGET,SOURCE,FSTYPE
+  register: backups_mount_identity
+  changed_when: false
+  check_mode: false
+
+- name: Require the exact dedicated backup destination
+  ansible.builtin.assert:
+    that:
+      - >-
+        (backups_mount_identity.stdout | from_json).filesystems ==
+        [{'target': backups_configuration.destination.mount,
+          'source': backups_configuration.destination.source,
+          'fstype': backups_configuration.destination.fstype}]
+
 - name: Install the backup schema validator runtime
   ansible.builtin.command: python3 -c "import jsonschema"
   register: backups_schema_runtime

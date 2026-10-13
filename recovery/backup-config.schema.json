@@ -220,6 +220,14 @@
             },
             "uniqueItems": true
           },
+          "historical_sqlite_members": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
           "sqlite_engine": {
             "enum": [
               "python-sqlite3",

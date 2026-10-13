@@ -4,9 +4,10 @@ import argparse
 import importlib.util
 import io
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
-from types import SimpleNamespace
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
@@ -30,7 +31,6 @@ class InfisicalValueTests(unittest.TestCase):
         self.args = argparse.Namespace(
             environment="dev", path="/architecture-docs", output=None,
             stdout_key="ARCHITECTURE_DOCS_DATABASE_URL",
-            age_identity_output=None, recipient=None,
             require=["ARCHITECTURE_DOCS_DATABASE_URL"],
         )
 
@@ -82,52 +82,11 @@ class InfisicalValueTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exactly the selected key"):
             self.run_resolver("fixture")
 
-    def test_age_identity_is_atomic_scoped_and_never_printed(self):
-        runtime = self.root / 'runtime'
-        runtime.mkdir(mode=0o700)
-        destination = runtime / 'recovery-backup.agekey'
-        self.args.output = None
-        self.args.stdout_key = None
-        self.args.path = '/recovery-verification'
-        self.args.require = ['BACKUP_AGE_IDENTITY']
-        self.args.age_identity_output = str(destination)
-        self.args.recipient = 'age1' + 'q' * 58
-        value = 'AGE-SECRET-KEY-1' + 'Q' * 58
-        opener = mock.Mock()
-        opener.open.return_value = io.BytesIO(b'{"accessToken":"fixture-token"}')
-        actual_stat = Path.stat
-        def metadata(path, *args, **kwargs):
-            if path == runtime:
-                return SimpleNamespace(st_uid=0, st_mode=0o40700)
-            return actual_stat(path, *args, **kwargs)
-        output = io.StringIO()
-        with (
-            mock.patch.object(MODULE, 'IDENTITY', self.identity),
-            mock.patch.object(MODULE, 'RUNTIME_ROOT', runtime),
-            mock.patch.object(MODULE, 'protected'),
-            mock.patch.object(MODULE.os, 'geteuid', return_value=0),
-            mock.patch.object(MODULE.os, 'chown') as ownership,
-            mock.patch.object(Path, 'stat', metadata),
-            mock.patch.object(MODULE.urllib.request, 'build_opener', return_value=opener),
-            mock.patch.object(MODULE.subprocess, 'run', side_effect=[
-                mock.Mock(returncode=0, stdout=value),
-                mock.Mock(returncode=0, stdout=self.args.recipient + '\n'),
-            ]) as commands,
-            redirect_stdout(output),
-        ):
-            MODULE.resolve(self.args)
-        self.assertEqual(output.getvalue(), '')
-        self.assertEqual(destination.read_text(), value + '\n')
-        self.assertEqual(destination.stat().st_mode & 0o777, 0o600)
-        self.assertEqual(ownership.call_args.args[1:], (10001, 10001))
-        self.assertEqual(commands.call_args_list[0].args[0][:4],
-                         ['infisical', 'secrets', 'get', 'BACKUP_AGE_IDENTITY'])
-        self.assertEqual(list(runtime.iterdir()), [destination])
-
-    def test_age_identity_rejects_wrong_folder_before_access(self):
-        self.args.stdout_key = None
-        self.args.require = ['BACKUP_AGE_IDENTITY']
-        self.args.age_identity_output = str(self.root / 'never-created/recovery-backup.agekey')
-        self.args.recipient = 'age1' + 'q' * 58
-        with self.assertRaisesRegex(ValueError, 'invalid age identity request'):
-            self.run_resolver('placeholder')
+    def test_removed_identity_provisioning_option_fails_before_credentials(self):
+        result = subprocess.run([
+            sys.executable, str(SCRIPT), '--environment', 'dev',
+            '--path', '/recovery-verification', '--require', 'BACKUP_AGE_IDENTITY',
+            '--age-identity-output', str(self.root / 'must-not-exist.agekey'),
+        ], capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 2)
+        self.assertFalse((self.root / 'must-not-exist.agekey').exists())

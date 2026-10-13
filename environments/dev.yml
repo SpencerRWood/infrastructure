@@ -44,7 +44,7 @@ automerge_repair_image_ref: ghcr.io/spencerrwood/automerge-repair:v0.2.1@sha256:
 # Independently published provider; rollout requires the scoped runtime secret
 # and clean consumer clones described in docs/recovery-verification-runtime.md.
 # yamllint disable rule:line-length
-recovery_verification_image_ref: ghcr.io/spencerrwood/recovery-verification:v0.6.0@sha256:7c35fd41f3aa95a7597367b88ff4d0752fe57b5978523ee2b417f115d546a6dd
+recovery_verification_image_ref: ghcr.io/spencerrwood/recovery-verification:v0.6.1@sha256:2b544b29a358293aa5d4ec4bb28b3cdb29a11453ec99e205d5036109cbce5b2c
 recovery_verification_config_source: "{{ playbook_dir }}/../../environments/recovery-verification-dev.json"
 # yamllint enable rule:line-length
 services:
@@ -139,8 +139,8 @@ backups_configuration:
   deadline_seconds: 3600
   max_age_seconds: 86400
   destination:
-    mount: /mnt/wood-server-nas/backup_server
-    source: 192.168.1.10:/volume1/backup_server
+    mount: /mnt/wood-server-nas/backup_server/swood-server/infrastructure-dev
+    source: 192.168.1.10:/volume1/recovery_backups/infrastructure-dev
     fstype: nfs
     root: /mnt/wood-server-nas/backup_server/swood-server/infrastructure-dev
   postgres:
