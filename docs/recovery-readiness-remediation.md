@@ -49,7 +49,8 @@ consumer declaration. Required values are resolved through Infrastructure Dev,
 
 - RECOVERY_INFISICAL_URL: `https://dev-infisical.woodhost.cloud`
 - RECOVERY_INFISICAL_PROJECTS: the verified mapping in probe-access.v1.json
-- RECOVERY_INFISICAL_TOKEN: dedicated scoped metadata identity access token
+- RECOVERY_INFISICAL_CLIENT_ID / RECOVERY_INFISICAL_CLIENT_SECRET: dedicated scoped
+  Universal Auth identity; the worker mints its short-lived access token in memory
 - RECOVERY_GHCR_USERNAME / RECOVERY_GHCR_TOKEN: dedicated GHCR reader
 
 The deployment secret contract requires these inputs, so an unconfigured probe
@@ -65,10 +66,13 @@ only secret-name/metadata inspection at the exact environments/paths/names liste
 in the consumer catalogs, including CI `/github/WEBSITE_PORTFOLIO_GHCR_TOKEN`.
 Use the installed server's metadata-only permission action; do not substitute a
 project-wide Viewer grant that includes reading values. Requests always specify
-viewSecretValue=false, expansion=false and personal overrides=false. Test the
+viewSecretValue=false, expansion=false, includeImports=false and type=shared,
+using the exact secret-name endpoint without folder discovery. Test the
 issued identity against each scope before provisioning. Provide token expiry and
 rotation compatible with unattended cadence through the existing secret refresh
-process. Never store an operator session token as a permanent recovery credential.
+process. Access tokens expire in 900 seconds; client secrets expire in 30 days
+and rotate before day 21. Revoke the client secret and project memberships for
+revocation. Never store an operator session token as a permanent recovery credential.
 
 GHCR requires read:packages and read access to the five private packages; no
 publication/deletion permission is requested. Basic authentication is confined to
