@@ -3,8 +3,10 @@ recovery_verification_compose_directory: "{{ host_infrastructure_compose_root }}
 recovery_verification_state_directory: "{{ host_infrastructure_state_root }}/recovery-verification"
 recovery_verification_compose_env_file: "{{ host_infrastructure_secrets_root }}/recovery-verification-compose.env"
 recovery_verification_runtime_env_file: /srv/infrastructure/secrets/runtime/recovery-verification.env
+recovery_verification_backup_identity_file: /srv/infrastructure/secrets/runtime/recovery-backup.agekey
 recovery_verification_checkout_directory: /srv/infrastructure/recovery-checkouts
 recovery_verification_storage_directory: /mnt/wood-server-nas
+recovery_verification_off_nas_backup_directory: /srv/recovery-backups/nas-metadata
 recovery_verification_docker_config_directory: "{{ host_infrastructure_secrets_root }}/ghcr-docker"
 recovery_verification_secret_contract:
   environment: dev

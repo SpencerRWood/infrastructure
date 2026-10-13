@@ -1,0 +1,371 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Repository-owned backup configuration v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "consumer",
+    "environment",
+    "recovery_group",
+    "schedule",
+    "retention",
+    "recovery_prerequisites",
+    "destination",
+    "postgres",
+    "max_age_seconds",
+    "quiesce_authorized",
+    "quiesce_containers",
+    "encryption_recipient",
+    "independent_custody_verified"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "consumer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recovery_group": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reader_gid": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "status_file": {
+      "type": "string",
+      "pattern": "^/"
+    },
+    "deadline_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 86400
+    },
+    "max_age_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mount",
+        "source",
+        "fstype",
+        "root"
+      ],
+      "properties": {
+        "mount": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fstype": {
+          "enum": [
+            "nfs",
+            "nfs4",
+            "ext4",
+            "xfs",
+            "btrfs"
+          ]
+        },
+        "root": {
+          "type": "string",
+          "pattern": "^/"
+        }
+      }
+    },
+    "off_source_destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mount",
+        "source",
+        "fstype",
+        "root"
+      ],
+      "properties": {
+        "mount": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fstype": {
+          "enum": [
+            "nfs",
+            "nfs4",
+            "ext4",
+            "xfs",
+            "btrfs"
+          ]
+        },
+        "root": {
+          "type": "string",
+          "pattern": "^/"
+        }
+      }
+    },
+    "off_source_copy_sources": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "postgres": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "container",
+        "password_source",
+        "required_databases"
+      ],
+      "properties": {
+        "container": {
+          "type": "string",
+          "minLength": 1
+        },
+        "password_source": {
+          "enum": [
+            "file",
+            "environment"
+          ]
+        },
+        "required_databases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        }
+      }
+    },
+    "quiesce_authorized": {
+      "type": "boolean"
+    },
+    "quiesce_containers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "encryption_recipient": {
+      "type": "string",
+      "pattern": "^age1[0-9a-z]{58}$"
+    },
+    "independent_custody_verified": {
+      "type": "boolean"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "paths"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^/"
+            },
+            "uniqueItems": true,
+            "minItems": 1
+          },
+          "sensitive": {
+            "type": "boolean"
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "required_sqlite_members": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "sqlite_engine": {
+            "enum": [
+              "python-sqlite3",
+              "plex",
+              "calibre"
+            ]
+          },
+          "sqlite_container": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "sqlite_engine"
+              ],
+              "properties": {
+                "sqlite_engine": {
+                  "enum": [
+                    "plex",
+                    "calibre"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "sqlite_container"
+              ]
+            }
+          }
+        ]
+      },
+      "uniqueItems": true
+    },
+    "mongo": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "container"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "container": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "uniqueItems": true
+    },
+    "redis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "container"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "container": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "uniqueItems": true
+    },
+    "recovery_prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "reference",
+        "user",
+        "hour",
+        "minute"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "existing-script",
+            "cron"
+          ]
+        },
+        "reference": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "user": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hour": {
+          "type": "string",
+          "pattern": "^([01]?[0-9]|2[0-3])$"
+        },
+        "minute": {
+          "type": "string",
+          "pattern": "^([0-5]?[0-9])$"
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pruning_enabled",
+        "daily",
+        "weekly",
+        "monthly"
+      ],
+      "properties": {
+        "pruning_enabled": {
+          "const": false
+        },
+        "daily": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "weekly": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "monthly": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

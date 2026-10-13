@@ -116,6 +116,24 @@ def preflight(root, declaration, config, run_syntax=True, include_external=True)
             "id": "external_prerequisites", "state": "unavailable",
             "reason": "secrets_backups_storage_artifacts_not_probed",
         })
+    # The provider invokes this same consumer interface with --local-only.
+    # Artifact checks use only the read-only backup namespace, never live data.
+    try:
+        from recovery_manifest import load_policy, validate
+        policy = load_policy(root / 'recovery/backup-policy.yml')
+        validate(policy['pointer'], policy)
+        checks.append({'id': 'current_backup_group', 'state': 'passed', 'reason': 'backup_group_integrity_verified'})
+    except ImportError:
+        checks.append({'id': 'current_backup_group', 'state': 'unavailable',
+                       'reason': 'backup_schema_runtime_unavailable'})
+    except (FileNotFoundError, PermissionError):
+        checks.append({'id': 'current_backup_group', 'state': 'unavailable',
+                       'reason': 'backup_unreadable'})
+    except ValueError as error:
+        checks.append({'id': 'current_backup_group', 'state': getattr(error, 'state', 'failed'),
+                       'reason': str(error) if hasattr(error, 'state') else 'backup_group_invalid'})
+    except (OSError, KeyError, TypeError):
+        checks.append({'id': 'current_backup_group', 'state': 'failed', 'reason': 'backup_group_invalid_or_unavailable'})
     states = {check["state"] for check in checks}
     state = next((item for item in ("failed", "unavailable", "skipped")
                   if item in states), "passed")

@@ -1,0 +1,17 @@
+---
+- name: Configure only the development backup producer
+  hosts: infrastructure_hosts
+  become: true
+  gather_facts: false
+  vars:
+    infrastructure_environment: dev
+  vars_files:
+    - "{{ playbook_dir }}/../../environments/dev.yml"
+  pre_tasks:
+    - name: Require development backup selection
+      ansible.builtin.assert:
+        that:
+          - environment_name == 'dev'
+          - services.backups | bool
+  roles:
+    - role: backups

@@ -1,0 +1,3 @@
+---
+# Operational overrides require an approved rollout; targets belong in environments/.
+backups_quiesce_authorized: false

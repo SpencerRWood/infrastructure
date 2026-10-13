@@ -48,6 +48,7 @@ recovery_verification_image_ref: ghcr.io/spencerrwood/recovery-verification:v0.6
 recovery_verification_config_source: "{{ playbook_dir }}/../../environments/recovery-verification-dev.json"
 # yamllint enable rule:line-length
 services:
+  backups: true
   recovery_verification: true
   overleaf: true
   automerge_repair: true
@@ -128,3 +129,96 @@ infrastructure_infisical_runtime_services:
     static_env_file: /srv/infrastructure/secrets/static/portfolio-website.env
     compose_services: [website-portfolio]
     source: compose/website-portfolio/compose.infisical.yml
+
+# Declarative backup targets; runtime JSON is compiled from this authority.
+backups_configuration:
+  consumer: infrastructure
+  environment: dev
+  reader_gid: 10001
+  status_file: /var/lib/infrastructure/backups/last-attempt.json
+  deadline_seconds: 3600
+  max_age_seconds: 86400
+  destination:
+    mount: /mnt/wood-server-nas/backup_server
+    source: 192.168.1.10:/volume1/backup_server
+    fstype: nfs
+    root: /mnt/wood-server-nas/backup_server/swood-server/infrastructure-dev
+  postgres:
+    password_source: file
+    container: infrastructure-dev-postgres-postgres-1
+    required_databases:
+      - dagster
+      - openwebui
+      - keycloak
+      - infisical
+      - portfolio_website
+      - synthetic_website_data
+      - rag_service
+      - events_service
+      - architecture_docs
+  quiesce_authorized: false
+  quiesce_containers:
+    - infrastructure-dev-recovery-verification-recovery-verification-code-1
+    - infrastructure-dev-automerge-repair-automerge-repair-code-1
+    - infrastructure-dev-dagster-dagster-daemon-1
+    - infrastructure-dev-dagster-dagster-webserver-1
+    - infrastructure-dev-dagster-dagster-user-code-1
+    - infrastructure-dev-dagster-dagster-codex-usage-1
+    - infrastructure-dev-dagster-openproject-reports-code-1
+    - infrastructure-dev-openwebui-openwebui-1
+    - infrastructure-dev-keycloak-keycloak-1
+    - infrastructure-dev-infisical-infisical-1
+    - infrastructure-dev-website-portfolio-website-portfolio-1
+    - infrastructure-dev-rag-service-rag-service-1
+    - infrastructure-dev-rag-service-rag-service-code-1
+    - infrastructure-dev-events-service-wood-broker-1
+    - infrastructure-dev-events-service-wood-notify-1
+    - infrastructure-dev-overleaf-overleaf-1
+    - infrastructure-dev-overleaf-clsi-1
+    - infrastructure-dev-overleaf-clsi-gateway-1
+  encryption_recipient: age1544rwqert2c0u5wks57lcgfw6saymcfmc7slhdr58js69w3m7d4st3la33
+  independent_custody_verified: false
+  files:
+    - id: dagster-state
+      paths:
+        - /srv/infrastructure/state/dagster/local
+        - /srv/infrastructure/state/dagster/codex-usage
+    - id: openwebui-files
+      paths:
+        - /srv/infrastructure/state/openwebui/data
+    - id: rag-documents
+      paths:
+        - /srv/infrastructure/state/rag-service/documents
+    - id: overleaf-files
+      paths:
+        - /srv/infrastructure/state/overleaf-dev/editor
+    - id: infisical-recovery-keys
+      sensitive: true
+      paths:
+        - /srv/infrastructure/bootstrap/infisical/infisical.env
+  mongo:
+    - id: overleaf-mongo
+      container: infrastructure-dev-overleaf-mongo-1
+  redis:
+    - id: infisical-redis
+      container: infrastructure-dev-infisical-redis-1
+    - id: overleaf-redis
+      container: infrastructure-dev-overleaf-redis-1
+  schema_version: 1
+  recovery_group: infrastructure-daily-consistent
+  retention:
+    pruning_enabled: false
+    daily: 14
+    weekly: 8
+    monthly: 12
+  recovery_prerequisites:
+    - compatible PostgreSQL engine, extensions and source locales
+    - isolated disposable restore storage
+    - independently recoverable application secret references
+    - independently stored age identity for Infisical bootstrap keys
+  schedule:
+    kind: cron
+    reference: /var/spool/cron/crontabs/root
+    user: root
+    hour: '2'
+    minute: '45'

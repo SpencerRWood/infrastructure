@@ -17,6 +17,12 @@ repos:
       - id: detect-private-key
   - repo: local
     hooks:
+      - id: backup-configuration
+        name: Backup YAML schema and coverage policy
+        entry: uv run python scripts/validate-backups.py environments/dev.yml
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: workflow-governance
         name: Publication and deployment workflow contracts
         entry: >-
@@ -56,7 +62,9 @@ repos:
           ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
           -i ansible/inventory/prod ansible/playbooks/prod.yml --syntax-check &&
           ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
-          -i ansible/inventory/dev ansible/playbooks/remove-homelab-overleaf.yml --syntax-check'
+          -i ansible/inventory/dev ansible/playbooks/remove-homelab-overleaf.yml --syntax-check &&
+          ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
+          -i ansible/inventory/dev ansible/playbooks/dev-backups.yml --syntax-check'
         language: system
         pass_filenames: false
       - id: ansible-lint

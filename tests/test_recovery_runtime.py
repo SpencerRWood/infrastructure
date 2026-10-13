@@ -57,8 +57,13 @@ class RecoveryRuntimeTests(unittest.TestCase):
         self.assertNotIn('/var/run/docker.sock', str(code))
         self.assertIn('${RECOVERY_CHECKOUTS_PATH:?required}:/opt/recovery/checkouts:ro', code['volumes'])
         self.assertIn('${RECOVERY_STORAGE_PATH:?required}:/mnt/wood-server-nas:ro', code['volumes'])
+        self.assertIn('${RECOVERY_OFF_NAS_BACKUPS_PATH:?required}:/srv/recovery-backups/nas-metadata:ro', code['volumes'])
         self.assertIn('${RECOVERY_STATE_PATH:?required}:/opt/recovery/state', code['volumes'])
         self.assertIn('recovery-verification-health', code['healthcheck']['test'][-1])
+        identity = next(volume for volume in code['volumes'] if isinstance(volume, dict))
+        self.assertEqual(identity['target'], '/run/recovery-verification/backup.agekey')
+        self.assertTrue(identity['read_only'])
+        self.assertFalse(identity['bind']['create_host_path'])
 
     def test_deployment_requires_published_digest_and_runtime_configuration(self):
         tasks = yaml.safe_load((ROOT / 'ansible/roles/recovery_verification/tasks/main.yml').read_text())

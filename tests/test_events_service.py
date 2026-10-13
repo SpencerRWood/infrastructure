@@ -109,6 +109,7 @@ class ResolverEnvironmentTests(unittest.TestCase):
                 environment=environment, path='/events-service',
                 require=['WES_DATABASE_URL'],
                 output='/srv/infrastructure/secrets/runtime/events-service-broker.env',
+                age_identity_output=None, recipient=None, stdout_key=None,
             )
             # Patch umask as well: this diagnostic must not mutate process state.
             with patch.object(module.os, 'geteuid', return_value=0), \

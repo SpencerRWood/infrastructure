@@ -6,11 +6,13 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
 SPEC = importlib.util.spec_from_file_location("consumer_recovery", ROOT / "scripts/recovery.py")
 RECOVERY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RECOVERY)
@@ -137,7 +139,8 @@ class RecoveryTests(unittest.TestCase):
         with patch.object(RECOVERY, "command_check", side_effect=checked):
             result = RECOVERY.preflight(self.root, self.declaration, self.config)
         self.assertEqual("unavailable", result["readiness_state"])
-        self.assertEqual("external_prerequisites", result["checks"][-1]["id"])
+        self.assertIn("external_prerequisites", [check['id'] for check in result['checks']])
+        self.assertEqual('current_backup_group', result['checks'][-1]['id'])
 
     def test_cli_error_does_not_echo_input(self):
         (self.root / "untracked").write_text("do-not-echo-secret")
@@ -149,6 +152,25 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual("invalid_input", json.loads(result.stdout)["reason"])
         self.assertNotIn("do-not-echo", result.stdout + result.stderr)
 
+    def test_backup_evidence_distinguishes_unavailable_corrupt_and_verified(self):
+        from recovery_manifest import InvalidBackup, UnavailableBackup
+        for error, expected, reason in (
+            (UnavailableBackup('backup_artifact_missing'), 'unavailable', 'backup_artifact_missing'),
+            (PermissionError('private-path'), 'unavailable', 'backup_unreadable'),
+            (InvalidBackup('backup_checksum_mismatch'), 'failed', 'backup_checksum_mismatch'),
+            (None, 'passed', 'backup_group_integrity_verified'),
+        ):
+            with self.subTest(expected=expected, reason=reason), \
+                    patch.object(RECOVERY, "command_check", return_value={
+                        "id": "syntax", "state": "passed", "reason": "command_passed",
+                    }), patch('recovery_manifest.load_policy', return_value={'pointer': '/unused'}), \
+                    patch('recovery_manifest.validate', side_effect=error):
+                result = RECOVERY.preflight(self.root, self.declaration, self.config,
+                                            include_external=False)
+            self.assertEqual(expected, result['readiness_state'])
+            self.assertEqual(reason, result['checks'][-1]['reason'])
+            self.assertNotIn('private-path', json.dumps(result))
+
     def test_local_only_scope_does_not_mask_syntax_failures(self):
         for state, expected in (("passed", "passed"), ("failed", "failed"),
                                 ("unavailable", "unavailable")):
@@ -157,7 +179,8 @@ class RecoveryTests(unittest.TestCase):
             }):
                 result = RECOVERY.preflight(self.root, self.declaration, self.config,
                                             include_external=False)
-            self.assertEqual(expected, result["readiness_state"])
+            self.assertEqual('failed' if state == 'failed' else 'unavailable', result["readiness_state"])
+            self.assertIn(state, [check['state'] for check in result['checks'] if check['id'] == 'syntax'])
             self.assertNotIn("external_prerequisites", [c["id"] for c in result["checks"]])
         args = next(check["command"]["args"] for check in self.declaration["targets"][0]["validation_commands"] if check["id"] == "consumer_preflight")
         self.assertEqual(["preflight", "--local-only"], args)

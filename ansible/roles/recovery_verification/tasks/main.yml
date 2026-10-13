@@ -10,6 +10,7 @@
         '^ghcr[.]io/spencerrwood/recovery-verification:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$'
         )
       - recovery_verification_config_source | length > 0
+      - backups_configuration.independent_custody_verified | bool
     fail_msg: Recovery Verification needs a published immutable release and reviewed runtime configuration.
   tags: [recovery_verification]
 
@@ -53,6 +54,25 @@
   when: not ansible_check_mode
   tags: [recovery_verification]
 
+- name: Resolve only the verifier backup identity into a protected file
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/resolve-infrastructure-infisical-env
+      - --environment
+      - dev
+      - --path
+      - /recovery-verification
+      - --age-identity-output
+      - "{{ recovery_verification_backup_identity_file }}"
+      - --recipient
+      - "{{ backups_configuration.encryption_recipient }}"
+      - --require
+      - BACKUP_AGE_IDENTITY
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+  tags: [recovery_verification]
+
 - name: Install reviewed non-secret recovery orchestration configuration
   ansible.builtin.copy:
     src: "{{ recovery_verification_config_source }}"
@@ -69,10 +89,12 @@
       RECOVERY_PROJECT_NAME=infrastructure-dev-recovery-verification
       RECOVERY_IMAGE_REF={{ recovery_verification_image_ref }}
       RECOVERY_RUNTIME_ENV_FILE={{ recovery_verification_runtime_env_file }}
+      RECOVERY_BACKUP_IDENTITY_PATH={{ recovery_verification_backup_identity_file }}
       RECOVERY_CONFIG_PATH={{ recovery_verification_compose_directory }}/orchestration.json
       RECOVERY_STATE_PATH={{ recovery_verification_state_directory }}
       RECOVERY_CHECKOUTS_PATH={{ recovery_verification_checkout_directory }}
       RECOVERY_STORAGE_PATH={{ recovery_verification_storage_directory }}
+      RECOVERY_OFF_NAS_BACKUPS_PATH={{ recovery_verification_off_nas_backup_directory }}
       RECOVERY_DAGSTER_CONFIG_PATH={{ host_infrastructure_compose_root }}/dagster/config
       RECOVERY_DAGSTER_LOCAL_PATH={{ host_infrastructure_state_root }}/dagster/local
       RECOVERY_POSTGRES_NETWORK=infrastructure-dev-postgres

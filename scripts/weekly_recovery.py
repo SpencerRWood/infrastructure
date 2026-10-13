@@ -198,8 +198,9 @@ def restore_postgres(checks, workspace):
             checks.append(observation(phase, "skipped", "restore_not_completed"))
 
 
-def verify(deadline_seconds=240):
+def verify(deadline_seconds=240, real_backups=False):
     checks = []
+    real_provenance = None
     try:
         workspace = Path(tempfile.mkdtemp(prefix="rv-", dir="/tmp"))
     except OSError:
@@ -218,7 +219,16 @@ def verify(deadline_seconds=240):
     cleanup_failed = False
     try:
         automation(checks, workspace)
-        restore_postgres(checks, workspace)
+        if real_backups:
+            from backup_restore import verify as verify_real
+            restored = verify_real(ROOT / 'recovery/backup-policy.yml', max(1, deadline_seconds - 100))
+            for check in restored['checks']:
+                if check['phase'] == 'cleanup':
+                    check['id'] = 'restore_cleanup'
+            checks.extend(restored['checks'])
+            real_provenance = restored['provenance']
+        else:
+            restore_postgres(checks, workspace)
     except VerificationInterrupted:
         checks.append({"id": "execution", "phase": "classification",
                        "state": "unavailable", "reason": "verification_timeout"})
@@ -267,15 +277,18 @@ def verify(deadline_seconds=240):
             "timestamp": None,
         }],
     }
+    if real_backups:
+        provenance['backups'] = real_provenance['backups'] if real_provenance else []
     return {"schema_version": "1", "mode": "verification",
             "readiness_state": state, "checks": checks, "provenance": provenance}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--real-backups', action='store_true', help='Restore the current operational recovery group')
     parser.add_argument("--deadline-seconds", type=int, choices=range(1, 241), default=240)
     args = parser.parse_args()
-    result = verify(args.deadline_seconds)
+    result = verify(args.deadline_seconds, args.real_backups)
     sys.stdout.write(json.dumps(result, sort_keys=True) + "\n")
     return {"passed": 0, "failed": 1, "unavailable": 4, "skipped": 3}[result["readiness_state"]]
 
