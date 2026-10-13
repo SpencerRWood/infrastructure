@@ -19,6 +19,15 @@
     fail_msg: Recovery Verification needs a published immutable release and reviewed runtime configuration.
   tags: [recovery_verification]
 
+- name: Install read-only recovery consumer selection verifier
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../scripts/verify-recovery-consumers.py"
+    dest: /usr/local/sbin/verify-recovery-consumers
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [recovery_verification]
+
 - name: Create Recovery Verification component and durable evidence directories
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -29,6 +38,33 @@
   loop:
     - {path: "{{ recovery_verification_compose_directory }}", owner: 'root', mode: '0755'}
     - {path: "{{ recovery_verification_state_directory }}", owner: '10001', mode: '0700'}
+  tags: [recovery_verification]
+
+- name: Stage reviewed consumer selection without replacing active orchestration
+  ansible.builtin.copy:
+    src: "{{ recovery_verification_config_source }}"
+    dest: "{{ recovery_verification_compose_directory }}/consumer-selection.json"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [recovery_verification]
+
+- name: Verify reviewed consumer manifests before changing the runtime
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/setpriv
+      - --reuid=10001
+      - --regid=10001
+      - --clear-groups
+      - /usr/local/sbin/verify-recovery-consumers
+      - --configuration
+      - "{{ recovery_verification_compose_directory }}/consumer-selection.json"
+      - --checkout-directory
+      - "{{ recovery_verification_checkout_directory }}"
+  become: true
+  become_user: root
+  changed_when: false
+  when: not ansible_check_mode
   tags: [recovery_verification]
 
 - name: Register selected Recovery Verification with the existing secret refresh service
