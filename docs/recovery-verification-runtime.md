@@ -76,3 +76,62 @@ For rollback, stop provider schedules/sensor, restore the previous approved imag
 and configuration via the existing infrastructure release rollback, verify health
 and retain execution/archive files. A component/configuration rollback does not
 authorize database restore, backup deletion, or competing Dagster daemons.
+
+## Terminal notification rollout (OP-500 follow-up)
+
+The notification integration requires separately published provider and Events
+Service artifacts; keep existing digest selections until their exact releases
+are verified and approved. No source overlay, additional scheduler or new
+Telegram bot is required. The existing role gains explicit notification inputs,
+and the queued coordinator gains a limit of one for the existing
+`recovery/operation=verification` tag. Other runs retain the global concurrency
+default. Provider job defaults supply that tag even for UI launches.
+
+Enable provider notification configuration only with
+`recovery_verification_notifications_enabled=true` and an explicit ISO8601
+`recovery_verification_notification_start_time` defining the approved terminal
+event backlog. The role merges only these notification fields into the reviewed
+orchestration JSON; consumer manifests, cron expressions, checkout/state paths,
+probe policy and isolated mode are preserved. The required key list is the same
+authority for initial resolution and registered refresh. It requires
+RECOVERY_EVENTS_URL and RECOVERY_EVENTS_TOKEN in addition to the canonical
+Dagster database password when notifications are selected.
+
+Use Infrastructure Dev / dev / `/recovery-verification` for those runtime keys.
+The existing private-network broker URL is `http://wood-broker:8000`; no public
+event ingestion route is opened. A dedicated token must authorize source
+`recovery-verification` with events:write and notifications:read. Register it in
+the existing WES_PRODUCER_CREDENTIALS arrays for both broker and notify without
+replacing other entries. Keep its value only in Infisical and the protected
+existing runtime resolver output. Never use another producer's source token.
+
+Append this entry to the existing WES_NOTIFICATION_POLICIES in the Events Service
+Infisical folder, preserving acceptance/workflow policies:
+
+```json
+{
+  "name": "recovery-scorecards",
+  "channels": ["telegram"],
+  "sources": ["recovery-verification"],
+  "event_types": ["recovery.run-completed"]
+}
+```
+
+The existing broker-to-notify subscription is reused. The Events Service release
+includes migration0004, which adds the durable dispatching state; apply it via
+the existing migration lifecycle before starting the new notify image. It does
+not alter historical messages or unrelated delivery policy. A downgrade must
+first reconcile outstanding dispatching rows; it refuses to silently resend or
+delete them. A timeout/server/transport ambiguity is retained for reconciliation,
+not automatically resent. A normal delivered message has its Telegram message
+ID and delivery attempt retained. Broker acknowledgment alone is insufficient.
+
+After reviewed exact-digest deployment, enable `recovery_run_notifications`
+through Dagster controls first. Submit one approved non-destructive readiness
+run and inspect its one consolidated message, both backup/recovery statuses,
+failure/prerequisite details, evidence link, broker receipt and Telegram receipt.
+Re-submit the same frozen event to verify receipt.duplicate=true and no second
+Telegram message. Only then enable the existing recovery schedules/change sensor
+and read back RUNNING/next ticks. Do not run a destructive monthly drill to test
+scheduling. Existing NOT_READY and unsupported recovery capabilities remain
+visible limitations, and OP-543 key custody remains independent.

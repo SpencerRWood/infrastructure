@@ -8,11 +8,18 @@ recovery_verification_checkout_directory: /srv/infrastructure/recovery-checkouts
 recovery_verification_storage_directory: /mnt/wood-server-nas
 recovery_verification_off_nas_backup_directory: /srv/recovery-backups/nas-metadata
 recovery_verification_docker_config_directory: "{{ host_infrastructure_secrets_root }}/ghcr-docker"
+recovery_verification_notifications_enabled: false
+recovery_verification_notification_start_time: ''
+recovery_verification_notification_dagster_url: https://dev-dagster.woodhost.cloud
+recovery_verification_required_secret_keys: >-
+  {{ ['DAGSTER_POSTGRES_PASSWORD'] +
+     (['RECOVERY_EVENTS_URL', 'RECOVERY_EVENTS_TOKEN']
+      if recovery_verification_notifications_enabled | bool else []) }}
 recovery_verification_secret_contract:
   environment: dev
   path: /recovery-verification
   output: "{{ recovery_verification_runtime_env_file }}"
-  required_keys: [DAGSTER_POSTGRES_PASSWORD]
+  required_keys: "{{ recovery_verification_required_secret_keys }}"
   compose_file: "{{ recovery_verification_compose_directory }}/compose.yml"
   compose_env_file: "{{ recovery_verification_compose_env_file }}"
   compose_services: [recovery-verification-code]

@@ -11,6 +11,9 @@
         )
       - recovery_verification_config_source | length > 0
       - >-
+        (not (recovery_verification_notifications_enabled | bool)) or
+        recovery_verification_notification_start_time | length > 0
+      - >-
         (backups_configuration.independent_custody_verified | bool) or
         (backups_temporary_operator_custody_authorized | default(false) | bool)
     fail_msg: Recovery Verification needs a published immutable release and reviewed runtime configuration.
@@ -50,16 +53,12 @@
 
 - name: Resolve scoped recovery runtime secrets through the existing resolver
   ansible.builtin.command:
-    argv:
-      - /usr/local/sbin/resolve-infrastructure-infisical-env
-      - --environment
-      - dev
-      - --path
-      - /recovery-verification
-      - --output
-      - "{{ recovery_verification_runtime_env_file }}"
-      - --require
-      - DAGSTER_POSTGRES_PASSWORD
+    argv: >-
+      {{ ['/usr/local/sbin/resolve-infrastructure-infisical-env',
+          '--environment', 'dev', '--path', '/recovery-verification',
+          '--output', recovery_verification_runtime_env_file] +
+         (recovery_verification_required_secret_keys |
+          map('regex_replace', '^', '--require=') | list) }}
   changed_when: false
   no_log: true
   when: not ansible_check_mode
@@ -98,7 +97,16 @@
 
 - name: Install reviewed non-secret recovery orchestration configuration
   ansible.builtin.copy:
-    src: "{{ recovery_verification_config_source }}"
+    content: >-
+      {{ (lookup('file', recovery_verification_config_source) | from_json) |
+         combine({'notifications_enabled': recovery_verification_notifications_enabled | bool,
+                  'notification_start_time':
+                    recovery_verification_notification_start_time
+                    if recovery_verification_notifications_enabled | bool else none,
+                  'notification_dagster_url':
+                    recovery_verification_notification_dagster_url,
+                  'notification_code_location': 'recovery-verification'}) |
+         to_nice_json }}
     dest: "{{ recovery_verification_compose_directory }}/orchestration.json"
     owner: root
     group: root
@@ -163,6 +171,65 @@
   when: not ansible_check_mode
   tags: [recovery_verification]
 
+- name: Read current Dagster instance settings before scoped queue integration
+  ansible.builtin.slurp:
+    src: "{{ host_infrastructure_compose_root }}/dagster/config/dagster.yaml"
+  register: recovery_verification_dagster_source
+  no_log: true
+  tags: [recovery_verification]
+
+- name: Parse current Dagster instance settings without replacing other configuration
+  ansible.builtin.set_fact:
+    recovery_verification_dagster_config: >-
+      {{ recovery_verification_dagster_source.content | b64decode | from_yaml }}
+    recovery_verification_queue_limit:
+      key: recovery/operation
+      value: verification
+      limit: 1
+  no_log: true
+  tags: [recovery_verification]
+
+- name: Retain current queue options and validate the recovery selector
+  ansible.builtin.set_fact:
+    recovery_verification_queue_config: >-
+      {{ recovery_verification_dagster_config.run_coordinator.config | default({}) }}
+  no_log: true
+  tags: [recovery_verification]
+
+- name: Require supported queue settings and unambiguous recovery limits
+  ansible.builtin.assert:
+    that:
+      - recovery_verification_dagster_config.run_coordinator['class'] == 'QueuedRunCoordinator'
+      - >-
+        recovery_verification_dagster_config.run_coordinator.module ==
+        'dagster.core.run_coordinator'
+      - >-
+        (recovery_verification_queue_config.tag_concurrency_limits | default([]) |
+         selectattr('key', 'equalto', 'recovery/operation') | list) in
+        [[], [recovery_verification_queue_limit]]
+    fail_msg: Review conflicting Dagster recovery queue limits before deployment.
+  tags: [recovery_verification]
+
+- name: Install only the approved recovery queue limit while preserving other settings
+  ansible.builtin.copy:
+    content: >-
+      {{ recovery_verification_dagster_config | combine(
+           {'run_coordinator': recovery_verification_dagster_config.run_coordinator |
+            combine({'config': recovery_verification_queue_config |
+             combine({'tag_concurrency_limits':
+              (recovery_verification_queue_config.tag_concurrency_limits | default([])) +
+              ([recovery_verification_queue_limit]
+               if recovery_verification_queue_limit not in
+               (recovery_verification_queue_config.tag_concurrency_limits | default([]))
+               else [])})})}) | to_nice_yaml }}
+    dest: "{{ host_infrastructure_compose_root }}/dagster/config/dagster.yaml"
+    owner: root
+    group: root
+    mode: '0644'
+  register: recovery_verification_queue
+  no_log: true
+  tags: [recovery_verification]
+
 - name: Reload the existing Dagster control plane after recovery location readiness
   ansible.builtin.command:
     argv:
@@ -180,5 +247,5 @@
     - not ansible_check_mode
     - >-
       recovery_verification_up.changed or recovery_verification_config.changed or
-      (dagster_workspace.changed | default(false))
+      (dagster_workspace.changed | default(false)) or recovery_verification_queue.changed
   tags: [recovery_verification]

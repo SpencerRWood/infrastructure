@@ -82,7 +82,7 @@ class RecoveryRuntimeTests(unittest.TestCase):
         defaults = yaml.safe_load((ROOT / 'ansible/roles/recovery_verification/defaults/main.yml').read_text())
         contract = defaults['recovery_verification_secret_contract']
         self.assertEqual(contract['path'], '/recovery-verification')
-        self.assertEqual(contract['required_keys'], ['DAGSTER_POSTGRES_PASSWORD'])
+        self.assertEqual(contract['required_keys'], '{{ recovery_verification_required_secret_keys }}')
         self.assertEqual(contract['compose_services'], ['recovery-verification-code'])
         tasks = yaml.safe_load((ROOT / 'ansible/roles/recovery_verification/tasks/main.yml').read_text())
         registration = next(t for t in tasks if t['name'].startswith('Register selected'))
@@ -91,3 +91,32 @@ class RecoveryRuntimeTests(unittest.TestCase):
         deploy = yaml.safe_load((ROOT / 'ansible/playbooks/deploy.yml').read_text())[0]
         self.assertEqual(deploy['tasks'][-1]['ansible.builtin.include_role']['name'], 'recovery_verification')
         self.assertIn('services.recovery_verification', deploy['tasks'][-1]['when'])
+
+    def test_notification_secret_selection_and_refresh_share_one_contract(self):
+        defaults = yaml.safe_load((ROOT / 'ansible/roles/recovery_verification/defaults/main.yml').read_text())
+        environment = Environment()
+        environment.filters['bool'] = bool
+        for enabled in (False, True):
+            keys = yaml.safe_load(environment.from_string(defaults['recovery_verification_required_secret_keys']).render(
+                recovery_verification_notifications_enabled=enabled,
+            ))
+            self.assertEqual(keys, ['DAGSTER_POSTGRES_PASSWORD'] + (
+                ['RECOVERY_EVENTS_URL', 'RECOVERY_EVENTS_TOKEN'] if enabled else []
+            ))
+        tasks = yaml.safe_load((ROOT / 'ansible/roles/recovery_verification/tasks/main.yml').read_text())
+        resolver = next(t for t in tasks if t['name'].startswith('Resolve scoped'))
+        self.assertIn('recovery_verification_required_secret_keys', resolver['ansible.builtin.command']['argv'])
+        config = next(t for t in tasks if t['name'].startswith('Install reviewed'))
+        content = config['ansible.builtin.copy']['content']
+        self.assertIn("lookup('file', recovery_verification_config_source)", content)
+        self.assertIn('notification_start_time', content)
+        self.assertNotIn('RECOVERY_EVENTS_TOKEN', content)
+
+    def test_only_recovery_operations_are_serialized_in_existing_queue(self):
+        config = yaml.safe_load((ROOT / 'compose/dagster/config/dagster.yaml').read_text())
+        coordinator = config['run_coordinator']
+        self.assertEqual(coordinator['class'], 'QueuedRunCoordinator')
+        self.assertNotIn('max_concurrent_runs', coordinator['config'])
+        self.assertEqual(coordinator['config']['tag_concurrency_limits'], [
+            {'key': 'recovery/operation', 'value': 'verification', 'limit': 1},
+        ])
