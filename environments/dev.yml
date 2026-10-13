@@ -178,6 +178,7 @@ backups_configuration:
     - infrastructure-dev-overleaf-clsi-gateway-1
   encryption_recipient: age1544rwqert2c0u5wks57lcgfw6saymcfmc7slhdr58js69w3m7d4st3la33
   independent_custody_verified: false
+  temporary_operator_custody_authorized: false
   files:
     - id: dagster-state
       paths:

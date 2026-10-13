@@ -1,3 +1,4 @@
 ---
 # Operational overrides require an approved rollout; targets belong in environments/.
 backups_quiesce_authorized: false
+backups_temporary_operator_custody_authorized: false

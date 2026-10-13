@@ -174,6 +174,10 @@
     "independent_custody_verified": {
       "type": "boolean"
     },
+    "temporary_operator_custody_authorized": {
+      "type": "boolean",
+      "description": "Explicitly approved temporary operator-held custody permits initial encrypted operations without attesting independent recovery."
+    },
     "files": {
       "type": "array",
       "items": {

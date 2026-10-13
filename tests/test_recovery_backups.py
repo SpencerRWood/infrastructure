@@ -221,6 +221,23 @@ class BackupTests(unittest.TestCase):
         self.assertFalse(self.root.exists())
         self.assertFalse(any('stop' in call.args[0] for call in calls.call_args_list))
 
+    def test_temporary_operator_custody_allows_encryption_without_independent_readiness(self):
+        self.config.update(independent_custody_verified=False,
+                           temporary_operator_custody_authorized=True)
+        self.produce()
+        _, manifest = self.document()
+        self.assertFalse(manifest['independent_custody_verified'])
+        self.assertTrue(manifest['temporary_operator_custody_authorized'])
+        self.assertFalse(manifest['disaster_recovery_ready'])
+        self.assertTrue(all(row['artifact'].endswith('.age') for row in manifest['artifacts']))
+
+    def test_temporary_custody_requires_boolean_authorization(self):
+        self.config.update(independent_custody_verified=False,
+                           temporary_operator_custody_authorized='true')
+        with self.assertRaisesRegex(BACKUP.BackupFailure, 'independent_key_custody_required'):
+            self.produce()
+        self.assertFalse(self.root.exists())
+
     def test_every_artifact_encrypted_and_wrong_recipient_rejected(self):
         self.produce()
         path, manifest = self.document()
