@@ -175,7 +175,9 @@ backups_configuration:
     - infrastructure-dev-events-service-wood-notify-1
     - infrastructure-dev-overleaf-overleaf-1
     - infrastructure-dev-overleaf-clsi-1
-  encryption_recipient: ''
+    - infrastructure-dev-overleaf-clsi-gateway-1
+  encryption_recipient: age1544rwqert2c0u5wks57lcgfw6saymcfmc7slhdr58js69w3m7d4st3la33
+  independent_custody_verified: false
   files:
     - id: dagster-state
       paths:

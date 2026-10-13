@@ -15,6 +15,14 @@
     "representative_queries"
   ],
   "properties": {
+    "encryption_recipient": {
+      "type": "string",
+      "pattern": "^age1[0-9a-z]{58}$"
+    },
+    "decryption_identity_file": {
+      "type": "string",
+      "pattern": "^/"
+    },
     "schema_version": {
       "const": 1
     },

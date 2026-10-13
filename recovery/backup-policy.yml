@@ -1,5 +1,7 @@
 ---
 consumer: infrastructure
+encryption_recipient: age1544rwqert2c0u5wks57lcgfw6saymcfmc7slhdr58js69w3m7d4st3la33
+decryption_identity_file: /run/recovery-verification/backup.agekey
 environment: dev
 postgres_container: infrastructure-dev-postgres-postgres-1
 max_age_seconds: 86400

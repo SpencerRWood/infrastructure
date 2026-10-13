@@ -24,7 +24,7 @@ class RestoreTests(unittest.TestCase):
              'sha256': backup_restore.digest(self.root / 'database.dump'), 'completed_at': '2026-10-12T20:00:00+00:00',
              'recovery_prerequisites': {'roles_artifact': 'globals.sql', 'extensions': ['plpgsql'],
                 'database_settings': {'locale_provider': 'c', 'lc_collate': 'C', 'lc_ctype': 'C'}}},
-            {'source': 'postgres-globals', 'artifact': 'globals.sql',
+            {'source': 'postgres-globals', 'artifact': 'globals.sql', 'format': 'postgres-sql',
              'sha256': backup_restore.digest(self.root / 'globals.sql')} ]}
         self.policy = self.root / 'policy.yml'
         from recovery_manifest import load_policy
@@ -112,6 +112,27 @@ class RestoreTests(unittest.TestCase):
             result = backup_restore.verify(self.policy)
         self.assertEqual(result['readiness_state'], 'unavailable')
         self.assertEqual(result['checks'][0]['reason'], 'required_database_locale_unavailable')
+
+    def test_missing_decryption_identity_never_launches_postgres_and_cleans_copy(self):
+        entry = self.manifest['artifacts'][0]
+        entry['format'] = 'postgres-custom-age'
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            with patch.object(backup_restore, 'run') as command:
+                with self.assertRaisesRegex(backup_restore.RestoreFailure, 'decryption_credential_unavailable'):
+                    backup_restore.copy_artifact(entry, self.root, workspace / 'copy',
+                                                 {'decryption_identity_file': str(workspace / 'missing')}, workspace)
+                command.assert_not_called()
+
+    def test_broad_identity_permissions_are_rejected_without_secret_output(self):
+        entry = self.manifest['artifacts'][0]
+        entry['format'] = 'postgres-custom-age'
+        identity = self.root / 'identity'
+        identity.write_text('disposable credential placeholder')
+        identity.chmod(0o644)
+        with self.assertRaisesRegex(backup_restore.RestoreFailure, 'decryption_credential_permissions_invalid'):
+            backup_restore.copy_artifact(entry, self.root, self.root / 'copy',
+                                         {'decryption_identity_file': str(identity)}, self.root)
 
 
 if __name__ == '__main__':

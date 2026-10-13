@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import tarfile
 import uuid
+import stat
 
 from recovery_manifest import InvalidBackup, digest, load_policy, validate
 
@@ -35,6 +36,24 @@ def run(argv, workspace, timeout=60):
     return result.stdout.decode().strip()
 
 
+def copy_artifact(entry, group, target, policy, workspace):
+    copied = target.with_name(target.name + '.encrypted') if entry['format'].endswith('-age') else target
+    shutil.copyfile(group / entry['artifact'], copied)
+    copied.chmod(0o600)
+    if digest(copied) != entry['sha256']:
+        raise RestoreFailure('copied_backup_checksum_mismatch')
+    if copied != target:
+        identity = Path(policy['decryption_identity_file'])
+        if identity.is_symlink() or not identity.is_file():
+            raise RestoreFailure('decryption_credential_unavailable', 'unavailable')
+        metadata = identity.stat()
+        if stat.S_IMODE(metadata.st_mode) != 0o600 or metadata.st_uid != os.geteuid():
+            raise RestoreFailure('decryption_credential_permissions_invalid', 'unavailable')
+        run(['age', '--decrypt', '--identity', str(identity), '--output', str(target), str(copied)], workspace, 120)
+        target.chmod(0o600)
+        copied.unlink()
+
+
 def verify(policy_file, deadline_seconds=240):
     checks, backups = [], []
     checksum = None
@@ -51,7 +70,7 @@ def verify(policy_file, deadline_seconds=240):
         policy = load_policy(policy_file)
         manifest, group, _ = validate(policy['pointer'], policy)
         selected = next((item for item in manifest['artifacts']
-                         if item['source'] == policy['restore_database'] and item['format'] == 'postgres-custom'), None)
+                         if item['source'] == policy['restore_database'] and item['format'] in {'postgres-custom', 'postgres-custom-age'}), None)
         if not selected:
             raise RestoreFailure('representative_database_backup_missing')
         database = policy['restore_database']
@@ -74,13 +93,12 @@ def verify(policy_file, deadline_seconds=240):
         socket.mkdir(mode=0o700)
         globals_file = workspace / 'globals.sql'
         dump = workspace / 'database.dump'
-        shutil.copyfile(group / selected['recovery_prerequisites']['roles_artifact'], globals_file)
-        shutil.copyfile(group / selected['artifact'], dump)
-        globals_file.chmod(0o600)
-        dump.chmod(0o600)
         globals_entry = next(item for item in manifest['artifacts'] if item['source'] == 'postgres-globals')
-        if digest(dump) != checksum or digest(globals_file) != globals_entry['sha256']:
-            raise RestoreFailure('copied_backup_checksum_mismatch')
+        copy_artifact(globals_entry, group, globals_file, policy, workspace)
+        copy_artifact(selected, group, dump, policy, workspace)
+        with dump.open('rb') as stream:
+            if stream.read(5) != b'PGDMP':
+                raise RestoreFailure('decrypted_backup_format_invalid')
         bootstrap = 'rv_' + uuid.uuid4().hex
         run(['initdb', '-D', str(data), '-U', bootstrap, '--auth=trust', '--no-locale', '--encoding=UTF8'], workspace)
         # No TCP listener, live URI, production password or application process.
@@ -114,13 +132,11 @@ def verify(policy_file, deadline_seconds=240):
         observation('integrity', 'passed', 'database_integrity_and_ownership_verified')
         if policy.get('restore_file_source'):
             file_entry = next((item for item in manifest['artifacts']
-                               if item['source'] == policy['restore_file_source'] and item['format'] == 'tar-gzip'), None)
+                               if item['source'] == policy['restore_file_source'] and item['format'] in {'tar-gzip', 'tar-gzip-age'}), None)
             if not file_entry:
                 raise RestoreFailure('representative_file_backup_missing')
             copied = workspace / 'application.tar.gz'
-            shutil.copyfile(group / file_entry['artifact'], copied)
-            if digest(copied) != file_entry['sha256']:
-                raise RestoreFailure('copied_file_backup_checksum_mismatch')
+            copy_artifact(file_entry, group, copied, policy, workspace)
             restored_files = workspace / 'application-files'
             restored_files.mkdir(mode=0o700)
             with tarfile.open(copied, 'r:gz') as archive:

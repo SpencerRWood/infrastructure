@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import uuid
 
 
@@ -121,7 +122,7 @@ def backup_postgres(config, stage, add):
             "'lc_collate',datcollate,'lc_ctype',datctype) FROM pg_database WHERE datname=current_database();")))
         add(path, database, 'postgres-custom', {'postgres_version': version, 'extensions': extensions,
                                                'database_settings': settings,
-                                               'roles_artifact': 'postgres-globals.sql'}, started)
+                                               'roles_artifact': 'postgres-globals.sql.age'}, started)
     return databases
 
 
@@ -146,16 +147,7 @@ def backup_files(config, stage, add):
                          'sqlite_databases_integrity_verified': sqlite_count,
                          'excluded_disposable_state': component.get('exclude', []),
                          'sqlite_engine': component.get('sqlite_engine', 'python-sqlite3')}
-        if component.get('sensitive'):
-            recipient = config.get('encryption_recipient')
-            if not recipient:
-                raise BackupFailure('secret_archive_encryption_recipient_required')
-            encrypted = path.with_suffix(path.suffix + '.age')
-            command(['age', '--recipient', recipient, '--output', str(encrypted), str(path)])
-            path.unlink()  # Only this run's unpublished temporary plaintext.
-            path = encrypted
-            prerequisites['decryption_key'] = 'operator-managed age identity, stored independently'
-        add(path, component['id'], 'tar-gzip-age' if component.get('sensitive') else 'tar-gzip', prerequisites, started)
+        add(path, component['id'], 'tar-gzip', prerequisites, started)
     for component in config.get('mongo', []):
         started = timestamp()
         path = stage / (component['id'] + '.archive.gz')
@@ -269,6 +261,28 @@ def validate_native_sqlite(workspace, database, component, engine):
             raise BackupFailure('sqlite_validator_cleanup_failed') from error
 
 
+def encrypt_artifact(path, recipient):
+    encrypted = path.with_name(path.name + '.age')
+    command(['age', '--recipient', recipient, '--output', str(encrypted), str(path)])
+    with encrypted.open('rb') as stream:
+        if stream.read(22) != b'age-encryption.org/v1\n':
+            raise BackupFailure('encrypted_artifact_invalid')
+    path.unlink()  # Only this run's unpublished plaintext.
+    return encrypted
+
+
+def writer_health(container):
+    deadline = time.monotonic() + 90
+    while True:
+        state = json.loads(command(['docker', 'inspect', '--format', '{{json .State}}', container]))
+        health = state.get('Health', {}).get('Status', 'healthy')
+        if state['Running'] and health == 'healthy':
+            return
+        if not state['Running'] or health == 'unhealthy' or time.monotonic() >= deadline:
+            raise BackupFailure('writer_resume_health_failed')
+        time.sleep(2)
+
+
 def produce(config):
     os.umask(0o077)
     root = check_destination(config)
@@ -282,8 +296,16 @@ def produce(config):
         for component in config.get(kind, []):
             if not re.fullmatch('[a-z][a-z0-9_-]{0,63}', component['id']):
                 raise BackupFailure('backup_component_identifier_invalid')
-    if any(component.get('sensitive') for component in config.get('files', [])) and not config.get('encryption_recipient'):
-        raise BackupFailure('secret_archive_encryption_recipient_required')
+    recipient = config.get('encryption_recipient', '')
+    if not re.fullmatch('age1[0-9a-z]{58}', recipient):
+        raise BackupFailure('backup_encryption_recipient_required')
+    if not config.get('independent_custody_verified', False):
+        raise BackupFailure('independent_key_custody_required')
+    # Exercise the recipient and age runtime before touching application writers.
+    with tempfile.TemporaryDirectory(prefix='backup-encryption-') as temporary:
+        probe = Path(temporary) / 'probe'
+        probe.write_bytes(b'disposable recipient validation')
+        encrypt_artifact(probe, recipient)
     writers = config.get('quiesce_containers', [])
     if (config.get('files') or config.get('mongo') or config.get('redis')) and not writers:
         raise BackupFailure('application_consistency_contract_missing')
@@ -303,11 +325,18 @@ def produce(config):
         group = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ-') + uuid.uuid4().hex
         stage = Path(tempfile.mkdtemp(prefix='.in-progress-', dir=root))
         stopped = []
+        resumed = []
         artifacts = []
+        pending = []
         pointer = None
         def add(path, source, format_name, prerequisites, artifact_created_at):
+            pending.append((path, source, format_name, prerequisites, artifact_created_at))
+
+        def publish_artifact(path, source, format_name, prerequisites, artifact_created_at):
             if path.stat().st_size == 0:
                 raise BackupFailure('backup_artifact_empty')
+            path = encrypt_artifact(path, recipient)
+            format_name += '-age'
             path.chmod(0o600)
             if reader_gid is not None:
                 os.chown(path, -1, reader_gid)
@@ -317,7 +346,10 @@ def produce(config):
             entry = {'source': source, 'artifact': path.name, 'format': format_name,
                               'sha256': sha256(path), 'size_bytes': path.stat().st_size,
                               'created_at': artifact_created_at, 'completed_at': timestamp(),
-                              'recovery_prerequisites': prerequisites}
+                              'recovery_prerequisites': prerequisites,
+                              'encryption': {'format': 'age', 'recipient': recipient},
+                              'consumer': config['consumer'], 'environment': config['environment'],
+                              'recovery_group': group, 'max_age_seconds': config['max_age_seconds']}
             if source in config.get('off_source_copy_sources', []):
                 copy_root = check_destination({'destination': config['off_source_destination']})
                 copy_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -377,7 +409,15 @@ def produce(config):
             # leaves the last published manifest untouched and is a backup failure.
             for container in reversed(stopped.copy()):
                 command(['docker', 'start', container], timeout=90)
+                resumed.append(container)
                 stopped.remove(container)
+            for container in writers:
+                if container in resumed:
+                    writer_health(container)
+            # Encryption and off-source copies operate on completed snapshots.
+            # Resume application writers before this non-consistency work.
+            for item in pending:
+                publish_artifact(*item)
             document = {'schema_version': 1, 'consumer': config['consumer'],
                         'environment': config['environment'], 'recovery_group': group,
                         'postgres_container': config['postgres']['container'],
@@ -425,16 +465,20 @@ def produce(config):
                 os.close(directory)
             return {'status': 'completed', 'consumer': config['consumer'], 'group': group}
         finally:
+            signal.alarm(0)
+            termination_handler = signal.signal(signal.SIGTERM, signal.SIG_IGN)
             restart_failed = False
             for container in reversed(stopped):
                 try:
                     command(['docker', 'start', container], timeout=90)
-                except (BackupFailure, subprocess.TimeoutExpired):
+                    writer_health(container)
+                except (BackupFailure, subprocess.TimeoutExpired, OSError, ValueError):
                     restart_failed = True
             if stage.exists():
                 shutil.rmtree(stage)
             if pointer is not None and pointer.exists():
                 pointer.unlink()
+            signal.signal(signal.SIGTERM, termination_handler)
             if restart_failed:
                 raise BackupFailure('backup_failed_and_writer_restart_failed')
 

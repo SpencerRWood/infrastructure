@@ -15,7 +15,9 @@
     "postgres",
     "max_age_seconds",
     "quiesce_authorized",
-    "quiesce_containers"
+    "quiesce_containers",
+    "encryption_recipient",
+    "independent_custody_verified"
   ],
   "properties": {
     "schema_version": {
@@ -167,7 +169,10 @@
     },
     "encryption_recipient": {
       "type": "string",
-      "pattern": "^$|^age1[a-z0-9]+$|^ssh-(rsa|ed25519) "
+      "pattern": "^age1[0-9a-z]{58}$"
+    },
+    "independent_custody_verified": {
+      "type": "boolean"
     },
     "files": {
       "type": "array",

@@ -29,6 +29,8 @@ def verify(configuration_file):
             or config['destination']['root'] + '/current.json' != policy['pointer']
             or config['max_age_seconds'] != policy['max_age_seconds']):
         raise InvalidBackup('backup_configuration_policy_mismatch')
+    if config['encryption_recipient'] != policy.get('encryption_recipient'):
+        raise InvalidBackup('backup_encryption_policy_mismatch')
     if policy['restore_database'] not in config['postgres']['required_databases']:
         raise InvalidBackup('backup_restore_database_not_configured')
     if policy.get('restore_file_source') not in [item['id'] for item in config.get('files', [])]:

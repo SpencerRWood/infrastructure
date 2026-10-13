@@ -33,6 +33,8 @@ class BackupTests(unittest.TestCase):
         self.mount = Path(self.temp.name)
         self.root = self.mount / 'backups'
         self.config = {'consumer': 'infrastructure', 'environment': 'dev', 'max_age_seconds': 86400,
+                       'encryption_recipient': 'age1544rwqert2c0u5wks57lcgfw6saymcfmc7slhdr58js69w3m7d4st3la33',
+                       'independent_custody_verified': True,
                        'destination': {'mount': str(self.mount), 'root': str(self.root),
                                        'source': 'nas:/backups', 'fstype': 'nfs'},
                        'postgres': {'container': 'active-postgres', 'password_source': 'file', 'required_databases': ['application']}}
@@ -49,7 +51,13 @@ class BackupTests(unittest.TestCase):
             return json.dumps({'filesystems': [{'target': destination['mount'], 'source': destination['source'],
                                                 'fstype': destination['fstype']}]})
         if 'inspect' in argv:
+            if '{{json .State}}' in argv:
+                return json.dumps({'Running': True, 'Health': {'Status': 'healthy'}})
             return 'true'
+        if argv[0] == 'age':
+            target = Path(argv[argv.index('--output') + 1])
+            target.write_bytes(b'age-encryption.org/v1\n' + Path(argv[-1]).read_bytes())
+            return ''
         if 'psql' in argv:
             if any('json_build_object' in value for value in argv):
                 return json.dumps({'owner': 'application', 'locale_provider': 'c', 'lc_collate': 'C', 'lc_ctype': 'C'})
@@ -197,12 +205,56 @@ class BackupTests(unittest.TestCase):
                             for row in manifest['artifacts']))
 
     def test_missing_key_recipient_never_pauses_writers(self):
+        self.config.pop('encryption_recipient')
         self.config.update(files=[{'id': 'keys', 'sensitive': True, 'paths': ['/protected/keys']}],
                            quiesce_containers=['application'], quiesce_authorized=True)
         with patch.object(BACKUP, 'command', side_effect=self.fake_command) as calls:
-            with self.assertRaisesRegex(BACKUP.BackupFailure, 'secret_archive_encryption_recipient_required'):
+            with self.assertRaisesRegex(BACKUP.BackupFailure, 'backup_encryption_recipient_required'):
                 BACKUP.produce(self.config)
         self.assertFalse(any('stop' in call.args[0] for call in calls.call_args_list))
+
+    def test_unverified_custody_prevents_writer_pause_and_publication(self):
+        self.config['independent_custody_verified'] = False
+        with patch.object(BACKUP, 'command', side_effect=self.fake_command) as calls:
+            with self.assertRaisesRegex(BACKUP.BackupFailure, 'independent_key_custody_required'):
+                BACKUP.produce(self.config)
+        self.assertFalse(self.root.exists())
+        self.assertFalse(any('stop' in call.args[0] for call in calls.call_args_list))
+
+    def test_every_artifact_encrypted_and_wrong_recipient_rejected(self):
+        self.produce()
+        path, manifest = self.document()
+        self.assertTrue(all(row['artifact'].endswith('.age') for row in manifest['artifacts']))
+        self.assertFalse(list(path.parent.glob('*.dump')))
+        self.policy['encryption_recipient'] = self.config['encryption_recipient']
+        MANIFEST.validate(self.root / 'current.json', self.policy)
+        manifest['artifacts'][0]['encryption']['recipient'] = 'age1' + 'q' * 58
+        path.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(MANIFEST.InvalidBackup, 'backup_encryption_policy_mismatch'):
+            MANIFEST.validate(self.root / 'current.json', self.policy)
+
+    def test_failed_stop_still_resumes_writer(self):
+        self.config.update(quiesce_containers=['application'], quiesce_authorized=True)
+        def command(argv, **kwargs):
+            if 'stop' in argv:
+                raise BACKUP.BackupFailure('stop_failed')
+            return self.fake_command(argv, **kwargs)
+        with patch.object(BACKUP, 'command', side_effect=command) as calls:
+            with self.assertRaisesRegex(BACKUP.BackupFailure, 'stop_failed'):
+                BACKUP.produce(self.config)
+        self.assertTrue(any(call.args[0] == ['docker', 'start', 'application'] for call in calls.call_args_list))
+
+    def test_failed_resume_is_critical_and_never_publishes(self):
+        self.config.update(quiesce_containers=['application'], quiesce_authorized=True)
+        def command(argv, **kwargs):
+            if 'start' in argv:
+                raise BACKUP.BackupFailure('start_failed')
+            return self.fake_command(argv, **kwargs)
+        with patch.object(BACKUP, 'command', side_effect=command), \
+                patch.object(BACKUP, 'backup_postgres', side_effect=BACKUP.BackupFailure('dump_failed')):
+            with self.assertRaisesRegex(BACKUP.BackupFailure, 'backup_failed_and_writer_restart_failed'):
+                BACKUP.produce(self.config)
+        self.assertFalse((self.root / 'current.json').exists())
 
     def test_sqlite_backup_copy_integrity_and_missing_database(self):
         database = self.mount / 'application.db'

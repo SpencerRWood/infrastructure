@@ -150,12 +150,25 @@ def validate(pointer, policy, now=None):
             if (copy['sha256'] != checksum or copy_path.stat().st_size != entry['size_bytes']
                     or digest(copy_path) != checksum):
                 raise InvalidBackup('off_source_copy_integrity_failed')
-        if entry['format'] not in {'postgres-custom', 'postgres-sql', 'tar-gzip', 'tar-gzip-age', 'mongo-archive-gzip', 'redis-rdb'}:
+        formats = {'postgres-custom', 'postgres-sql', 'tar-gzip', 'mongo-archive-gzip', 'redis-rdb'}
+        encrypted = entry['format'].endswith('-age')
+        base_format = entry['format'][:-4] if encrypted else entry['format']
+        if base_format not in formats:
             raise InvalidBackup('backup_format_unsupported')
+        if policy.get('encryption_recipient') and (not encrypted or entry.get('encryption') != {
+                'format': 'age', 'recipient': policy['encryption_recipient']}):
+            raise InvalidBackup('backup_encryption_policy_mismatch')
+        if encrypted:
+            with artifact.open('rb') as stream:
+                if stream.read(22) != b'age-encryption.org/v1\n':
+                    raise InvalidBackup('backup_encryption_format_mismatch')
         if not created <= instant(entry['created_at']) <= instant(entry['completed_at']) <= completed:
             raise InvalidBackup('backup_artifact_timestamp_invalid')
         if not 0 <= (now - instant(entry['created_at'])).total_seconds() <= maximum_age:
             raise InvalidBackup('backup_source_stale')
+        if base_format == 'postgres-custom':
+            if entry['recovery_prerequisites']['roles_artifact'] not in names:
+                raise InvalidBackup('backup_roles_artifact_missing')
         if entry['format'] == 'postgres-custom':
             with artifact.open('rb') as stream:
                 if stream.read(5) != b'PGDMP':

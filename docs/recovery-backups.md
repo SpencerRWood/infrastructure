@@ -47,8 +47,9 @@ The audited development destination is
 fails before destination creation. A local host directory is not a substitute.
 The NAS survives application-host failure. An off-NAS copy and NAS encryption at
 rest are currently unverified; full NAS disaster recovery remains unaccepted.
-PostgreSQL and ordinary file archives are not encrypted by this producer.
-Infisical recovery-key archives are encrypted with `age`.
+All new PostgreSQL, file, MongoDB, Redis and Infisical recovery-key artifacts
+are encrypted with the YAML age recipient before publication. Existing backups
+remain untouched. Encryption and extra copies run after application writers resume.
 
 Runs take an exclusive lock and stage under `.in-progress-*`. Each artifact is
 nonempty, format-checked and SHA-256 hashed. A complete immutable group is renamed

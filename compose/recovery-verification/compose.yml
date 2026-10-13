@@ -24,6 +24,12 @@ services:
       RECOVERY_LOCAL_STORAGE: '1'
     expose: ['4000']
     volumes:
+      - type: bind
+        source: "${RECOVERY_BACKUP_IDENTITY_PATH:?required}"
+        target: /run/recovery-verification/backup.agekey
+        read_only: true
+        bind:
+          create_host_path: false
       - "${RECOVERY_CONFIG_PATH:?required}:/etc/recovery-verification/orchestration.json:ro"
       - "${RECOVERY_CHECKOUTS_PATH:?required}:/opt/recovery/checkouts:ro"
       - "${RECOVERY_STATE_PATH:?required}:/opt/recovery/state"

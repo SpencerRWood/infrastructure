@@ -63,17 +63,15 @@
   vars:
     backups_runtime_configuration: >-
       {{ backups_configuration | combine({
-        'quiesce_authorized': backups_quiesce_authorized | bool,
-        'encryption_recipient': backups_encryption_recipient
+        'quiesce_authorized': backups_quiesce_authorized | bool
       }) }}
   tags: [backups]
 
 
-- name: Install the recovery key encryption tool
+- name: Install the public-recipient encryption runtime
   ansible.builtin.package:
     name: age
     state: present
-  when: backups_encryption_recipient | length > 0
 
 - name: Schedule the infrastructure-owned nightly backup
   ansible.builtin.cron:
