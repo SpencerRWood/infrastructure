@@ -1,8 +1,8 @@
 {
   "schema_version": "1",
   "references": [
-    "build://compose/dagster/Dockerfile",
-    "build://compose/overleaf/Dockerfile",
+    "image-archive:///mnt/wood-server-nas/backup_server/swood-server/infrastructure-dev/image-artifacts/infrastructure-dagster/8e0f5eb4f0f92bc12e93aa83ee89a42f274f0992010cb7ceb074ddf4390e5ead/manifest.json",
+    "image-archive:///mnt/wood-server-nas/backup_server/swood-server/infrastructure-dev/image-artifacts/infrastructure-overleaf/295a359bac95c9454fc9f71bb9c52e3f48d0f608675984b27a152aca952ca9cb/manifest.json",
     "oci://caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
     "oci://ghcr.io/open-webui/open-webui@sha256:6a773e5c3a246b65cbe74ce942b294292c0e5f81c138f703d111bc162f7d7c3d",
     "oci://ghcr.io/spencerrwood/automerge-repair:v0.2.1@sha256:baa602f0b4dc72d26a6152f9777d536b12e96cf1b292786b7ad22888844c925e",

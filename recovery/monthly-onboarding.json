@@ -5,7 +5,13 @@
   "status": "blocked_pending_approved_disposable_provider",
   "provider": null,
   "vm_identity": null,
-  "proposed_limits": {"concurrent_vms": 1, "vcpus": 4, "memory_gib": 16, "disk_gib": 100, "maximum_lifetime_minutes": 120},
+  "proposed_limits": {"concurrent_vms": 1, "default_profile": "standard", "maximum_vcpus": 4, "maximum_memory_gib": 16, "maximum_disk_gib": 100, "maximum_lifetime_minutes": 120},
+  "resource_profiles": {
+    "small": {"memory_gib": 2, "vcpus": 2, "disk_gib": 40},
+    "standard": {"memory_gib": 4, "vcpus": 2, "disk_gib": 40},
+    "large": {"memory_gib": 8, "vcpus": 4, "disk_gib": 80},
+    "full": {"memory_gib": 16, "vcpus": 4, "disk_gib": 100}
+  },
   "required_authorizations": ["provider_and_vm_identity", "isolated_network_and_inventory", "drill_only_secret_identity", "encrypted_backup_copy_and_key_handling", "resource_destruction_and_cleanup"],
   "production_access": false,
   "production_restore": false,

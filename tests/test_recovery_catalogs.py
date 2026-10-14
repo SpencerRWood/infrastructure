@@ -19,7 +19,7 @@ class RecoveryCatalogTests(unittest.TestCase):
             if reference.startswith('oci://'):
                 self.assertRegex(reference, r'@sha256:[0-9a-f]{64}$')
             else:
-                self.assertTrue((ROOT / reference.removeprefix('build://')).is_file())
+                self.assertRegex(reference, r'^image-archive:///mnt/wood-server-nas/backup_server/swood-server/infrastructure-dev/image-artifacts/infrastructure-(dagster|overleaf)/[0-9a-f]{64}/manifest\.json$')
         self.assertEqual(len(catalog), len(set(catalog)))
 
     def test_runtime_catalog_covers_base_and_current_component_contracts(self):

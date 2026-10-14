@@ -1,5 +1,6 @@
 """Immutable encrypted image export/retrieval is separate from Docker cache."""
 import hashlib
+import gzip
 import importlib.util
 import io
 import json
@@ -64,6 +65,82 @@ class ImageExportTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'approved_export_plan_stale'):
                 EXPORT.apply(plan, EXPORT.fingerprint(plan))
             encrypt.assert_not_called()
+
+    def test_current_docker_blob_paths_and_compressed_layers_are_verified(self):
+        layer = b'actual-uncompressed-fixture-layer' * 100
+        encoded = gzip.compress(layer)
+        layer_path = 'blobs/sha256/' + hashlib.sha256(encoded).hexdigest()
+        config = json.dumps({'rootfs': {'diff_ids': ['sha256:' + hashlib.sha256(layer).hexdigest()]}}).encode()
+        config_hash = hashlib.sha256(config).hexdigest()
+        config_path = 'blobs/sha256/' + config_hash
+        manifest = json.dumps([{'Config': config_path, 'Layers': [layer_path]}]).encode()
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode='w') as stream:
+            for name, content in [(config_path, config), (layer_path, encoded), ('manifest.json', manifest)]:
+                member = tarfile.TarInfo(name); member.size = len(content)
+                stream.addfile(member, io.BytesIO(content))
+        archive = buffer.getvalue()
+        proof = VERIFY.inspect_archive(io.BytesIO(archive), {
+            'image_id': 'sha256:' + config_hash, 'archive_sha256': hashlib.sha256(archive).hexdigest(),
+            'ciphertext_sha256': 'a' * 64})
+        self.assertEqual(proof['layer_count'], 1)
+        self.assertFalse(proof['plaintext_persisted'])
+
+    def test_decoded_layer_hashing_rejects_excessive_expansion(self):
+        with self.assertRaisesRegex(ValueError, 'image_layer_size_limit'):
+            VERIFY.layer_digest(io.BytesIO(b'oversized'), maximum=4)
+
+    def test_truncated_archive_rejected_even_with_matching_outer_hash(self):
+        data, metadata = self.archive()
+        data = data[:3072]
+        metadata['archive_sha256'] = hashlib.sha256(data).hexdigest()
+        with self.assertRaisesRegex(ValueError, 'image_archive_truncated'):
+            VERIFY.inspect_archive(io.BytesIO(data), metadata)
+
+    def test_missing_layer_and_malformed_manifest_are_rejected(self):
+        for manifest in [[{'Config': 'config.json', 'Layers': ['missing.tar']}], {'Config': 'config.json'}]:
+            buffer = io.BytesIO()
+            with tarfile.open(fileobj=buffer, mode='w') as stream:
+                for name, content in [('config.json', b'{}'), ('manifest.json', json.dumps(manifest).encode())]:
+                    member = tarfile.TarInfo(name); member.size = len(content)
+                    stream.addfile(member, io.BytesIO(content))
+            data = buffer.getvalue()
+            metadata = {'image_id': 'sha256:' + hashlib.sha256(b'{}').hexdigest(),
+                        'archive_sha256': hashlib.sha256(data).hexdigest(), 'ciphertext_sha256': 'a' * 64}
+            with self.subTest(manifest=manifest), self.assertRaises(ValueError):
+                VERIFY.inspect_archive(io.BytesIO(data), metadata)
+
+    def test_addressed_blob_digest_mismatch_is_rejected(self):
+        data, metadata = self.archive()
+        output = io.BytesIO()
+        with tarfile.open(fileobj=io.BytesIO(data)) as source, tarfile.open(fileobj=output, mode='w') as destination:
+            for member in source:
+                content = source.extractfile(member).read()
+                if member.name == 'layer.tar':
+                    member.name = 'blobs/sha256/' + 'b' * 64
+                destination.addfile(member, io.BytesIO(content))
+        data = output.getvalue()
+        metadata['archive_sha256'] = hashlib.sha256(data).hexdigest()
+        with self.assertRaisesRegex(ValueError, 'image_blob_address_mismatch'):
+            VERIFY.inspect_archive(io.BytesIO(data), metadata)
+
+    def test_repeated_layer_references_verify_each_diff_id(self):
+        layer = b'repeated-layer'
+        diff_id = 'sha256:' + hashlib.sha256(layer).hexdigest()
+        config = json.dumps({'rootfs': {'diff_ids': [diff_id, diff_id]}}).encode()
+        config_hash = hashlib.sha256(config).hexdigest()
+        manifest = json.dumps([{'Config': 'config.json', 'Layers': ['layer.tar', 'layer.tar']}]).encode()
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode='w') as archive:
+            for name, content in [('config.json', config), ('layer.tar', layer), ('manifest.json', manifest)]:
+                member = tarfile.TarInfo(name); member.size = len(content)
+                archive.addfile(member, io.BytesIO(content))
+        data = buffer.getvalue()
+        result = VERIFY.inspect_archive(io.BytesIO(data), {
+            'image_id': 'sha256:' + config_hash, 'archive_sha256': hashlib.sha256(data).hexdigest(),
+            'ciphertext_sha256': 'a' * 64})
+        self.assertEqual(result['layer_count'], 2)
+        self.assertEqual([item['verified_diff_id'] for item in result['layers']], [diff_id, diff_id])
 
 
 if __name__ == '__main__':
