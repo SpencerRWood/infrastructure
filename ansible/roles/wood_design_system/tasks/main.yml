@@ -1,0 +1,127 @@
+---
+- name: Require the development-only immutable WDS artifact
+  ansible.builtin.assert:
+    that:
+      - infrastructure_environment == 'dev'
+      - >-
+        wood_design_system_image_ref is match(
+        '^ghcr[.]io/spencerrwood/wood-design-system:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$')
+      - lookup('ansible.builtin.env', 'WDS_GHCR_TOKEN') | length > 0
+    fail_msg: WDS requires its approved immutable dev artifact and pull-only GHCR credential.
+  no_log: true
+
+- name: Create WDS configuration directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ wood_design_system_compose_directory }}", mode: '0755'}
+    - {path: "{{ wood_design_system_docker_config_directory }}", mode: '0700'}
+
+- name: Authenticate the WDS pull-only registry identity
+  community.docker.docker_login:
+    registry_url: ghcr.io
+    username: "{{ wood_design_system_ghcr_username }}"
+    password: "{{ lookup('ansible.builtin.env', 'WDS_GHCR_TOKEN') }}"
+    config_path: "{{ wood_design_system_docker_config_directory }}/config.json"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Write WDS immutable Compose inputs
+  ansible.builtin.copy:
+    content: |
+      WDS_PROJECT_NAME={{ wood_design_system_project_name }}
+      WDS_IMAGE_REF={{ wood_design_system_image_ref }}
+      WDS_PROXY_NETWORK={{ wood_design_system_proxy_network }}
+    dest: "{{ wood_design_system_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+
+- name: Copy the WDS runtime catalog
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/wood-design-system/compose.yml"
+    dest: "{{ wood_design_system_compose_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Start WDS from its immutable published digest
+  community.docker.docker_compose_v2:
+    project_src: "{{ wood_design_system_compose_directory }}"
+    env_files: ["{{ wood_design_system_env_file }}"]
+    pull: always
+    wait: true
+    wait_timeout: 90
+  environment:
+    DOCKER_CONFIG: "{{ wood_design_system_docker_config_directory }}"
+  when: not ansible_check_mode
+
+- name: Install the WDS route only after explicit service selection
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/wood-design-system/route.caddy"
+    dest: "{{ wood_design_system_routes_directory }}/wood-design-system.caddy"
+    owner: root
+    group: root
+    mode: '0644'
+  register: wood_design_system_route
+
+- name: Install the WDS edge route only after explicit service selection
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../compose/wood-design-system/edge-route.caddy"
+    dest: "{{ wood_design_system_edge_routes_directory }}/wood-design-system.caddy"
+    owner: root
+    group: root
+    mode: '0644'
+  register: wood_design_system_edge_route
+
+- name: Validate WDS infrastructure Caddy configuration
+  ansible.builtin.command:
+    argv: [docker, exec, "{{ wood_design_system_caddy_container }}", caddy,
+           validate, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Reload WDS infrastructure Caddy configuration
+  ansible.builtin.command:
+    argv: [docker, exec, "{{ wood_design_system_caddy_container }}", caddy,
+           reload, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+  changed_when: true
+  when: not ansible_check_mode and wood_design_system_route.changed
+
+- name: Validate WDS edge Caddy configuration
+  ansible.builtin.command:
+    argv: [docker, exec, "{{ wood_design_system_edge_container }}", caddy,
+           validate, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Reload WDS edge Caddy configuration
+  ansible.builtin.command:
+    argv: [docker, exec, "{{ wood_design_system_edge_container }}", caddy,
+           reload, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+  changed_when: true
+  when: not ansible_check_mode and wood_design_system_edge_route.changed
+
+- name: Verify WDS health and application routes through infrastructure Caddy
+  ansible.builtin.uri:
+    url: "http://{{ caddy_bind_address }}:{{ caddy_http_port }}{{ item }}"
+    headers: {Host: dev-design.woodhost.cloud}
+    status_code: 200
+  loop:
+    - /health
+    - /
+    - /foundations
+    - /components
+    - /patterns
+    - /resources
+    - /examples/website
+    - /examples/analytics
+    - /examples/developer
+    - /examples/document
+    - /component-manifest.json
+  when: not ansible_check_mode

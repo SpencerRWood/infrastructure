@@ -49,7 +49,9 @@ recovery_verification_config_source: "{{ playbook_dir }}/../../environments/reco
 # yamllint enable rule:line-length
 recovery_verification_notifications_enabled: true
 recovery_verification_notification_start_time: '2026-10-13T16:36:54Z'
+# Initial onboarding needs a real published digest and explicit deployment approval.
 services:
+  wood_design_system: false
   backups: true
   recovery_verification: true
   overleaf: true

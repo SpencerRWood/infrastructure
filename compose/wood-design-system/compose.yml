@@ -1,0 +1,16 @@
+name: ${WDS_PROJECT_NAME:?required}
+services:
+  wood-design-system:
+    image: ${WDS_IMAGE_REF:?required digest-qualified release image}
+    restart: unless-stopped
+    user: '101:101'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=16m']
+    expose: ['8080']
+    networks: [proxy]
+networks:
+  proxy:
+    external: true
+    name: ${WDS_PROXY_NETWORK:?required}
