@@ -228,6 +228,15 @@
     mode: '0750'
   tags: [phase6_ci]
 
+- name: Install the root-owned WDS initial rollback control
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../scripts/rollback-wood-design-system.sh"
+    dest: /usr/local/sbin/github-runner-infrastructure-wds-rollback
+    owner: root
+    group: root
+    mode: '0750'
+  tags: [phase6_ci]
+
 - name: Permit only the canonical deployment wrapper through sudo
   ansible.builtin.copy:
     # noqa yaml[line-length]

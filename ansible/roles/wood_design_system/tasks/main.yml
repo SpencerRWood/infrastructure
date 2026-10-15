@@ -51,14 +51,25 @@
     mode: '0644'
 
 - name: Start WDS from its immutable published digest
-  community.docker.docker_compose_v2:
-    project_src: "{{ wood_design_system_compose_directory }}"
-    env_files: ["{{ wood_design_system_env_file }}"]
-    pull: always
-    wait: true
-    wait_timeout: 90
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --env-file
+      - "{{ wood_design_system_env_file }}"
+      - -f
+      - "{{ wood_design_system_compose_directory }}/compose.yml"
+      - up
+      - --detach
+      - --pull
+      - always
+      - --wait
+      - --wait-timeout
+      - '90'
   environment:
     DOCKER_CONFIG: "{{ wood_design_system_docker_config_directory }}"
+  register: wood_design_system_up
+  changed_when: wood_design_system_up.stdout is search('Created|Started|Recreated')
   when: not ansible_check_mode
 
 - name: Install the WDS route only after explicit service selection

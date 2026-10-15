@@ -31,12 +31,24 @@ if [[ "$operation" == apply || "$operation" == check ]]; then
 fi
 case "$operation" in
   apply-wood-design-system)
+    # Releases before WDS onboarding represent the approved no-service baseline.
+    # Use the installed current rollback control, never an absent old role/script.
+    if [[ ! -f ansible/roles/wood_design_system/tasks/main.yml ]]; then
+      exec env WDS_ROLLBACK_APPROVED=true /usr/local/sbin/github-runner-infrastructure-wds-rollback
+    fi
     exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --tags wood_design_system {{ github_runner_ansible_extra_args }}
     ;;
   check-wood-design-system)
     exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --tags wood_design_system --check --diff {{ github_runner_ansible_extra_args }}
     ;;
   health-wood-design-system)
+    if [[ ! -f ansible/roles/wood_design_system/tasks/main.yml ]]; then
+      test -z "$(docker ps -q --filter label=com.docker.compose.project=infrastructure-dev-wood-design-system)"
+      test ! -e /srv/infrastructure/compose/caddy/routes/wood-design-system.caddy
+      test ! -e /srv/docker/proxy/config/sites/wood-design-system.caddy
+      echo 'WDS no-service rollback baseline verified.'
+      exit 0
+    fi
     exec bash scripts/health-check-wood-design-system.sh
     ;;
   apply)
