@@ -5,6 +5,8 @@ import subprocess
 import tempfile
 import unittest
 
+from jinja2 import Environment, StrictUndefined
+
 
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE = 'ghcr.io/spencerrwood/wood-design-system:v0.1.0@sha256:' + 'a' * 64
@@ -65,3 +67,52 @@ esac
 
     def test_failed_documentation_route_is_rejected(self):
         self.assertNotEqual(self.probe(ROUTE_STATUS='404').returncode, 0)
+
+
+class WDSInitialRollbackTests(unittest.TestCase):
+    def wrapper(self, operation, *, running='', outside=False):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / ('outside' if outside else 'runner/_work/infrastructure/infrastructure')
+            (workspace / '.git').mkdir(parents=True)
+            secret = root / 'runner-input'
+            secret.write_text('')
+            binary = root / 'bin'
+            binary.mkdir()
+            for name, content in {
+                'env': '#!/bin/sh\nprintf "%s\\n" "$*"\n',
+                'docker': '#!/bin/sh\nprintf "%s" "$WDS_RUNNING"\n',
+            }.items():
+                path = binary / name
+                path.write_text(content)
+                path.chmod(0o755)
+            source = (ROOT / 'ansible/roles/github_runner/templates/deploy-wrapper.sh.j2').read_text()
+            rendered = Environment(undefined=StrictUndefined).from_string(source).render(
+                github_runner_root=str(root / 'runner'),
+                github_runner_ansible_config_path='ansible/ansible.cfg',
+                github_runner_secret_file=str(secret),
+                github_runner_inventory_path='ansible/inventory/dev',
+                github_runner_playbook_path='ansible/playbooks/dev.yml',
+                github_runner_ansible_extra_args='',
+                github_runner_health_command='false',
+            )
+            script = root / 'wrapper'
+            script.write_text(rendered)
+            return subprocess.run(['bash', str(script), str(workspace), operation],
+                env={**os.environ, 'PATH':str(binary) + os.pathsep + os.environ['PATH'],
+                     'WDS_RUNNING':running}, capture_output=True, text=True, timeout=5)
+
+    def test_old_release_uses_only_installed_scoped_rollback(self):
+        result = self.wrapper('apply-wood-design-system')
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(),
+                         'WDS_ROLLBACK_APPROVED=true /usr/local/sbin/github-runner-infrastructure-wds-rollback')
+
+    def test_old_release_health_rejects_a_remaining_wds_container(self):
+        self.assertEqual(self.wrapper('health-wood-design-system').returncode, 0)
+        self.assertNotEqual(self.wrapper('health-wood-design-system', running='stale-container').returncode, 0)
+
+    def test_workspace_boundary_is_preserved(self):
+        result = self.wrapper('apply-wood-design-system', outside=True)
+        self.assertEqual(result.returncode, 64)
+        self.assertEqual(result.stdout, '')
