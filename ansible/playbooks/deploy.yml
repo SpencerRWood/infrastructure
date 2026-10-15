@@ -59,6 +59,8 @@
     - name: Deploy selected Wood Design System component
       ansible.builtin.include_role:
         name: wood_design_system
+        apply:
+          tags: [wood_design_system]
       when: services.wood_design_system | default(false) | bool
       tags: [wood_design_system]
 

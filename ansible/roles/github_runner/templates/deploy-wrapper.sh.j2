@@ -30,6 +30,15 @@ if [[ "$operation" == apply || "$operation" == check ]]; then
   export WEBSITE_PORTFOLIO_GHCR_TOKEN
 fi
 case "$operation" in
+  apply-wood-design-system)
+    exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --tags wood_design_system {{ github_runner_ansible_extra_args }}
+    ;;
+  check-wood-design-system)
+    exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --tags wood_design_system --check --diff {{ github_runner_ansible_extra_args }}
+    ;;
+  health-wood-design-system)
+    exec bash scripts/health-check-wood-design-system.sh
+    ;;
   apply)
     exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" {{ github_runner_ansible_extra_args }}
     ;;
@@ -45,5 +54,5 @@ case "$operation" in
   health)
     exec {{ github_runner_health_command }}
     ;;
-  *) echo 'operation must be apply, check, validate, or health' >&2; exit 64 ;;
+  *) echo 'unsupported infrastructure deployment operation' >&2; exit 64 ;;
 esac
