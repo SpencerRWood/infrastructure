@@ -12,6 +12,7 @@
     "oci://ghcr.io/spencerrwood/rag-embedding:v0.7.2@sha256:4147219fecc76103994ec7425444a906b9155e88de48a65136b63d1f881c82a4",
     "oci://ghcr.io/spencerrwood/rag-service:v0.7.2@sha256:c5048af0308c3470deb48952519d753194c4bd489794f2c2ee6acec5ea845d3d",
     "oci://ghcr.io/spencerrwood/recovery-verification:v0.7.0@sha256:4e5c2ca87507e0e50f02fce3466222588eefb0539013b50d220f4f6cf8a09ab8",
+    "oci://ghcr.io/spencerrwood/wood-design-system:v0.1.0@sha256:af38221e4d96565fbfe586bc4de7bd83cc31fcb95d502f60d6adcc5513f3e97d",
     "oci://infisical/infisical@sha256:35922d4d088bffba484526720f16b5c540ca4fb4696d239f16b65333e07e6732",
     "oci://mongo@sha256:4b58ebcb1dc7a7b4e84cd8ce9098d48764ae4478876898ff9551acf2ac4a6a6d",
     "oci://pgvector/pgvector@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a",
