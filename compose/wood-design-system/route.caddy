@@ -1,0 +1,3 @@
+http://dev-design.woodhost.cloud:80 {
+    reverse_proxy wood-design-system:8080
+}

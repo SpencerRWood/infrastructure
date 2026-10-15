@@ -7,7 +7,8 @@ cd "$repository_root"
 
 echo 'Checking shell syntax...'
 bash -n scripts/validate.sh scripts/health-check-dev.sh \
-  scripts/health-check-dev-remote.sh postgres/scripts/provision-database.sh
+  scripts/health-check-dev-remote.sh postgres/scripts/provision-database.sh \
+  scripts/rollback-wood-design-system.sh
 
 echo 'Checking deployment readiness behavior...'
 if command -v uv >/dev/null 2>&1; then
@@ -119,6 +120,13 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
     INFISICAL_POSTGRES_NETWORK=infrastructure-dev-postgres \
     INFISICAL_PROXY_NETWORK=infrastructure-dev-proxy \
     docker compose -f compose/infisical/compose.yml config --quiet
+  WDS_PROJECT_NAME=infrastructure-dev-wood-design-system \
+    WDS_IMAGE_REF=ghcr.io/spencerrwood/wood-design-system:v0.0.0@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+    WDS_PROXY_NETWORK=infrastructure-dev-proxy \
+    docker compose -f compose/wood-design-system/compose.yml config --quiet
+  docker run --rm \
+    -v "$repository_root/compose/wood-design-system/route.caddy:/etc/caddy/Caddyfile:ro" \
+    caddy:2.11.2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
   docker run --rm \
     -v "$repository_root/compose/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
     -v "$repository_root/compose/caddy/routes:/etc/caddy/routes:ro" \

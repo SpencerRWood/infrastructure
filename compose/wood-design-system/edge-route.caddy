@@ -1,0 +1,7 @@
+dev-design.woodhost.cloud {
+    import cloudflare_tls
+    import security_headers
+    import admin_ip_allowlist
+    encode zstd gzip
+    reverse_proxy 192.168.1.21:8080
+}

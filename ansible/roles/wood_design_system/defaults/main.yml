@@ -1,0 +1,12 @@
+---
+wood_design_system_compose_directory: "{{ host_infrastructure_compose_root }}/wood-design-system"
+wood_design_system_env_file: "{{ host_infrastructure_secrets_root }}/wood-design-system-compose.env"
+wood_design_system_docker_config_directory: "{{ host_infrastructure_secrets_root }}/wood-design-system-registry"
+wood_design_system_project_name: "infrastructure-{{ infrastructure_environment }}-wood-design-system"
+wood_design_system_proxy_network: "infrastructure-{{ infrastructure_environment }}-proxy"
+wood_design_system_image_ref: ''
+wood_design_system_ghcr_username: SpencerRWood
+wood_design_system_routes_directory: "{{ host_infrastructure_compose_root }}/caddy/routes"
+wood_design_system_edge_routes_directory: /srv/docker/proxy/config/sites
+wood_design_system_caddy_container: "infrastructure-{{ infrastructure_environment }}-caddy-caddy-1"
+wood_design_system_edge_container: caddy
