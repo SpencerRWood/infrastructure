@@ -1,6 +1,6 @@
 # Wood Design System initial deployment (Story 551)
 
-This is a dormant catalog proposal: services.wood_design_system is false and wood_design_system_image_ref is empty. No fabricated bootstrap artifact is used. Only explicit WDS selection installs its route fragments, after its digest-qualified container becomes healthy. The generic Caddy catalog does not install these fragments. Production is unchanged.
+The development catalog enables WDS v0.1.0 at published digest sha256:af38221e4d96565fbfe586bc4de7bd83cc31fcb95d502f60d6adcc5513f3e97d. Its release source is 19bb07912640ab15bc64c69971e1f9890107632e. Deployment still requires explicit manual approval. Only explicit WDS selection installs its route fragments, after its digest-qualified container becomes healthy. The generic Caddy catalog does not install these fragments. Production is unchanged.
 
 After WDS's approved main release, a reviewed onboarding PR must pin ghcr.io/spencerrwood/wood-design-system:vX.Y.Z@sha256:<verified-digest> and enable the service. Supply a dedicated pull-only WDS_GHCR_TOKEN through the existing protected infrastructure runner input. Host-side registry configuration is root-owned and separate from application environment. The static portal receives no secrets, database or state volume.
 
