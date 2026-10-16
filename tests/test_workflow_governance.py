@@ -1,6 +1,8 @@
 """Ensure validation, publication and rollback require distinct authority."""
 
 from pathlib import Path
+import json
+import tomllib
 import unittest
 
 import yaml
@@ -10,6 +12,19 @@ ROOT = Path(__file__).resolve().parents[1] / '.github/workflows'
 
 
 class WorkflowGovernanceTests(unittest.TestCase):
+    def test_github_flow_configuration_agrees_without_planning_release(self):
+        root = ROOT.parents[1]
+        project = tomllib.loads((root / 'pyproject.toml').read_text())
+        self.assertEqual(project['tool']['wood']['branching'], {'strategy': 'trunk'})
+        self.assertEqual(project['tool']['semantic_release']['branches'],
+                         {'main': {'match': '^main$', 'prerelease': False}})
+        capability = tomllib.loads((root / '.github/release.toml').read_text())
+        self.assertEqual(capability['branching']['policy'], 'infrastructure')
+        renovate = json.loads((root / 'renovate.json').read_text())
+        self.assertEqual(renovate['baseBranchPatterns'], ['main'])
+        routing = yaml.safe_load((ROOT / 'routing.yml').read_text())
+        self.assertEqual(routing['on']['pull_request']['branches'], ['main'])
+
     def test_only_main_integration_or_approved_dispatch_can_publish(self):
         release = yaml.safe_load((ROOT / 'release.yml').read_text())
         triggers = release.get('on', release.get(True))
@@ -44,8 +59,8 @@ class WorkflowGovernanceTests(unittest.TestCase):
         validate = yaml.safe_load((ROOT / 'validate.yml').read_text())
         triggers = validate.get('on', validate.get(True))
         self.assertEqual(set(triggers), {'push', 'pull_request'})
-        self.assertEqual(triggers['push']['branches'], ['development'])
-        self.assertEqual(triggers['pull_request']['branches'], ['development', 'main'])
+        self.assertEqual(triggers['push']['branches'], ['main'])
+        self.assertEqual(triggers['pull_request']['branches'], ['main'])
         self.assertEqual(validate['permissions']['contents'], 'read')
         for job in validate['jobs'].values():
             self.assertIn('/validate.yml@', job['uses'])

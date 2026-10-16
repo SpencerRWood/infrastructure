@@ -19,9 +19,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name
       == 'push' || (github.event_name == 'workflow_dispatch' &&
       inputs.release_approved == true))
-    uses: SpencerRWood/workflows/.github/workflows/release.yml@613bb7d915cec854b5f7f2b5d26e963c8a4ada3f
+    uses: SpencerRWood/workflows/.github/workflows/release.yml@4a3f40661622ae445d6ca231f31a1a6368e60ecf
     with:
       require_approval: ${{ github.event_name == 'workflow_dispatch'
         }}
-      workflow_revision: 613bb7d915cec854b5f7f2b5d26e963c8a4ada3f
+      workflow_revision: 4a3f40661622ae445d6ca231f31a1a6368e60ecf
       approved: ${{ inputs.release_approved == true }}

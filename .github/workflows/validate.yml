@@ -3,18 +3,17 @@ name: Validate
 'on':
   pull_request:
     branches:
-      - development
       - main
   push:
     branches:
-      - development
+      - main
 permissions:
   contents: read
 jobs:
   validation:
-    uses: SpencerRWood/workflows/.github/workflows/validate.yml@613bb7d915cec854b5f7f2b5d26e963c8a4ada3f
+    uses: SpencerRWood/workflows/.github/workflows/validate.yml@4a3f40661622ae445d6ca231f31a1a6368e60ecf
     with:
-      workflow_revision: 613bb7d915cec854b5f7f2b5d26e963c8a4ada3f
+      workflow_revision: 4a3f40661622ae445d6ca231f31a1a6368e60ecf
     secrets:
       dbt_host: ${{ secrets.DBT_HOST }}
       dbt_user: ${{ secrets.DBT_USER }}

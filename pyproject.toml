@@ -31,10 +31,7 @@
 "initiative_id" = 552
 
 ["tool"."wood"."branching"]
-"strategy" = "integration"
-"release_id" = 26
-"integration_branch" = "development"
-"scope_reference" = "https://projects.woodhost.cloud/work_packages/558 activity 1481; canonical fleet migration authorized 2026-10-15; protected-main merges remain separately approved."
+"strategy" = "trunk"
 
 ["tool"."setuptools"]
 "packages" = []
@@ -63,3 +60,7 @@
 
 ["tool"."semantic_release"."publish"]
 "upload_to_vcs_release" = true
+
+["tool"."semantic_release"."branches"."main"]
+"match" = "^main$"
+"prerelease" = false
