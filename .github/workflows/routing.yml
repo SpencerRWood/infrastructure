@@ -2,9 +2,7 @@
 name: PR routing
 'on':
   pull_request:
-    branches:
-      - development
-      - main
+    branches: [main]
 permissions:
   contents: read
 jobs:
@@ -23,21 +21,16 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.14'
-      - uses: astral-sh/setup-uv@v9.0.0
-      - name: Install approved Wood tools
-        env:
-          WOOD_REVISION: e3d6c20f7ba2fe57f12738fac486cacfa808c5ea
-          GH_TOKEN: ${{ github.token }}
-        run: "set -euo pipefail\ngh auth setup-git\ngit init \"\
-          $RUNNER_TEMP/wood-tools\"\ngit -C \"$RUNNER_TEMP/wood-tools\"\
-          \ remote add origin https://github.com/SpencerRWood/wood-tools.git\n\
-          git -C \"$RUNNER_TEMP/wood-tools\" fetch --depth 1 origin\
-          \ \"$WOOD_REVISION\"\ngit -C \"$RUNNER_TEMP/wood-tools\"\
-          \ checkout --detach FETCH_HEAD\ntest \"$(git -C \"$RUNNER_TEMP/wood-tools\"\
-          \ rev-parse HEAD)\" = \"$WOOD_REVISION\"\nuv sync --frozen\
-          \ --directory \"$RUNNER_TEMP/wood-tools\"\necho \"$RUNNER_TEMP/wood-tools/.venv/bin\"\
-          \ >> \"$GITHUB_PATH\""
+      - name: Check out pinned shared routing helper
+        uses: actions/checkout@v6
+        with:
+          repository: SpencerRWood/workflows
+          ref: 4a3f40661622ae445d6ca231f31a1a6368e60ecf
+          path: .wood-workflows
+          persist-credentials: false
       - id: route
         name: Verify PR routing and ancestry
-        run: wood repo route --event-file "$GITHUB_EVENT_PATH"
-          --github-output "$GITHUB_OUTPUT" --json
+        run: >-
+          python3 .wood-workflows/scripts/github_flow_routing.py
+          --event-file "$GITHUB_EVENT_PATH"
+          --github-output "$GITHUB_OUTPUT"

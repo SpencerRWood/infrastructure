@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "baseBranchPatterns": ["development"],
+  "baseBranchPatterns": ["main"],
   "enabledManagers": ["docker-compose", "custom.regex"],
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
@@ -67,21 +67,21 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^ansible/roles/keycloak/defaults/main\\.yml$"],
+      "managerFilePatterns": ["/^ansible/roles/keycloak/defaults/main\\.yml$/"],
       "matchStrings": ["keycloak_image_tag: (?<currentValue>[^\\s]+)"],
       "depNameTemplate": "quay.io/keycloak/keycloak",
       "datasourceTemplate": "docker"
     },
     {
       "customType": "regex",
-      "fileMatch": ["^ansible/roles/infisical/defaults/main\\.yml$"],
+      "managerFilePatterns": ["/^ansible/roles/infisical/defaults/main\\.yml$/"],
       "matchStrings": ["infisical_image_tag: (?<currentValue>[^\\s]+)"],
       "depNameTemplate": "infisical/infisical",
       "datasourceTemplate": "docker"
     },
     {
       "customType": "regex",
-      "fileMatch": ["^ansible/roles/openwebui/defaults/main\\.yml$"],
+      "managerFilePatterns": ["/^ansible/roles/openwebui/defaults/main\\.yml$/"],
       "matchStrings": ["openwebui_image_tag: (?<currentValue>[^\\s]+)"],
       "depNameTemplate": "ghcr.io/open-webui/open-webui",
       "datasourceTemplate": "docker"

@@ -1,5 +1,8 @@
 # infrastructure
 
+Use [GitHub Flow](docs/github-flow.md): short-lived PR branches target protected
+main. No permanent development branch or release-promotion PR is required.
+
 The [Recovery Verification consumer contract](docs/recovery-onboarding.md) exposes
 revision-bound manifests and non-destructive preflight. Configuration rollback
 reuses the existing contract; full-host reconstruction requires an isolated target.

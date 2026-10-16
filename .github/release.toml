@@ -1,5 +1,8 @@
 "version" = 1
 
+["branching"]
+"policy" = "infrastructure"
+
 ["python"]
 "version" = "3.13"
 
