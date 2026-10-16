@@ -1,6 +1,5 @@
 ---
 name: Deploy released infrastructure development configuration
-
 'on':
   workflow_call:
     inputs:
@@ -14,12 +13,14 @@ name: Deploy released infrastructure development configuration
         required: true
         type: string
       skip_superseded:
-        description: Skip an automated deployment when a newer main commit exists.
+        description: Skip an automated deployment when a newer
+          main commit exists.
         required: false
         type: boolean
         default: false
       wood_design_system_only:
-        description: Select only the approved WDS role and scoped health checks.
+        description: Select only the approved WDS role and scoped
+          health checks.
         required: false
         type: boolean
         default: false
@@ -31,37 +32,31 @@ name: Deploy released infrastructure development configuration
         type: boolean
         default: false
       release:
-        description: >-
-          Existing release tag; leave empty to deploy the latest release.
+        description: Existing release tag; leave empty to deploy
+          the latest release.
         required: false
         type: string
       wood_design_system_only:
-        description: Select only the approved WDS role and scoped health checks.
+        description: Select only the approved WDS role and scoped
+          health checks.
         required: false
         type: boolean
         default: false
-
 permissions:
   contents: read
   deployments: write
-
 jobs:
   resolve-release:
-    if: >-
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'workflow_dispatch' &&
-      inputs.deployment_approved == true
+    if: github.ref == 'refs/heads/main' && github.event_name ==
+      'workflow_dispatch' && inputs.deployment_approved == true
     uses: SpencerRWood/workflows/.github/workflows/resolve-release.yml@v1
     with:
       ref: ${{ inputs.ref || inputs.release }}
-
   deploy-dev:
     needs: resolve-release
-    if: >-
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'workflow_dispatch' &&
-      inputs.deployment_approved == true
-    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@9307f9b80141f4ed9c463af360a1b13a49ca3353
+    if: github.ref == 'refs/heads/main' && github.event_name ==
+      'workflow_dispatch' && inputs.deployment_approved == true
+    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@9748b1cd6287d84d55c4277c93ca5dae01fb1787
     with:
       require_approval: true
       approved: ${{ inputs.deployment_approved }}
@@ -76,22 +71,20 @@ jobs:
       concurrency_group: deploy-infrastructure-dev
       runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure"]'
       secrets_file: /home/github-runner-infrastructure/.secrets/dev.env
-      validation_command: >-
-        uv sync --group dev &&
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+      validation_command: uv sync --group dev && sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
         "$GITHUB_WORKSPACE" validate
-      check_command: >-
-        ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
-        -i ansible/inventory/dev
-        ansible/playbooks/dev.yml --tags host --check --diff
-      privileged_check_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE"
-        ${{ inputs.wood_design_system_only && 'check-wood-design-system' || 'check' }}
+      check_command: ANSIBLE_CONFIG=ansible/ansible.cfg uv run
+        ansible-playbook -i ansible/inventory/dev ansible/playbooks/dev.yml
+        --tags host --check --diff
+      privileged_check_command: sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+        "$GITHUB_WORKSPACE" ${{ inputs.wood_design_system_only
+        && 'check-wood-design-system' || 'check' }}
       health_check_command: bash scripts/health-check-dev.sh
-      privileged_deploy_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE"
-        ${{ inputs.wood_design_system_only && 'apply-wood-design-system' || 'apply' }}
-      privileged_health_check_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE"
-        ${{ inputs.wood_design_system_only && 'health-wood-design-system' || 'health' }}
+      privileged_deploy_command: sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+        "$GITHUB_WORKSPACE" ${{ inputs.wood_design_system_only
+        && 'apply-wood-design-system' || 'apply' }}
+      privileged_health_check_command: sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+        "$GITHUB_WORKSPACE" ${{ inputs.wood_design_system_only
+        && 'health-wood-design-system' || 'health' }}
       deployment_state_file: /var/lib/github-actions-deployments/github-runner-infrastructure/infrastructure-dev.json
+      workflow_revision: 9748b1cd6287d84d55c4277c93ca5dae01fb1787

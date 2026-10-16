@@ -1,13 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
+  "baseBranchPatterns": ["development"],
   "enabledManagers": ["docker-compose", "custom.regex"],
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
   "pinDigests": true,
   "platformAutomerge": true,
-  "automergeStrategy": "squash",
+  "automergeStrategy": "merge-commit",
   "vulnerabilityAlerts": {
     "automerge": true,
     "semanticCommitType": "chore",
