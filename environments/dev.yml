@@ -136,6 +136,12 @@ infrastructure_infisical_runtime_services:
     source: compose/website-portfolio/compose.infisical.yml
 
 # Declarative backup targets; runtime JSON is compiled from this authority.
+# Preserve the already-active rollout approved in docs/backup-key-recovery.md.
+# Independent custody remains pending OP-543; this is the temporary exception,
+# not a claim of independently recoverable custody. Role defaults stay closed.
+backups_quiesce_authorized: "{{ backups_configuration.quiesce_authorized }}"
+backups_temporary_operator_custody_authorized: >-
+  {{ backups_configuration.temporary_operator_custody_authorized }}
 backups_configuration:
   consumer: infrastructure
   environment: dev
@@ -161,7 +167,7 @@ backups_configuration:
       - rag_service
       - events_service
       - architecture_docs
-  quiesce_authorized: false
+  quiesce_authorized: true
   quiesce_containers:
     - infrastructure-dev-recovery-verification-recovery-verification-code-1
     - infrastructure-dev-automerge-repair-automerge-repair-code-1
@@ -183,7 +189,7 @@ backups_configuration:
     - infrastructure-dev-overleaf-clsi-gateway-1
   encryption_recipient: age1544rwqert2c0u5wks57lcgfw6saymcfmc7slhdr58js69w3m7d4st3la33
   independent_custody_verified: false
-  temporary_operator_custody_authorized: false
+  temporary_operator_custody_authorized: true
   files:
     - id: dagster-state
       paths:

@@ -2,7 +2,9 @@
 import copy
 import importlib.util
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -28,6 +30,34 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(result['status'], 'passed')
         self.assertFalse(result['retention_pruning_enabled'])
         self.assertIn(self.config['postgres']['required_databases'][0], result['targets'])
+
+    def test_dev_redeploy_retains_approved_exception_without_claiming_independent_custody(self):
+        defaults = read_yaml(ROOT / 'ansible/roles/backups/defaults/main.yml')
+        self.assertFalse(defaults['backups_quiesce_authorized'])
+        self.assertFalse(defaults['backups_temporary_operator_custody_authorized'])
+        executable = shutil.which('ansible-playbook')
+        self.assertIsNotNone(executable)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            playbook = root / 'verify.yml'
+            playbook.write_text(yaml.safe_dump([{
+                'hosts': 'localhost', 'gather_facts': False,
+                'vars_files': [str(SOURCE)],
+                'tasks': [{'ansible.builtin.assert': {'that': [
+                    'backups_quiesce_authorized | bool',
+                    'backups_temporary_operator_custody_authorized | bool',
+                    'not backups_configuration.independent_custody_verified | bool',
+                    'not backups_configuration.retention.pruning_enabled | bool',
+                ]}}],
+            }]))
+            result = subprocess.run([
+                executable, '-i', 'localhost,', '-c', 'local', str(playbook), '--check',
+            ], capture_output=True, text=True, timeout=30, env=os.environ | {
+                'ANSIBLE_CONFIG': str(ROOT / 'recovery/ansible.cfg'),
+                'ANSIBLE_LOCAL_TEMP': str(root / 'local'),
+                'ANSIBLE_REMOTE_TEMP': str(root / 'remote'),
+            })
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_invalid_runtime_configuration_fails_before_backup_side_effects(self):
         for mutate in (
