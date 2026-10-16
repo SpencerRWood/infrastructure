@@ -68,12 +68,16 @@ prevent full operational acceptance and must be resolved before enabling cadence
 
 Runtime inputs are resolved only from `/recovery-verification` by the existing
 Infisical resolver into a protected runtime env file. Prepare scoped
-`DAGSTER_POSTGRES_PASSWORD`, metadata-only `RECOVERY_INFISICAL_URL`,
-`RECOVERY_INFISICAL_PROJECTS`, `RECOVERY_INFISICAL_CLIENT_ID` and
-`RECOVERY_INFISICAL_CLIENT_SECRET`, and, only after live alert
+`DAGSTER_POSTGRES_PASSWORD` and, only after live alert
 approval, source-bound `RECOVERY_EVENTS_URL`/`RECOVERY_EVENTS_TOKEN`. The selected
 role registers this service with the existing secret-refresh contract after the
 other components; disabled selection does not alter that runtime registry.
+The unprovisioned metadata-only Infisical and dedicated GHCR probe credentials
+described in `recovery/probe-access.v1.json` are a future onboarding plan, not
+deployment prerequisites. Deployments retain the existing database and approved
+notification credential contract. Dependency probes without their required
+credentials must continue to report unavailable or failed verification; a healthy
+deployment does not establish dependency access or full recovery readiness.
 The backup decryption identity is provisioned separately through the approved
 operator SSH channel, owned by UID/GID 10001 with mode 0600. It is mounted read
 only into the verifier and must derive the configured public recipient. Recovery

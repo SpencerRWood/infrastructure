@@ -100,10 +100,7 @@ class RecoveryRuntimeTests(unittest.TestCase):
             keys = yaml.safe_load(environment.from_string(defaults['recovery_verification_required_secret_keys']).render(
                 recovery_verification_notifications_enabled=enabled,
             ))
-            self.assertEqual(keys, ['DAGSTER_POSTGRES_PASSWORD', 'RECOVERY_INFISICAL_URL',
-                                    'RECOVERY_INFISICAL_PROJECTS', 'RECOVERY_INFISICAL_CLIENT_ID',
-                                    'RECOVERY_INFISICAL_CLIENT_SECRET',
-                                    'RECOVERY_GHCR_USERNAME', 'RECOVERY_GHCR_TOKEN'] + (
+            self.assertEqual(keys, ['DAGSTER_POSTGRES_PASSWORD'] + (
                 ['RECOVERY_EVENTS_URL', 'RECOVERY_EVENTS_TOKEN'] if enabled else []
             ))
         tasks = yaml.safe_load((ROOT / 'ansible/roles/recovery_verification/tasks/main.yml').read_text())
