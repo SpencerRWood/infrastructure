@@ -150,20 +150,20 @@ branch protection. The `main` ruleset requires PR validation. Semantic-release
 tags the validated merged commit without writing a new commit to `main`; see
 the [shared branch policy](https://github.com/SpencerRWood/workflows/blob/main/docs/branch-rules.md).
 
-The pull-request wrapper calls `validate.yml@v1` using `.github/release.toml`.
-It opts into the shared `infrastructure-validation` commit status on the PR head
-so the Website Portfolio dev promotion can read the result with a narrowly
-scoped token. The Actions check remains the normal CI result.
+The pull-request wrapper calls the immutable pinned shared `validate.yml` using
+`.github/release.toml`. Main requires the `validation / validation` and
+`pr-routing` Actions checks; validation has read-only repository permissions.
 The shared release workflow runs the same checks after changes reach `main`,
 then determines the next version from conventional commits. Its release job
 tags that validated merged commit `vX.Y.Z` and publishes the GitHub Release.
-The Git tag is the version source for this non-package repository. A published
-release invokes the shared deployment workflow on the
+The Git tag is the version source for this non-package repository. Deployment
+requires the existing explicit approval and selects a published release. The
+shared deployment workflow runs on the
 dedicated Beelink infrastructure runner, which checks out the exact
 tag, validates it, applies `ansible/playbooks/dev.yml`, and runs
 `scripts/health-check-dev.sh`. Deployments are serialized by
 `deploy-infrastructure-dev`; a newer run never interrupts an active apply.
-Automatic and manual deployment enter the same `.github/workflows/deploy.yml`.
+Approved deployment enters `.github/workflows/deploy.yml`.
 It holds the target's inventory, runner, protected file path, health command,
 and durable state path. The shared resolver verifies an explicit published
 release or selects the latest one for a manual run with no release input.
@@ -178,8 +178,9 @@ deployment input outside the Actions checkout; workflow YAML has no secrets. It
 has passwordless sudo only for its root-owned deployment wrapper, which accepts
 only that runner's workspaces and `apply`, `check`, or `health` operations.
 
-Automatic release deployment is dev-only. `prod.yml` is never called automatically
-and production remains an explicit/manual operation.
+The normal approved deployment targets the runtime dev environment. Its name is
+unrelated to Git branching: all PRs target main. `prod.yml` is never called
+automatically and production remains a separate explicit operation.
 
 The [shared rollback contract](docs/rollback-contract.md) exposes `rollback.yml`
 and a versioned JSON result for deterministic previous-known-good recovery.
