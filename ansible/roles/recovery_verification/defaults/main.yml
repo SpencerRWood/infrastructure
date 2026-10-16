@@ -12,10 +12,7 @@ recovery_verification_notifications_enabled: false
 recovery_verification_notification_start_time: ''
 recovery_verification_notification_dagster_url: https://dev-dagster.woodhost.cloud
 recovery_verification_required_secret_keys: >-
-  {{ ['DAGSTER_POSTGRES_PASSWORD', 'RECOVERY_INFISICAL_URL',
-      'RECOVERY_INFISICAL_PROJECTS', 'RECOVERY_INFISICAL_CLIENT_ID',
-      'RECOVERY_INFISICAL_CLIENT_SECRET',
-      'RECOVERY_GHCR_USERNAME', 'RECOVERY_GHCR_TOKEN'] +
+  {{ ['DAGSTER_POSTGRES_PASSWORD'] +
      (['RECOVERY_EVENTS_URL', 'RECOVERY_EVENTS_TOKEN']
       if recovery_verification_notifications_enabled | bool else []) }}
 recovery_verification_secret_contract:
