@@ -70,7 +70,7 @@ esac
 
 
 class WDSInitialRollbackTests(unittest.TestCase):
-    def wrapper(self, operation, *, running='', outside=False):
+    def wrapper(self, operation, *, running='', outside=False, installed_route=None):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             workspace = root / ('outside' if outside else 'runner/_work/infrastructure/infrastructure')
@@ -96,6 +96,16 @@ class WDSInitialRollbackTests(unittest.TestCase):
                 github_runner_ansible_extra_args='',
                 github_runner_health_command='false',
             )
+            # The runner executes this suite on the real deployment host. Keep
+            # rollback-baseline filesystem probes inside the disposable fixture,
+            # just like Docker, so installed host routes cannot affect the test.
+            for index, route in enumerate((
+                    '/srv/infrastructure/compose/caddy/routes/wood-design-system.caddy',
+                    '/srv/docker/proxy/config/sites/wood-design-system.caddy')):
+                fixture = root / f'installed-route-{index}'
+                rendered = rendered.replace(route, str(fixture))
+                if installed_route == index:
+                    fixture.write_text('fixture route remains installed\n')
             script = root / 'wrapper'
             script.write_text(rendered)
             return subprocess.run(['bash', str(script), str(workspace), operation],
@@ -111,6 +121,11 @@ class WDSInitialRollbackTests(unittest.TestCase):
     def test_old_release_health_rejects_a_remaining_wds_container(self):
         self.assertEqual(self.wrapper('health-wood-design-system').returncode, 0)
         self.assertNotEqual(self.wrapper('health-wood-design-system', running='stale-container').returncode, 0)
+
+    def test_old_release_health_rejects_each_remaining_route_without_a_container(self):
+        for route in (0, 1):
+            with self.subTest(route=route):
+                self.assertNotEqual(self.wrapper('health-wood-design-system', installed_route=route).returncode, 0)
 
     def test_workspace_boundary_is_preserved(self):
         result = self.wrapper('apply-wood-design-system', outside=True)
