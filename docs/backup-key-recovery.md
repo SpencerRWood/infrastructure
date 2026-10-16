@@ -20,6 +20,14 @@ custody and recovery testing remain a separately tracked follow-up requirement:
 [OP-543](https://projects.woodhost.cloud/work_packages/543).
 This producer policy does not authorize key transfers or relax restore protections.
 
+The dev manifest records this already-active exception and derives the role's
+operational inputs from that one canonical backup configuration. Full approved
+redeployments therefore preserve nightly writer quiescing and temporary custody
+instead of overwriting the installed true values with generic role defaults.
+Other environments retain fail-closed defaults. Independent custody remains false
+until OP-543 proves it; no key transfer or independent-custody attestation is
+implied by a repository deployment.
+
 Initial independent custody is pending. A protected local identity was generated with
 age-keygen on the operator machine, outside Beelink and Infisical. This local
 file is not yet verified independent recovery custody. No private identity is
