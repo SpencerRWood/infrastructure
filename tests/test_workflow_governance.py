@@ -10,17 +10,19 @@ ROOT = Path(__file__).resolve().parents[1] / '.github/workflows'
 
 
 class WorkflowGovernanceTests(unittest.TestCase):
-    def test_merges_do_not_publish_or_deploy(self):
+    def test_only_main_integration_or_approved_dispatch_can_publish(self):
         release = yaml.safe_load((ROOT / 'release.yml').read_text())
         triggers = release.get('on', release.get(True))
-        self.assertEqual(set(triggers), {'workflow_dispatch'})
+        self.assertEqual(set(triggers), {'workflow_dispatch', 'push'})
+        self.assertEqual(triggers['push']['branches'], ['main'])
         self.assertFalse(triggers['workflow_dispatch']['inputs']['release_approved']['default'])
         self.assertEqual(set(release['jobs']), {'release'})
         job = release['jobs']['release']
         self.assertIn("github.ref == 'refs/heads/main'", job['if'])
         self.assertIn("github.event_name == 'workflow_dispatch'", job['if'])
         self.assertIn('inputs.release_approved == true', job['if'])
-        self.assertTrue(job['with']['require_approval'])
+        self.assertIn("github.event_name == 'push'", job['if'])
+        self.assertEqual(job['with']['require_approval'], "${{ github.event_name == 'workflow_dispatch' }}")
 
     def test_deployment_and_rollback_remain_separately_manual(self):
         deploy = yaml.safe_load((ROOT / 'deploy.yml').read_text())
@@ -41,7 +43,8 @@ class WorkflowGovernanceTests(unittest.TestCase):
         validate = yaml.safe_load((ROOT / 'validate.yml').read_text())
         triggers = validate.get('on', validate.get(True))
         self.assertEqual(set(triggers), {'push', 'pull_request'})
-        self.assertEqual(triggers['push']['branches'], ['**'])
+        self.assertEqual(triggers['push']['branches'], ['development'])
+        self.assertEqual(triggers['pull_request']['branches'], ['development', 'main'])
         self.assertEqual(validate['permissions']['contents'], 'read')
         for job in validate['jobs'].values():
             self.assertIn('/validate.yml@', job['uses'])
@@ -59,11 +62,12 @@ class WorkflowGovernanceTests(unittest.TestCase):
         self.assertIn('self-hosted', job['runs-on'])
         self.assertTrue(any('scripts/rollback.py' in step.get('run', '') for step in job['steps']))
 
-    def test_commit_status_mirroring_is_pr_only(self):
+    def test_validation_uses_standard_actions_check_without_status_write(self):
         validate = yaml.safe_load((ROOT / 'validate.yml').read_text())
-        inputs = validate['jobs']['validation']['with']
-        self.assertEqual(inputs['publish_commit_status'], "${{ github.event_name == 'pull_request' }}")
-        self.assertEqual(inputs['status_context'], 'infrastructure-validation')
+        job = validate['jobs']['validation']
+        self.assertIn('/validate.yml@', job['uses'])
+        self.assertEqual(job['with'], {'workflow_revision': job['uses'].split('@')[1]})
+        self.assertEqual(validate['permissions'], {'contents': 'read'})
 
 
 if __name__ == '__main__':
