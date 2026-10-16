@@ -29,3 +29,19 @@ resume the normal delivery path; no permanent extra approval gate is added.
 
 Application repositories retain their development/main release-promotion policy.
 See the shared [policy and caller templates](https://github.com/SpencerRWood/workflows/blob/main/docs/branching-policies.md).
+
+## Publication and deployment
+
+For an explicitly authorized release of a validated main revision that was held
+during migration, use the existing Release workflow's main dispatch with
+release_approved=true. Verify the exact release tag and its commit before using
+the Deploy workflow's main dispatch with deployment_approved=true and that tag.
+Manual publication and deployment are separate operations; dispatching a release
+does not bypass runtime approval, backup, health or rollback checks.
+
+Ordinary main changes retain the repository's existing automatic behavior.
+Infrastructure deployment remains separately approved; Homelab's automatic path
+retains its protected-change checks. Never bypass a failed recovery or migration
+gate. Retain rollback state and known-good images through health verification.
+Remove only completed clean worktrees and merged short-lived branches after
+delivery evidence is saved; preserve unfinished or actively owned work.
