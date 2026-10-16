@@ -23,6 +23,7 @@ class WorkflowGovernanceTests(unittest.TestCase):
         self.assertIn('inputs.release_approved == true', job['if'])
         self.assertIn("github.event_name == 'push'", job['if'])
         self.assertEqual(job['with']['require_approval'], "${{ github.event_name == 'workflow_dispatch' }}")
+        self.assertEqual(job['with']['approved'], '${{ inputs.release_approved == true }}')
 
     def test_deployment_and_rollback_remain_separately_manual(self):
         deploy = yaml.safe_load((ROOT / 'deploy.yml').read_text())
