@@ -68,6 +68,7 @@ class ConfigurationTests(unittest.TestCase):
                 lambda c: c['files'][0].update(sqlite_engine='unsupported')):
             with self.subTest(mutate=mutate), tempfile.TemporaryDirectory() as temporary:
                 config = copy.deepcopy(self.config)
+                config['status_file'] = str(Path(temporary) / 'status.json')
                 mutate(config)
                 path = Path(temporary) / 'config.json'
                 path.write_text(json.dumps(config))
