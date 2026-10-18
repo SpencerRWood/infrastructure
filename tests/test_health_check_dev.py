@@ -33,6 +33,7 @@ class HealthCheckTests(unittest.TestCase):
         embedding_healthy: bool = True,
         embedding_image_matches: bool = True,
         embedding_runtime_passes: bool = True,
+        embedding_first_request_fails: bool = False,
         automerge_selected: bool = False,
         automerge_present: bool = True,
         automerge_healthy: bool = True,
@@ -72,6 +73,9 @@ class HealthCheckTests(unittest.TestCase):
                 'elif [[ "$1" == exec && "$2" == automerge1 ]]; then\n'
                 '  [[ "$FAKE_AUTOMERGE_GRPC_READY" == true ]]; exit $?\n'
                 'elif [[ "$1" == exec && "$2" == embedding1 ]]; then\n'
+                '  if [[ "$FAKE_EMBEDDING_FIRST_FAIL" == true && ! -e "$FAKE_EMBEDDING_ATTEMPT" ]]; then\n'
+                '    touch "$FAKE_EMBEDDING_ATTEMPT"; exit 1\n'
+                '  fi\n'
                 '  [[ "$FAKE_EMBEDDING_RUNTIME_PASSES" == true ]]; exit $?\n'
                 'elif [[ "$*" == *embedding1* && "$*" == *Config.Image* ]]; then\n'
                 '  if [[ "$FAKE_EMBEDDING_IMAGE_MATCHES" == true ]]; then echo syntax-only/embedding:v1@sha256:fixture; else echo wrong; fi\n'
@@ -151,6 +155,8 @@ class HealthCheckTests(unittest.TestCase):
                 "FAKE_EMBEDDING_HEALTHY": str(embedding_healthy).lower(),
                 "FAKE_EMBEDDING_IMAGE_MATCHES": str(embedding_image_matches).lower(),
                 "FAKE_EMBEDDING_RUNTIME_PASSES": str(embedding_runtime_passes).lower(),
+                "FAKE_EMBEDDING_FIRST_FAIL": str(embedding_first_request_fails).lower(),
+                "FAKE_EMBEDDING_ATTEMPT": str(root / 'embedding-attempt'),
                 "HEALTH_CHECK_AUTOMERGE_ENV_FILE": str(root / "automerge.env"),
                 "HEALTH_CHECK_OVERLEAF_ENV_FILE": str(root / "unselected-overleaf.env"),
                 "FAKE_AUTOMERGE_PRESENT": str(automerge_present).lower(),
@@ -167,6 +173,18 @@ class HealthCheckTests(unittest.TestCase):
                 check=False,
             )
             return result, int(count_file.read_text()) if count_file.exists() else 0
+
+    def test_embedding_first_request_failure_retries_complete_verification(self) -> None:
+        result, _ = self.run_health_check('200', embedding_first_request_fails=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Retrying embedding runtime verification once', result.stderr)
+        self.assertIn('OK embedding immutable image, health, readiness, and Qwen vectors', result.stdout)
+
+    def test_embedding_persistent_failure_stops_after_retry(self) -> None:
+        result, _ = self.run_health_check('200', embedding_runtime_passes=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stderr.count('Retrying embedding runtime verification once'), 1)
+        self.assertNotIn('OK embedding immutable image', result.stdout)
 
     def test_host_overleaf_selection_does_not_enter_health_fixture(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -147,8 +147,15 @@ test "$(docker inspect --format '{{.State.Health.Status}}' "$embedding_container
 test "$(docker inspect --format '{{.Config.Image}}' "$embedding_container")" = "$embedding_image"
 test "$(docker inspect --format '{{.Image}}' "$embedding_container")" = "$(docker image inspect --format '{{.Id}}' "$embedding_image")"
 test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$embedding_image")" = "$embedding_revision"
-docker exec "$embedding_container" python -m rag_embedding.verification \
-  --url http://127.0.0.1:8080 --source-revision "$embedding_revision" --release-revision "$embedding_release"
+# The first real-model request after idle can exceed the verifier's request
+# deadline. Retry once with the same identity/vector checks; persistent failures
+# still stop deployment and enter the existing recovery path.
+if ! docker exec "$embedding_container" python -m rag_embedding.verification \
+  --url http://127.0.0.1:8080 --source-revision "$embedding_revision" --release-revision "$embedding_release"; then
+  echo 'Retrying embedding runtime verification once after failed first request.' >&2
+  docker exec "$embedding_container" python -m rag_embedding.verification \
+    --url http://127.0.0.1:8080 --source-revision "$embedding_revision" --release-revision "$embedding_release"
+fi
 echo 'OK embedding immutable image, health, readiness, and Qwen vectors'
 for service in rag-service rag-service-code; do
   ids=$(docker ps -q --filter label=com.docker.compose.project=infrastructure-dev-rag-service \

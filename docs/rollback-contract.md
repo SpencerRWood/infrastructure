@@ -95,6 +95,31 @@ Invalid CLI syntax exits 2 before creating a result; use the documented inputs.
 
 ## Audit of existing recovery (2026-10-05)
 
+### Deployment custody preflight (2026-10-18)
+
+Deployment run 38951471755 failed embedding verification, then reapplication of
+v0.32.1 stopped at its Recovery Verification custody assertion. That release
+contained the nested temporary custody approval without the binding required by
+the role. The binding was fixed before v0.33.4; run 38953613519 restored forward
+successfully. It did not prove v0.32.1 could be reapplied.
+
+Before deployment apply, `scripts/rollback-preflight.py` now checks the exact
+`PREVIOUS_REF` selected by the pinned deployment workflow. It resolves the full
+release tag and ancestry, then evaluates that release's custody assertion with
+its own environment and role defaults in a disposable localhost check. A blocked
+target stops deployment before apply. It never copies newer approvals into an
+older release or executes rollback. The existing backup, immutable selection,
+apply, recovery and runtime health controls remain authoritative. This focused
+check attests to custody eligibility only, not full rollback or schema safety.
+Regression tests reproduce the missing-binding failure without a live host.
+
+A fresh check also reproduced the intermittent embedding verification failure;
+the unchanged real-vector verifier then passed in 15 seconds. Infrastructure
+health now retries that complete request once. Both attempts retain the same
+immutable identity, readiness, model, vector dimension, normalization and
+input-dependence checks. A second failure still fails health and invokes existing
+recovery. Tests cover transient success and persistent rejection.
+
 Audited current `origin/main` at infrastructure `ab6619a` and homelab `c0166cb`,
 plus the shared `deploy-ansible.yml@v1` implementation in the workflows checkout.
 Both consumers call the same release resolver/deployment workflow, with separate
