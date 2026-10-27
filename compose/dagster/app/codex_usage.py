@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import fcntl
+import stat
 import os
 import subprocess
 import time
@@ -42,6 +44,32 @@ def ping_target(
     state_dir: Path,
     executable: Path,
 ) -> PingResult:
+    """Serialize participating account executions, never infer a quota reservation."""
+    state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor = os.open(
+        state_dir / "codex-execution.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600
+    )
+    with os.fdopen(descriptor, "r+") as lease:
+        if not stat.S_ISREG(os.fstat(lease.fileno()).st_mode):
+            raise ValueError("shared execution lease must be a regular file")
+        try:
+            fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return PingResult(target, scheduled_at, datetime.now(timezone.utc).isoformat(),
+                              0.0, "skipped", "shared Codex execution busy")
+        return _claim_and_ping(target, scheduled_at, home=home, state_dir=state_dir,
+                               executable=executable, lease_descriptor=lease.fileno())
+
+
+def _claim_and_ping(
+    target: str,
+    scheduled_at: str,
+    *,
+    home: Path,
+    state_dir: Path,
+    executable: Path,
+    lease_descriptor: int,
+) -> PingResult:
     """Claim before launch: a retry never issues a second request for the slot."""
     profile = profile_home(target, home)
     slot = datetime.fromisoformat(scheduled_at)
@@ -76,10 +104,7 @@ def ping_target(
         elif not (profile / "auth.json").is_file():
             diagnostic = "Codex profile authentication unavailable"
         else:
-            environment = os.environ.copy()
-            environment.pop("CODEX_ACCESS_TOKEN", None)
-            environment.pop("CODEX_API_KEY", None)
-            environment["CODEX_HOME"] = str(profile)
+            environment = {"PATH": os.defpath, "CODEX_HOME": str(profile), "LANG": "C.UTF-8"}
             completed = subprocess.run(
                 [
                     str(executable), "exec", "--ephemeral", "--sandbox", "read-only",
@@ -90,6 +115,7 @@ def ping_target(
                 stderr=subprocess.DEVNULL,
                 timeout=TIMEOUT_SECONDS,
                 check=False,
+                pass_fds=(lease_descriptor,),
             )
             if completed.returncode == 0:
                 status, diagnostic = "success", "request completed"
