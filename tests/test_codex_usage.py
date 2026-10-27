@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import fcntl
 import subprocess
 import sys
 import tempfile
@@ -56,6 +57,33 @@ class CodexAdapterTests(unittest.TestCase):
             directory.mkdir()
             (directory / "auth.json").write_text("private credential")
         self.slot = "2026-09-27T06:00:00-04:00"
+
+    @patch("codex_usage.subprocess.run")
+    def test_shared_lease_defers_without_consuming_slot(self, run: Mock) -> None:
+        self.state.mkdir()
+        with (self.state / "codex-execution.lock").open("w") as held:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            result = ping_target("codex", self.slot, home=self.home,
+                                 state_dir=self.state, executable=self.executable)
+        self.assertEqual(result.status, "skipped")
+        self.assertFalse(list(self.state.glob("*.json")))
+        run.assert_not_called()
+        run.return_value = Mock(returncode=0)
+        self.assertEqual(ping_target("codex", self.slot, home=self.home,
+                                    state_dir=self.state, executable=self.executable).status,
+                         "success")
+
+    @patch("codex_usage.subprocess.run")
+    def test_shared_lease_is_held_during_execution_and_environment_is_minimal(self, run: Mock) -> None:
+        def execute(*_args, **kwargs):
+            with (self.state / "codex-execution.lock").open("r+") as other:
+                with self.assertRaises(BlockingIOError):
+                    fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.assertEqual(set(kwargs["env"]), {"PATH", "CODEX_HOME", "LANG"})
+            return Mock(returncode=0)
+        run.side_effect = execute
+        ping_target("codex", self.slot, home=self.home, state_dir=self.state,
+                    executable=self.executable)
 
     @patch("codex_usage.subprocess.run")
     def test_two_profiles_and_retry_claim(self, run: Mock) -> None:
