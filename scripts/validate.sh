@@ -8,7 +8,8 @@ cd "$repository_root"
 echo 'Checking shell syntax...'
 bash -n scripts/validate.sh scripts/health-check-dev.sh \
   scripts/health-check-dev-remote.sh postgres/scripts/provision-database.sh \
-  scripts/rollback-wood-design-system.sh
+  scripts/rollback-wood-design-system.sh scripts/health-check-events-service.sh \
+  scripts/rollback-events-service.sh
 
 echo 'Checking deployment readiness behavior...'
 if command -v uv >/dev/null 2>&1; then
