@@ -45,7 +45,10 @@
 
 ["tool"."semantic_release"."commit_parser_options"]
 "minor_tags" = ["feat"]
-"patch_tags" = ["fix", "perf"]
+"patch_tags" = ["fix", "perf", "chore"]
+# Only the exact existing Events promoter title is a releasing chore. Other
+# chores remain ignored; unrelated routine changes gain no publication signal.
+"allowed_tags" = ["feat", "fix", "perf", "build", "ci", "docs", "style", "refactor", "test", 'chore(?=\(deps\): update events-service to v[0-9]+\.[0-9]+\.[0-9]+(?:\n|$))']
 "parse_squash_commits" = true
 "ignore_merge_commits" = true
 
