@@ -26,6 +26,10 @@ only file change is `environments/dev.yml` and that the only semantic YAML chang
 is a forward Events version/digest pin. Service flags, other pins, configuration,
 rollback pins, unrelated files and unpublished revisions cannot authorize deploy.
 The published Infrastructure release is checked before the privileged job starts.
+Release preparation must also register the approved immutable Events digest in
+`recovery/artifacts.v1.json`, retaining prior images for recovery. The existing
+catalog validation deliberately blocks a pin whose artifact is not registered;
+the one-file promoter does not bypass or silently change that recovery inventory.
 
 The root-owned runner wrapper exposes Events-only check, apply, health and guarded
 rollback operations. They share the existing development deployment concurrency
