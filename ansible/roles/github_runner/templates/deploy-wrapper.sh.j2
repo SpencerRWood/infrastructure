@@ -6,7 +6,12 @@ set -euo pipefail
 
 workspace="${1:?workspace is required}"
 operation="${2:?operation is required}"
-test "$#" -eq 2
+if [[ "$operation" == rollback-events-service ]]; then
+  test "$#" -eq 3
+  [[ "$3" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+else
+  test "$#" -eq 2
+fi
 case "$workspace" in
   "{{ github_runner_root }}/_work/"*) ;;
   *) echo 'workspace is outside this runner work directory' >&2; exit 64 ;;
@@ -30,6 +35,18 @@ if [[ "$operation" == apply || "$operation" == check ]]; then
   export WEBSITE_PORTFOLIO_GHCR_TOKEN
 fi
 case "$operation" in
+  rollback-events-service)
+    exec bash scripts/rollback-events-service.sh "$3"
+    ;;
+  apply-events-service)
+    exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --tags events_service {{ github_runner_ansible_extra_args }}
+    ;;
+  check-events-service)
+    exec /usr/bin/ansible-playbook --connection=local -i "{{ github_runner_inventory_path }}" "{{ github_runner_playbook_path }}" --tags events_service --check --diff {{ github_runner_ansible_extra_args }}
+    ;;
+  health-events-service)
+    exec bash scripts/health-check-events-service.sh
+    ;;
   apply-wood-design-system)
     # Releases before WDS onboarding represent the approved no-service baseline.
     # Use the installed current rollback control, never an absent old role/script.

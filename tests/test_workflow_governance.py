@@ -78,12 +78,14 @@ class WorkflowGovernanceTests(unittest.TestCase):
         self.assertIn('self-hosted', job['runs-on'])
         self.assertTrue(any('scripts/rollback.py' in step.get('run', '') for step in job['steps']))
 
-    def test_validation_uses_standard_actions_check_without_status_write(self):
+    def test_validation_publishes_the_existing_promotion_status_for_trusted_sources(self):
         validate = yaml.safe_load((ROOT / 'validate.yml').read_text())
         job = validate['jobs']['validation']
         self.assertIn('/validate.yml@', job['uses'])
-        self.assertEqual(job['with'], {'workflow_revision': job['uses'].split('@')[1]})
-        self.assertEqual(validate['permissions'], {'contents': 'read'})
+        self.assertEqual(job['with']['workflow_revision'], job['uses'].split('@')[1])
+        self.assertEqual(job['with']['status_context'], 'infrastructure-validation')
+        self.assertIn('head.repo.full_name == github.repository', job['with']['publish_commit_status'])
+        self.assertEqual(validate['permissions'], {'contents': 'read', 'statuses': 'write'})
 
 
 if __name__ == '__main__':

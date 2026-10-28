@@ -1,0 +1,81 @@
+---
+name: Deploy released Events Service pin
+'on':
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+  deployments: write
+jobs:
+  scope:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    outputs:
+      approved: ${{ steps.scope.outputs.approved }}
+      release_tag: ${{ steps.scope.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v9.0.0
+      - name: Check exact published Events-only release scope
+        id: scope
+        env:
+          RELEASE_REVISION: ${{ github.event.workflow_run.head_sha }}
+        run: >-
+          uv run --frozen python scripts/events_release_scope.py
+          --revision "$RELEASE_REVISION" --github-output "$GITHUB_OUTPUT"
+      - name: Verify published Infrastructure release authority
+        if: steps.scope.outputs.approved == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.scope.outputs.release_tag }}
+        run: >-
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"
+          --json isDraft,isPrerelease --jq
+          'if .isDraft or .isPrerelease then error("stable release required") else true end'
+  deploy-events:
+    needs: scope
+    if: needs.scope.outputs.approved == 'true'
+    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@9748b1cd6287d84d55c4277c93ca5dae01fb1787
+    with:
+      require_approval: true
+      approved: true
+      repository: ${{ github.repository }}
+      ref: ${{ needs.scope.outputs.release_tag }}
+      skip_superseded: true
+      inventory_path: ansible/inventory/dev
+      playbook_path: ansible/playbooks/dev.yml
+      ansible_config_path: ansible/ansible.cfg
+      environment_name: infrastructure-dev
+      deployment_working_directory: .
+      concurrency_group: deploy-infrastructure-dev
+      runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure"]'
+      secrets_file: /home/github-runner-infrastructure/.secrets/dev.env
+      validation_command: >-
+        uv sync --frozen --group dev &&
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+        "$GITHUB_WORKSPACE" validate
+      check_command: 'true'
+      privileged_check_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+        "$GITHUB_WORKSPACE" check-events-service
+      health_check_command: 'true'
+      privileged_deploy_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+        "$GITHUB_WORKSPACE" apply-events-service
+      privileged_health_check_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+        "$GITHUB_WORKSPACE" health-events-service
+      privileged_rollback_command: >-
+        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
+        "$GITHUB_WORKSPACE" rollback-events-service "$PREVIOUS_REF"
+      deployment_state_file: /var/lib/github-actions-deployments/github-runner-infrastructure/events-service-dev.json
+      workflow_revision: 9748b1cd6287d84d55c4277c93ca5dae01fb1787
