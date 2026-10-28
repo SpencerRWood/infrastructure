@@ -1,0 +1,16 @@
+---
+- name: Provision the explicitly scoped architecture metadata reader
+  hosts: infrastructure_hosts
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Require an explicit target environment
+      ansible.builtin.assert:
+        that:
+          - infrastructure_environment is defined
+          - infrastructure_environment in ['dev', 'prod']
+    - name: Load the selected environment manifest
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../environments/{{ infrastructure_environment }}.yml"
+  roles:
+    - architecture_reader

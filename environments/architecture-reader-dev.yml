@@ -1,0 +1,15 @@
+---
+# Owner-selected application database scope for DA-R1-S07. Opt-in only;
+# routine deployment does not load this file.
+infrastructure_environment: dev
+architecture_reader_input:
+  databases:
+    - name: events_service
+      schemas: [public]
+    - name: portfolio_website
+      schemas: [public]
+    - name: rag_service
+      schemas: [public]
+    - name: synthetic_website_data
+      schemas: [public, raw, staging, intermediate, marts]
+  infisical_path: /documentation-automation

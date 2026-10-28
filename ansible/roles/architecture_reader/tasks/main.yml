@@ -1,0 +1,112 @@
+---
+- name: Validate explicit architecture reader scope
+  ansible.builtin.set_fact:
+    architecture_reader_scope: "{{ architecture_reader_input | architecture_reader_contract }}"
+
+- name: Compile the exact architecture database allowlist
+  ansible.builtin.set_fact:
+    architecture_reader_allowed_databases: >-
+      {{ architecture_reader_scope.databases | map(attribute='name') | join(',') }}
+
+- name: Resolve the one shared architecture credential from Infisical
+  ansible.builtin.script:
+    cmd: >-
+      {{ role_path }}/../../../scripts/resolve-infisical-env.py
+      --environment {{ infrastructure_environment }}
+      --path {{ architecture_reader_scope.infisical_path }}
+      --stdout-key ARCHITECTURE_POSTGRES_PASSWORD
+      --require ARCHITECTURE_POSTGRES_PASSWORD
+  register: architecture_reader_resolved
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Validate architecture reader password without retaining a fact
+  ansible.builtin.assert:
+    that:
+      - (architecture_reader_resolved.stdout | trim | architecture_reader_password) | length >= 48
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Check whether the current Infisical password already authenticates
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - -e
+      - PGPASSWORD
+      - -e
+      - LC_ALL=C
+      - "{{ architecture_reader_container }}"
+      - psql
+      - -X
+      - -h
+      - 127.0.0.1
+      - -U
+      - architecture_reader
+      - -d
+      - "dbname={{ architecture_reader_scope.databases[0].name }} require_auth=scram-sha-256 connect_timeout=10"
+      - -Atc
+      - SELECT 1;
+  environment:
+    PGPASSWORD: "{{ architecture_reader_resolved.stdout | trim }}"
+  register: architecture_reader_authentication
+  changed_when: false
+  failed_when: >-
+    architecture_reader_authentication.rc != 0 and
+    'password authentication failed' not in architecture_reader_authentication.stderr
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Restrict architecture reader connections to the approved databases
+  ansible.builtin.blockinfile:
+    path: "/srv/infrastructure/state/postgres/data/pgdata/pg_hba.conf"
+    insertbefore: BOF
+    marker: "# {mark} ANSIBLE ARCHITECTURE METADATA READER"
+    block: "{{ lookup('ansible.builtin.template', 'reader-hba.j2') }}"
+    owner: '999'
+    group: '999'
+    mode: '0600'
+  register: architecture_reader_hba
+  when: not ansible_check_mode
+
+- name: Reload architecture reader connection policy
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ architecture_reader_container }}"
+      - psql
+      - -X
+      - -U
+      - "{{ lookup('ansible.builtin.env', 'POSTGRES_USER') }}"
+      - -d
+      - "{{ architecture_reader_scope.databases[0].name }}"
+      - -Atc
+      - SELECT pg_reload_conf();
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - architecture_reader_hba.changed
+
+- name: Reconcile the shared reader in each approved database
+  ansible.builtin.include_tasks: database.yml
+  loop: "{{ architecture_reader_scope.databases }}"
+  loop_control:
+    loop_var: architecture_reader_database
+    index_var: architecture_reader_database_index
+  when: not ansible_check_mode
+
+- name: Verify the same credential and data denial in each approved database
+  ansible.builtin.include_tasks: verify.yml
+  loop: "{{ architecture_reader_scope.databases }}"
+  loop_control:
+    loop_var: architecture_reader_database
+  when: not ansible_check_mode
+
+- name: Discard in-memory credential-bearing task results
+  ansible.builtin.set_fact:
+    architecture_reader_resolved: {}
+    architecture_reader_authentication: {}
+    architecture_reader_result: {}
+  no_log: true

@@ -1,0 +1,4 @@
+---
+# Opt-in only. Never infer an application database or secret folder.
+architecture_reader_input: {}
+architecture_reader_container: "infrastructure-{{ infrastructure_environment }}-postgres-postgres-1"

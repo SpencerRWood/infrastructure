@@ -1,0 +1,22 @@
+---
+- name: Reconcile isolated metadata role and approved schema grants
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - -i
+      - "{{ architecture_reader_container }}"
+      - psql
+      - -X
+      - -U
+      - "{{ lookup('ansible.builtin.env', 'POSTGRES_USER') }}"
+      - -d
+      - "{{ architecture_reader_database.name }}"
+      - --set=ON_ERROR_STOP=1
+    stdin: "{{ lookup('ansible.builtin.template', 'reader.sql.j2') }}"
+  register: architecture_reader_result
+  changed_when: >-
+    'CREATE ROLE' in architecture_reader_result.stdout or
+    'ALTER ROLE' in architecture_reader_result.stdout or
+    'GRANT' in architecture_reader_result.stdout
+  no_log: true

@@ -1,0 +1,47 @@
+\set ON_ERROR_STOP on
+-- Password-bearing statements must not enter PostgreSQL statement/error logs.
+SET log_statement = 'none';
+SET log_min_duration_statement = -1;
+SET log_min_error_statement = 'panic';
+SET password_encryption = 'scram-sha-256';
+BEGIN;
+SELECT 'CREATE ROLE architecture_reader LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS'
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'architecture_reader') \gexec
+
+-- Do not silently repurpose an existing privileged identity or change PUBLIC.
+DO $policy$
+BEGIN
+    IF NOT EXISTS (
+        SELECT FROM pg_roles WHERE rolname = 'architecture_reader'
+        AND rolcanlogin AND NOT rolsuper AND NOT rolcreatedb AND NOT rolcreaterole
+        AND NOT rolinherit AND NOT rolreplication AND NOT rolbypassrls
+    ) OR EXISTS (
+        SELECT FROM pg_auth_members
+        WHERE member = (SELECT oid FROM pg_roles WHERE rolname = 'architecture_reader')
+    ) OR EXISTS (
+        SELECT FROM pg_database WHERE datdba = (SELECT oid FROM pg_roles WHERE rolname = 'architecture_reader')
+    ) OR EXISTS (
+        SELECT FROM pg_namespace WHERE nspowner = (SELECT oid FROM pg_roles WHERE rolname = 'architecture_reader')
+    ) OR EXISTS (
+        SELECT FROM pg_class WHERE relowner = (SELECT oid FROM pg_roles WHERE rolname = 'architecture_reader')
+    ) OR has_database_privilege('architecture_reader', current_database(), 'CREATE,TEMPORARY')
+    THEN
+        RAISE EXCEPTION 'Architecture reader violates isolation policy; explicit owner remediation required';
+    END IF;
+END
+$policy$;
+
+{% if architecture_reader_authentication.rc != 0 and architecture_reader_database_index == 0 %}
+ALTER ROLE architecture_reader PASSWORD '{{ architecture_reader_resolved.stdout | trim | architecture_reader_password }}';
+{% endif %}
+
+SELECT format('GRANT CONNECT ON DATABASE %I TO architecture_reader', current_database())
+WHERE NOT has_database_privilege('architecture_reader', current_database(), 'CONNECT') \gexec
+{% for schema in architecture_reader_database.schemas %}
+SELECT 'GRANT USAGE ON SCHEMA "{{ schema }}" TO architecture_reader'
+WHERE NOT has_schema_privilege('architecture_reader', '{{ schema }}', 'USAGE') \gexec
+{% endfor %}
+
+-- Verify before committing, including rights inherited through PUBLIC/columns.
+{% include 'verify.sql.j2' %}
+COMMIT;
