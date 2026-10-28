@@ -1,0 +1,55 @@
+DO $verify$
+DECLARE
+    relation record;
+BEGIN
+    IF has_database_privilege('architecture_reader', current_database(), 'CREATE,TEMPORARY')
+    OR EXISTS (
+        SELECT FROM pg_namespace
+        WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema'
+        AND has_schema_privilege('architecture_reader', oid, 'CREATE')
+    ) OR EXISTS (
+        SELECT FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'
+        AND (
+            (c.relkind IN ('r','p','v','m','f') AND (
+                has_table_privilege('architecture_reader', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+                OR has_any_column_privilege('architecture_reader', c.oid, 'SELECT,INSERT,UPDATE,REFERENCES')
+            )) OR (c.relkind = 'S' AND has_sequence_privilege('architecture_reader', c.oid, 'USAGE,SELECT,UPDATE'))
+        )
+    ) OR EXISTS (
+        SELECT FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'
+        AND p.prosecdef AND has_schema_privilege('architecture_reader', n.oid, 'USAGE')
+        AND has_function_privilege('architecture_reader', p.oid, 'EXECUTE')
+    ) THEN
+        RAISE EXCEPTION 'Architecture reader has effective application access; explicit owner remediation required';
+    END IF;
+
+    -- Actually attempt SELECT as the reader. A successful zero-row query is
+    -- still data access and fails this check; no application rows are fetched.
+    FOR relation IN
+        SELECT n.nspname, c.relname FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'
+        AND c.relkind IN ('r','p','v','m','f')
+    LOOP
+        BEGIN
+            SET LOCAL ROLE architecture_reader;
+            EXECUTE format('SELECT * FROM %I.%I LIMIT 0', relation.nspname, relation.relname);
+            RESET ROLE;
+            RAISE EXCEPTION 'Architecture reader application SELECT unexpectedly succeeded';
+        EXCEPTION WHEN insufficient_privilege THEN
+            RESET ROLE;
+        END;
+    END LOOP;
+END
+$verify$;
+
+-- Use pg_catalog: information_schema filters out tables with no data grants.
+SELECT c.relname, a.attname, a.attnum, con.contype
+FROM pg_catalog.pg_class c
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+LEFT JOIN pg_catalog.pg_constraint con ON con.conrelid = c.oid AND con.contype IN ('p','f')
+WHERE n.nspname IN ({% for schema in architecture_reader_database.schemas %}'{{ schema }}'{{ ', ' if not loop.last else '' }}{% endfor %})
+ORDER BY n.nspname, c.relname, a.attnum, con.contype;

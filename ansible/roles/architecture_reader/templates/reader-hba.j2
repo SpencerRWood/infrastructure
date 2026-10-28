@@ -1,0 +1,6 @@
+local {{ architecture_reader_allowed_databases }} architecture_reader scram-sha-256
+local all architecture_reader reject
+host {{ architecture_reader_allowed_databases }} architecture_reader 0.0.0.0/0 scram-sha-256
+host {{ architecture_reader_allowed_databases }} architecture_reader ::/0 scram-sha-256
+host all architecture_reader 0.0.0.0/0 reject
+host all architecture_reader ::/0 reject

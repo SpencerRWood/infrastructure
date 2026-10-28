@@ -1,0 +1,24 @@
+---
+- name: Verify metadata access and absence of effective application privileges
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - -i
+      - -e
+      - PGPASSWORD
+      - "{{ architecture_reader_container }}"
+      - psql
+      - -X
+      - -h
+      - 127.0.0.1
+      - -U
+      - architecture_reader
+      - -d
+      - "dbname={{ architecture_reader_database.name }} require_auth=scram-sha-256 connect_timeout=10"
+      - --set=ON_ERROR_STOP=1
+    stdin: "{{ lookup('ansible.builtin.template', 'verify.sql.j2') }}"
+  environment:
+    PGPASSWORD: "{{ architecture_reader_resolved.stdout | trim }}"
+  changed_when: false
+  no_log: true
