@@ -48,6 +48,9 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
     'POSTGRES_LAN_BIND=192.168.1.21' \
     'POSTGRES_LAN_PORT=25433' >"$postgres_validation_env"
   printf '%s\n' \
+    'POSTGRES_TLS_ENABLED=off' \
+    'POSTGRES_TLS_DIRECTORY=/srv/infrastructure/secrets/postgres-tls' >>"$postgres_validation_env"
+  printf '%s\n' \
     'CADDY_PROJECT_NAME=infrastructure-dev-caddy' \
     'CADDY_HTTP_BIND=192.168.1.21:8080' \
     'CADDY_HTTPS_BIND=192.168.1.21:8443' \

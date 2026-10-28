@@ -1,0 +1,24 @@
+---
+- name: Reconcile only the explicitly approved PostgreSQL TLS service
+  hosts: infrastructure_hosts
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Require an explicit target and attended deployment approval
+      ansible.builtin.assert:
+        that:
+          - infrastructure_environment is defined
+          - infrastructure_environment == 'dev'
+          - postgres_tls_deployment_approval | default('') | length > 0
+        fail_msg: Select dev and supply the recorded PostgreSQL TLS deployment approval.
+    - name: Load the development environment manifest
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../environments/dev.yml"
+    - name: Load canonical host paths without deploying the host role
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/host/defaults/main.yml"
+    - name: Keep this deployment limited to transport security
+      ansible.builtin.set_fact:
+        postgres_applications: []
+  roles:
+    - postgres

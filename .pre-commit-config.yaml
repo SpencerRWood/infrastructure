@@ -67,6 +67,9 @@ repos:
           -i ansible/inventory/dev ansible/playbooks/dev-backups.yml --syntax-check &&
           ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
           -i ansible/inventory/dev ansible/playbooks/architecture-reader.yml
+          -e infrastructure_environment=dev --syntax-check &&
+          ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
+          -i ansible/inventory/dev ansible/playbooks/postgres-tls.yml
           -e infrastructure_environment=dev --syntax-check'
         language: system
         pass_filenames: false

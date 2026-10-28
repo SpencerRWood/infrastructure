@@ -11,6 +11,13 @@
   no_log: true
   tags: [postgres]
 
+- name: Prepare PostgreSQL transport security before service changes
+  ansible.builtin.include_tasks:
+    file: tls.yml
+    apply:
+      tags: [postgres]
+  tags: [postgres]
+
 - name: Create PostgreSQL component directories
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -41,6 +48,8 @@
       POSTGRES_PROJECT_NAME={{ postgres_project_name }}
       POSTGRES_LAN_BIND={{ postgres_lan_bind }}
       POSTGRES_LAN_PORT={{ postgres_lan_port }}
+      POSTGRES_TLS_ENABLED={{ 'on' if postgres_tls_enabled else 'off' }}
+      POSTGRES_TLS_DIRECTORY={{ postgres_tls_directory }}
     dest: "{{ postgres_env_file }}"
     owner: root
     group: root
@@ -134,7 +143,30 @@
   delay: 2
   when:
     - not ansible_check_mode
-    - postgres_applications | length > 0
+    - (postgres_applications | length > 0) or (postgres_tls_enabled | bool)
+  tags: [postgres]
+
+- name: Reload renewed PostgreSQL certificates
+  ansible.builtin.command:
+    argv: [docker, kill, --signal, HUP, "{{ postgres_project_name }}-postgres-1"]
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - postgres_tls_enabled | bool
+    - postgres_tls_link is defined
+    - postgres_tls_link.changed | default(false)
+  tags: [postgres]
+
+- name: Verify trusted TLS at the actual PostgreSQL LAN listener
+  ansible.builtin.script:
+    cmd: >-
+      {{ role_path }}/../../../scripts/postgres-tls.py probe
+      --host {{ postgres_lan_bind }} --port {{ postgres_lan_port }}
+      --ca-file {{ postgres_tls_directory }}/current/ca.crt
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - postgres_tls_enabled | bool
   tags: [postgres]
 
 - name: Provision selected application databases
