@@ -15,6 +15,10 @@ read. Do not reuse a broad operator credential. The existing pinned promotion
 workflow checks the `infrastructure-validation` status; Infrastructure publishes
 that status using the reusable validator's supported interface for trusted source
 PRs only. Main pushes and forks retain read-only validation.
+The existing promoter's exact `chore(deps): update events-service to vX.Y.Z`
+title is classified as a patch release by the supported conventional-parser
+options. Other chore commits remain non-releasing, so unrelated maintenance does
+not acquire publication authority through this Events-specific rule.
 
 `deploy-events.yml` follows a successful Infrastructure Release on main. It checks
 the exact released revision and unique stable release tag, then requires that the
