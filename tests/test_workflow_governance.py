@@ -85,6 +85,7 @@ class WorkflowGovernanceTests(unittest.TestCase):
         self.assertEqual(job['with']['workflow_revision'], job['uses'].split('@')[1])
         self.assertEqual(job['with']['status_context'], 'infrastructure-validation')
         self.assertIn('head.repo.full_name == github.repository', job['with']['publish_commit_status'])
+        self.assertIn("github.event_name == 'pull_request' &&", job['with']['publish_commit_status'])
         self.assertEqual(validate['permissions'], {'contents': 'read', 'statuses': 'write'})
 
 

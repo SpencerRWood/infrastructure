@@ -16,7 +16,7 @@ jobs:
     with:
       workflow_revision: 4a3f40661622ae445d6ca231f31a1a6368e60ecf
       publish_commit_status: >-
-        ${{ github.event_name != 'pull_request' ||
+        ${{ github.event_name == 'pull_request' &&
         github.event.pull_request.head.repo.full_name == github.repository }}
       status_context: infrastructure-validation
     secrets:

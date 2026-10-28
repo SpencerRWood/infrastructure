@@ -14,7 +14,7 @@ Contents and Pull requests write, Commit statuses read, and mandatory Metadata
 read. Do not reuse a broad operator credential. The existing pinned promotion
 workflow checks the `infrastructure-validation` status; Infrastructure publishes
 that status using the reusable validator's supported interface for trusted source
-PRs and main pushes. Forks retain read-only validation.
+PRs only. Main pushes and forks retain read-only validation.
 
 `deploy-events.yml` follows a successful Infrastructure Release on main. It checks
 the exact released revision and unique stable release tag, then requires that the
