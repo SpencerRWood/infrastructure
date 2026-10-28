@@ -51,7 +51,7 @@ class WorkflowGovernanceTests(unittest.TestCase):
             self.assertIn("github.ref == 'refs/heads/main'", job['if'])
             self.assertIn("github.event_name == 'workflow_dispatch'", job['if'])
             self.assertIn('inputs.deployment_approved == true', job['if'])
-        job = next(job for job in deploy['jobs'].values() if 'deploy-ansible' in job['uses'])
+        job = next(job for job in deploy['jobs'].values() if 'deploy-ansible' in job.get('uses', ''))
         self.assertTrue(job['with']['require_approval'])
         self.assertEqual(job['with']['approved'], '${{ inputs.deployment_approved }}')
 

@@ -26,6 +26,12 @@ only file change is `environments/dev.yml` and that the only semantic YAML chang
 is a forward Events version/digest pin. Service flags, other pins, configuration,
 rollback pins, unrelated files and unpublished revisions cannot authorize deploy.
 The published Infrastructure release is checked before the privileged job starts.
+The controller then dispatches the existing approved deployment interface with
+the exact release tag, `events_service_only=true` and stale-release protection.
+The shared deployer accepts approved dispatches; it is never called directly from
+`workflow_run`, which its authorization contract rejects. Manual Events-only
+recovery uses the same interface with explicit approval. Conflicting Events/WDS
+component selections are rejected before runtime credentials are acquired.
 Release preparation must also register the approved immutable Events digest in
 `recovery/artifacts.v1.json`, retaining prior images for recovery. The existing
 catalog validation deliberately blocks a pin whose artifact is not registered;

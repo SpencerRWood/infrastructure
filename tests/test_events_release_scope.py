@@ -69,10 +69,19 @@ class EventsReleaseScopeTests(unittest.TestCase):
         self.assertIn("conclusion == 'success'", workflow['jobs']['scope']['if'])
         deploy = workflow['jobs']['deploy-events']
         self.assertEqual(deploy['if'], "needs.scope.outputs.approved == 'true'")
-        self.assertIn('apply-events-service', deploy['with']['privileged_deploy_command'])
-        self.assertIn('health-events-service', deploy['with']['privileged_health_check_command'])
-        self.assertIn('rollback-events-service', deploy['with']['privileged_rollback_command'])
-        self.assertTrue(deploy['with']['deployment_state_file'].endswith('/events-service-dev.json'))
+        self.assertEqual(deploy['permissions']['actions'], 'write')
+        dispatch = deploy['steps'][0]['run']
+        self.assertIn('gh workflow run deploy.yml', dispatch)
+        self.assertIn('--field deployment_approved=true', dispatch)
+        self.assertIn('--field events_service_only=true', dispatch)
+        manual = yaml.safe_load((ROOT / '.github/workflows/deploy.yml').read_text())
+        self.assertFalse(manual['on']['workflow_dispatch']['inputs']['events_service_only']['default'])
+        component = manual['jobs']['deploy-dev']['with']
+        self.assertIn('apply-events-service', component['privileged_deploy_command'])
+        self.assertIn('health-events-service', component['privileged_health_check_command'])
+        self.assertIn('rollback-events-service', component['privileged_rollback_command'])
+        self.assertIn('events-service-dev.json', component['deployment_state_file'])
+        self.assertIn('WDS_ONLY', manual['jobs']['deployment-scope']['steps'][0]['run'])
         wrapper = (ROOT / 'ansible/roles/github_runner/templates/deploy-wrapper.sh.j2').read_text()
         for operation in ('apply-events-service', 'check-events-service'):
             body = wrapper.split(f'  {operation})', 1)[1].split(';;', 1)[0]
