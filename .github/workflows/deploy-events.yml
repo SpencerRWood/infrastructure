@@ -7,7 +7,6 @@ name: Deploy released Events Service pin
     branches: [main]
 permissions:
   contents: read
-  deployments: write
 jobs:
   scope:
     if: >-
@@ -44,38 +43,17 @@ jobs:
   deploy-events:
     needs: scope
     if: needs.scope.outputs.approved == 'true'
-    uses: SpencerRWood/workflows/.github/workflows/deploy-ansible.yml@9748b1cd6287d84d55c4277c93ca5dae01fb1787
-    with:
-      require_approval: true
-      approved: true
-      repository: ${{ github.repository }}
-      ref: ${{ needs.scope.outputs.release_tag }}
-      skip_superseded: true
-      inventory_path: ansible/inventory/dev
-      playbook_path: ansible/playbooks/dev.yml
-      ansible_config_path: ansible/ansible.cfg
-      environment_name: infrastructure-dev
-      deployment_working_directory: .
-      concurrency_group: deploy-infrastructure-dev
-      runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure"]'
-      secrets_file: /home/github-runner-infrastructure/.secrets/dev.env
-      validation_command: >-
-        uv sync --frozen --group dev &&
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
-        "$GITHUB_WORKSPACE" validate
-      check_command: 'true'
-      privileged_check_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
-        "$GITHUB_WORKSPACE" check-events-service
-      health_check_command: 'true'
-      privileged_deploy_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
-        "$GITHUB_WORKSPACE" apply-events-service
-      privileged_health_check_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
-        "$GITHUB_WORKSPACE" health-events-service
-      privileged_rollback_command: >-
-        sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
-        "$GITHUB_WORKSPACE" rollback-events-service "$PREVIOUS_REF"
-      deployment_state_file: /var/lib/github-actions-deployments/github-runner-infrastructure/events-service-dev.json
-      workflow_revision: 9748b1cd6287d84d55c4277c93ca5dae01fb1787
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Dispatch the approved Events-only deployment interface
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.scope.outputs.release_tag }}
+        run: >-
+          gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY"
+          --ref main --field deployment_approved=true
+          --field release="$RELEASE_TAG" --field events_service_only=true
+          --field skip_superseded=true

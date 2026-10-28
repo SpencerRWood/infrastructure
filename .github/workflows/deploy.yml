@@ -24,6 +24,11 @@ name: Deploy released infrastructure development configuration
         required: false
         type: boolean
         default: false
+      events_service_only:
+        description: Select only Events migrations, services and health checks.
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       deployment_approved:
@@ -42,11 +47,36 @@ name: Deploy released infrastructure development configuration
         required: false
         type: boolean
         default: false
+      events_service_only:
+        description: Select only Events migrations, services and health checks.
+        required: false
+        type: boolean
+        default: false
+      skip_superseded:
+        description: Skip an automatic deployment superseded by newer main.
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: read
   deployments: write
 jobs:
+  deployment-scope:
+    if: github.ref == 'refs/heads/main' && github.event_name ==
+      'workflow_dispatch' && inputs.deployment_approved == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject conflicting component scopes
+        env:
+          EVENTS_ONLY: ${{ inputs.events_service_only }}
+          WDS_ONLY: ${{ inputs.wood_design_system_only }}
+        run: |
+          if [[ "$EVENTS_ONLY" == true && "$WDS_ONLY" == true ]]; then
+            echo 'Select exactly one component scope.' >&2
+            exit 1
+          fi
   resolve-release:
+    needs: deployment-scope
     if: github.ref == 'refs/heads/main' && github.event_name ==
       'workflow_dispatch' && inputs.deployment_approved == true
     uses: SpencerRWood/workflows/.github/workflows/resolve-release.yml@v1
@@ -71,21 +101,32 @@ jobs:
       concurrency_group: deploy-infrastructure-dev
       runner: '["self-hosted", "linux", "x64", "beelink", "infrastructure"]'
       secrets_file: /home/github-runner-infrastructure/.secrets/dev.env
-      validation_command: uv sync --group dev && uv run python scripts/rollback-preflight.py
+      validation_command: uv sync --group dev &&
+        ${{ inputs.events_service_only && 'true' || 'uv run python scripts/rollback-preflight.py' }}
         && sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
         "$GITHUB_WORKSPACE" validate
       check_command: ANSIBLE_CONFIG=ansible/ansible.cfg uv run
         ansible-playbook -i ansible/inventory/dev ansible/playbooks/dev.yml
         --tags host --check --diff
       privileged_check_command: sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
-        "$GITHUB_WORKSPACE" ${{ inputs.wood_design_system_only
+        "$GITHUB_WORKSPACE" ${{ inputs.events_service_only
+        && 'check-events-service' || inputs.wood_design_system_only
         && 'check-wood-design-system' || 'check' }}
       health_check_command: bash scripts/health-check-dev.sh
       privileged_deploy_command: sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
-        "$GITHUB_WORKSPACE" ${{ inputs.wood_design_system_only
+        "$GITHUB_WORKSPACE" ${{ inputs.events_service_only
+        && 'apply-events-service' || inputs.wood_design_system_only
         && 'apply-wood-design-system' || 'apply' }}
       privileged_health_check_command: sudo -n /usr/local/sbin/github-runner-infrastructure-deploy
-        "$GITHUB_WORKSPACE" ${{ inputs.wood_design_system_only
+        "$GITHUB_WORKSPACE" ${{ inputs.events_service_only
+        && 'health-events-service' || inputs.wood_design_system_only
         && 'health-wood-design-system' || 'health' }}
-      deployment_state_file: /var/lib/github-actions-deployments/github-runner-infrastructure/infrastructure-dev.json
+      privileged_rollback_command: >-
+        ${{ inputs.events_service_only &&
+        'sudo -n /usr/local/sbin/github-runner-infrastructure-deploy "$GITHUB_WORKSPACE"
+        rollback-events-service "$PREVIOUS_REF"'
+        || '' }}
+      deployment_state_file: >-
+        /var/lib/github-actions-deployments/github-runner-infrastructure/${{
+        inputs.events_service_only && 'events-service-dev.json' || 'infrastructure-dev.json' }}
       workflow_revision: 9748b1cd6287d84d55c4277c93ca5dae01fb1787
