@@ -57,7 +57,12 @@ esac
                 'docker': '''#!/bin/sh
 case "$1" in
   run) printf '%s\n' "$OLD_SCHEMA" ;;
-  compose) echo guarded-migration-attempt >&2; exit 73 ;;
+  compose)
+    case "$*" in
+      *' stop '*) echo writers-stopped >&2; exit 0 ;;
+      *' up '*) echo writers-resumed >&2; exit 0 ;;
+      *) echo guarded-migration-attempt >&2; exit 73 ;;
+    esac ;;
   *) exit 99 ;;
 esac
 ''',
@@ -75,6 +80,11 @@ esac
                     text=True, capture_output=True, timeout=5, check=False)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual('guarded-migration-attempt' in result.stderr, attempted)
+                self.assertEqual('writers-stopped' in result.stderr, attempted)
+                self.assertEqual('writers-resumed' in result.stderr, attempted)
+                if attempted:
+                    self.assertLess(result.stderr.index('writers-stopped'),
+                                    result.stderr.index('guarded-migration-attempt'))
 
 
 if __name__ == '__main__':

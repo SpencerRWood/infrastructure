@@ -37,10 +37,13 @@ the existing `phase6_ci` Ansible tag; this does not re-register or restart the
 runner. Keep the existing last-known-good deployment metadata. Rollback selects
 the previous released Events image and reads its packaged migration head without
 network access. Automatic schema rollback is limited to the reviewed 0005/0006
-transition. Migration 0006 refuses downgrade when message-edit or closed-response
+transition. Both Events writers are stopped before the guarded schema operation
+so an edit cannot race its retention checks. Migration 0006 refuses downgrade when message-edit or closed-response
 evidence exists; an unreviewed schema or retained evidence stops rollback for
 operator recovery instead of deleting data. Image-only rollback at schema 0006
-retains schema 0006. Never assume an image rollback has reverted the database.
+retains schema 0006. A refused downgrade attempts to resume the current runtime
+and remains a failed rollback observation. Never assume an image rollback has
+reverted the database.
 
 After deployment, inspect the real Alembic revision and `notify_message_edits`
 table, both digest-pinned containers, and Events' canonical read-only runtime

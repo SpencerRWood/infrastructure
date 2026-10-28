@@ -17,7 +17,10 @@ import events_service
 print(ScriptDirectory(str(Path(events_service.__file__).parent / "migrations")).get_current_head())
 ')
 [[ "$target_schema" == 0005_recovery_parts || "$target_schema" == 0006_interactive_edits ]]
-"${compose[@]}" --profile migration run --rm --no-deps events-migrate python -c '
+# Quiesce both application writers before checking/downgrading the schema.
+# Otherwise a new edit could race the migration's empty-table retention guard.
+"${compose[@]}" stop wood-broker wood-notify
+if ! "${compose[@]}" --profile migration run --rm --no-deps events-migrate python -c '
 import sys
 from events_service.config import Settings
 from events_service.migrate import migrate
@@ -38,7 +41,12 @@ try:
     migrate(url, target, downgrade=True)
 except Exception:
     raise SystemExit("Events schema rollback blocked; retain evidence and investigate") from None
-' "$target_schema"
+' "$target_schema"; then
+  # Preserve all evidence and attempt to restore the current runtime when a
+  # guarded downgrade refuses. This remains a failed rollback observation.
+  "${compose[@]}" up -d --wait --wait-timeout 90 wood-broker wood-notify || true
+  exit 1
+fi
 /usr/bin/ansible-playbook --connection=local -i ansible/inventory/dev \
   ansible/playbooks/dev.yml --tags events_service \
   --extra-vars "events_service_image_ref=$previous_image"
