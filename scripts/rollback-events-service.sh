@@ -8,6 +8,7 @@ previous_image=$(git -c safe.directory="$PWD" show "$previous_release:environmen
 [[ "$previous_image" =~ ^ghcr\.io/spencerrwood/events-service:v[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}$ ]]
 compose_env=/srv/infrastructure/secrets/dev/events-service-compose.env
 compose_file=/srv/infrastructure/compose/events-service/compose.yml
+export DOCKER_CONFIG=/srv/infrastructure/secrets/dev/ghcr-docker
 compose=(docker compose --env-file "$compose_env" -f "$compose_file")
 target_schema=$(docker run --rm --network none --entrypoint python "$previous_image" -c '
 from pathlib import Path
