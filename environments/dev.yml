@@ -1,5 +1,6 @@
 ---
 environment_name: dev
+postgres_tls_enabled: true
 # Events uses the canonical host database URL from the dev proxy network.
 postgres_allowed_cidrs: ["192.168.1.0/24", "192.168.96.0/20"]
 # Events Service runs its own migrations with its dedicated application role.

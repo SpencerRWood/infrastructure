@@ -1,0 +1,109 @@
+---
+- name: Validate explicit PostgreSQL TLS settings
+  ansible.builtin.assert:
+    that:
+      - postgres_tls_enabled is boolean
+      - postgres_tls_directory is match('^/[A-Za-z0-9_/-]+$')
+      - "'..' not in postgres_tls_directory"
+      - postgres_tls_min_valid_seconds | int >= 86400
+
+- name: Validate supplied certificate material on the controller
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ role_path }}/../../../scripts/postgres-tls.py"
+      - validate
+      - --directory
+      - "{{ postgres_tls_source_directory }}"
+      - --host
+      - "{{ postgres_lan_bind }}"
+      - --min-valid-seconds
+      - "{{ postgres_tls_min_valid_seconds | string }}"
+  register: postgres_tls_candidate
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  changed_when: false
+  when:
+    - postgres_tls_enabled | bool
+    - postgres_tls_source_directory | length > 0
+
+- name: Create PostgreSQL TLS mount root
+  ansible.builtin.file:
+    path: "{{ postgres_tls_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install the validated immutable certificate generation
+  when:
+    - postgres_tls_enabled | bool
+    - postgres_tls_source_directory | length > 0
+  block:
+    - name: Select the public certificate generation identifier
+      ansible.builtin.set_fact:
+        postgres_tls_generation: "{{ (postgres_tls_candidate.stdout | from_json).generation }}"
+    - name: Create protected certificate generation directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - path: "{{ postgres_tls_directory }}/releases"
+          owner: root
+          group: root
+          mode: '0755'
+        - path: "{{ postgres_tls_directory }}/releases/{{ postgres_tls_generation }}"
+          owner: "{{ postgres_uid }}"
+          group: "{{ postgres_gid }}"
+          mode: '0700'
+    - name: Copy protected certificate material
+      ansible.builtin.copy:
+        src: "{{ postgres_tls_source_directory }}/{{ item }}"
+        dest: "{{ postgres_tls_directory }}/releases/{{ postgres_tls_generation }}/{{ item }}"
+        owner: "{{ postgres_uid }}"
+        group: "{{ postgres_gid }}"
+        mode: '0400'
+        force: false
+      loop: [server.crt, server.key, ca.crt]
+      no_log: true
+      diff: false
+    - name: Validate installed material before activating the generation
+      ansible.builtin.script:
+        cmd: >-
+          {{ role_path }}/../../../scripts/postgres-tls.py validate
+          --directory {{ postgres_tls_directory }}/releases/{{ postgres_tls_generation }}
+          --host {{ postgres_lan_bind }} --key-owner {{ postgres_uid }}
+          --min-valid-seconds {{ postgres_tls_min_valid_seconds }}
+      changed_when: false
+      register: postgres_tls_installed_candidate
+      when: not ansible_check_mode
+    - name: Require installed generation to match the validated candidate
+      ansible.builtin.assert:
+        that:
+          - (postgres_tls_installed_candidate.stdout | from_json).generation == postgres_tls_generation
+        fail_msg: Installed immutable certificate generation differs; explicit remediation required.
+      when: not ansible_check_mode
+    - name: Activate the validated certificate generation atomically
+      ansible.builtin.file:
+        path: "{{ postgres_tls_directory }}/current"
+        src: "releases/{{ postgres_tls_generation }}"
+        state: link
+        owner: root
+        group: root
+      register: postgres_tls_link
+
+- name: Require a valid installed certificate before enabling PostgreSQL TLS
+  ansible.builtin.script:
+    cmd: >-
+      {{ role_path }}/../../../scripts/postgres-tls.py validate
+      --directory {{ postgres_tls_directory }}/current
+      --host {{ postgres_lan_bind }} --key-owner {{ postgres_uid }}
+      --min-valid-seconds {{ postgres_tls_min_valid_seconds }}
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - postgres_tls_enabled | bool

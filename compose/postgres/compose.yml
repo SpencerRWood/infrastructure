@@ -4,6 +4,16 @@ services:
   postgres:
     image: pgvector/pgvector:0.8.7-pg16-bookworm@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
     restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - ssl=${POSTGRES_TLS_ENABLED:?POSTGRES_TLS_ENABLED is required}
+      - -c
+      - ssl_cert_file=/run/postgres-tls/current/server.crt
+      - -c
+      - ssl_key_file=/run/postgres-tls/current/server.key
+      - -c
+      - ssl_min_protocol_version=TLSv1.2
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
@@ -20,6 +30,12 @@ services:
       - postgres_password
     volumes:
       - ${POSTGRES_DATA_PATH:?POSTGRES_DATA_PATH is required}:/var/lib/postgresql/data
+      - type: bind
+        source: ${POSTGRES_TLS_DIRECTORY:?POSTGRES_TLS_DIRECTORY is required}
+        target: /run/postgres-tls
+        read_only: true
+        bind:
+          create_host_path: false
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s

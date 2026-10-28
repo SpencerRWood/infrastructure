@@ -12,6 +12,12 @@ postgres_allowed_cidrs: ["192.168.1.0/24"]
 postgres_uid: '999'
 postgres_gid: '999'
 postgres_applications: []
+postgres_tls_enabled: false
+postgres_tls_directory: "{{ host_infrastructure_secrets_root }}/postgres-tls"
+# Optional attended certificate installation/renewal. Normal deploys validate
+# the already installed bundle; they never generate a CA or private key.
+postgres_tls_source_directory: "{{ lookup('ansible.builtin.env', 'POSTGRES_TLS_SOURCE_DIRECTORY') }}"
+postgres_tls_min_valid_seconds: 2592000
 postgres_required_environment:
   - POSTGRES_DB
   - POSTGRES_USER

@@ -19,7 +19,7 @@
 ["tool"."wood"."verify"]
 "version" = 1
 "retry_safe" = true
-"checks" = [{ "name" = "weekly-local-recovery", "argv" = ["uv", "run", "--frozen", "scripts/weekly_recovery.py", "--deadline-seconds", "40"], "required" = true, "timeout_seconds" = 60 }]
+"checks" = [{ "name" = "weekly-local-recovery", "argv" = ["uv", "run", "--frozen", "scripts/weekly_recovery.py", "--deadline-seconds", "40"], "required" = true, "timeout_seconds" = 60 }, { "name" = "postgres-tls-acceptance", "argv" = ["env", "POSTGRES_TLS_REQUIRE_LOCAL_POSTGRES=1", "uv", "run", "--frozen", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_postgres_tls.py"], "required" = true, "timeout_seconds" = 60 }]
 
 ["tool"."wood"."architecture"]
 "domain" = "infrastructure"
