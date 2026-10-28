@@ -238,7 +238,11 @@ class RollbackTests(unittest.TestCase):
         self.assertFalse(endpoint["concurrency"]["cancel-in-progress"])
         self.assertEqual(self.config["environment"], job["with"]["environment_name"])
         source_config = tomllib.loads((ROOT / "rollback.toml").read_text())
-        self.assertEqual(source_config["state_file"], job["with"]["deployment_state_file"])
+        state = Path(source_config["state_file"])
+        expected_state = (str(state.parent) + "/${{ inputs.events_service_only && "
+                          "'events-service-dev.json' || '" + state.name + "' }}")
+        self.assertEqual(expected_state, job["with"]["deployment_state_file"])
+        self.assertFalse(deploy["on"]["workflow_dispatch"]["inputs"]["events_service_only"]["default"])
         self.assertIn(source_config["wrapper"], job["with"]["privileged_deploy_command"])
         for trigger in ("workflow_call", "workflow_dispatch"):
             inputs = endpoint["on"][trigger]["inputs"]
