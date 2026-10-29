@@ -1,0 +1,63 @@
+---
+- name: Provision the selected Documentation Automation development ledger
+  hosts: infrastructure_hosts
+  become: true
+  gather_facts: false
+  vars:
+    documentation_automation_ledger_apply: false
+    documentation_automation_ledger_approval_reference: ""
+    postgres_application:
+      database: documentation_automation
+      role: documentation_automation
+      url_environment: DOCUMENTATION_AUTOMATION_DATABASE_URL
+      url_source: infisical
+      infisical_path: /documentation-automation
+      url_scheme: postgresql
+      host: 192.168.1.21
+      port: 25433
+  pre_tasks:
+    - name: Require the approved development ledger operation
+      ansible.builtin.assert:
+        that:
+          - infrastructure_environment | default('') == 'dev'
+          - documentation_automation_ledger_apply | bool
+          - documentation_automation_ledger_approval_reference | length > 0
+          - lookup('ansible.builtin.env', 'POSTGRES_USER') | length > 0
+          - lookup('ansible.builtin.env', 'POSTGRES_DB') | length > 0
+        fail_msg: >-
+          Require explicit dev scope, ledger apply approval and the existing
+          protected PostgreSQL bootstrap context. No credential values are logged.
+
+    - name: Load the development environment manifest
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../environments/dev.yml"
+
+    - name: Load canonical host paths without deploying the host role
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/host/defaults/main.yml"
+
+    - name: Verify TLS is already enabled on the existing PostgreSQL service
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - infrastructure-dev-postgres-postgres-1
+          - psql
+          - -X
+          - -U
+          - "{{ lookup('ansible.builtin.env', 'POSTGRES_USER') }}"
+          - -d
+          - "{{ lookup('ansible.builtin.env', 'POSTGRES_DB') }}"
+          - -Atc
+          - SHOW ssl;
+      register: documentation_automation_postgres_tls
+      changed_when: false
+      failed_when: >-
+        documentation_automation_postgres_tls.rc != 0 or
+        documentation_automation_postgres_tls.stdout | trim != 'on'
+      check_mode: false
+  tasks:
+    - name: Reuse application provisioning for only the selected ledger
+      ansible.builtin.include_role:
+        name: postgres
+        tasks_from: application
