@@ -1,0 +1,17 @@
+# DNS-only A record points to the LAN address. Match the actual TCP peer,
+# never forwarded headers supplied by a public caller or CDN.
+dev-events-api.woodhost.cloud {
+	import cloudflare_tls
+	import security_headers
+	@private_api {
+		remote_ip 192.168.1.0/24 10.8.0.0/24
+		method GET POST
+		path /v1/notifications /v1/notifications/*
+	}
+	handle @private_api {
+		reverse_proxy 192.168.1.21:8080
+	}
+	handle {
+		respond "Forbidden" 403
+	}
+}
