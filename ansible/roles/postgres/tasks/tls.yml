@@ -92,9 +92,31 @@
         path: "{{ postgres_tls_directory }}/current"
         src: "releases/{{ postgres_tls_generation }}"
         state: link
+        follow: false
         owner: root
         group: root
       register: postgres_tls_link
+
+- name: Inspect active certificate directory before service changes
+  ansible.builtin.stat:
+    path: "{{ postgres_tls_directory }}/current"
+    follow: true
+  register: postgres_tls_active_directory
+  when:
+    - not ansible_check_mode
+    - postgres_tls_enabled | bool
+
+- name: Require PostgreSQL access to the protected certificate directory
+  ansible.builtin.assert:
+    that:
+      - postgres_tls_active_directory.stat.isdir | default(false)
+      - postgres_tls_active_directory.stat.uid == (postgres_uid | int)
+      - postgres_tls_active_directory.stat.gid == (postgres_gid | int)
+      - postgres_tls_active_directory.stat.mode == '0700'
+    fail_msg: The active certificate directory must remain accessible to PostgreSQL.
+  when:
+    - not ansible_check_mode
+    - postgres_tls_enabled | bool
 
 - name: Require a valid installed certificate before enabling PostgreSQL TLS
   ansible.builtin.script:

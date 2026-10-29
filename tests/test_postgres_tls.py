@@ -113,8 +113,10 @@ class CertificateTests(unittest.TestCase):
                         try:
                             with context.wrap_socket(client, server_side=True) as connection:
                                 connection.recv(1)
-                        except ssl.SSLError:
-                            pass  # Client is expected to reject the wrong CA.
+                        except (ssl.SSLError, ConnectionResetError):
+                            # Wrong-CA rejection may close TCP before the server
+                            # receives a TLS alert (notably on macOS).
+                            pass
             except Exception as error:
                 errors.append(error)
 
