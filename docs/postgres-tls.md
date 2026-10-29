@@ -15,11 +15,13 @@ against the new payload or deploy the new payload independently of its role.
 ## Prerequisites and attended deployment
 
 Obtain a server certificate from the approved issuer with IP SAN `192.168.1.21`,
-serverAuth purpose and at least 30 days remaining validity. Supply the leaf and
+serverAuth purpose and at least 30 days remaining validity. The selected dedicated
+offline issuer workflow is documented in [postgres-ca.md](postgres-ca.md).
+Supply the leaf and
 any intermediates as `server.crt`, its unencrypted private key as `server.key`, and
 the approved trust bundle as `ca.crt` in an operator-owned protected directory
 outside Git. Keep the directory mode 0700 and key mode 0600 or 0400. The code
-does not generate a CA, private key or self-signed trust exception. Issuer choice,
+deployment role does not generate a CA, private key or self-signed trust exception. Issuer choice,
 key custody and certificate issuance require the existing administrator process.
 Use the same trusted CA in the manual and Dagster execution environments.
 Install trust in both clients before switching issuers or trust bundles.

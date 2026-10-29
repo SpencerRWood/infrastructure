@@ -45,7 +45,7 @@
       - -U
       - architecture_reader
       - -d
-      - "dbname={{ architecture_reader_scope.databases[0].name }} require_auth=scram-sha-256 connect_timeout=10"
+      - "dbname={{ architecture_reader_scope.databases[0].name }} connect_timeout=10"
       - -Atc
       - SELECT 1;
   environment:
@@ -57,6 +57,34 @@
     'password authentication failed' not in architecture_reader_authentication.stderr
   no_log: true
   when: not ansible_check_mode
+
+- name: Require SCRAM before trusting a successful credential probe
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - -e
+      - PGPASSWORD
+      - -e
+      - LC_ALL=C
+      - "{{ architecture_reader_container }}"
+      - psql
+      - -X
+      - -h
+      - 127.0.0.1
+      - -U
+      - architecture_reader
+      - -d
+      - "dbname={{ architecture_reader_scope.databases[0].name }} require_auth=scram-sha-256 connect_timeout=10"
+      - -Atc
+      - SELECT 1;
+  environment:
+    PGPASSWORD: "{{ architecture_reader_resolved.stdout | trim }}"
+  changed_when: false
+  no_log: true
+  when:
+    - not ansible_check_mode
+    - architecture_reader_authentication.rc == 0
 
 - name: Restrict architecture reader connections to the approved databases
   ansible.builtin.blockinfile:
