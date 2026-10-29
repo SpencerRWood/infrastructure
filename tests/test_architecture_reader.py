@@ -167,6 +167,36 @@ class ReaderPostgresTests(unittest.TestCase):
             "rc": 2, "stderr": "connection timed out",
         }))
 
+    def test_first_provisioning_bootstraps_reader_scram_before_credential_probe(self):
+        tasks = yaml.safe_load((ROOT / "ansible/roles/architecture_reader/tasks/main.yml").read_text())
+        names = [item["name"] for item in tasks]
+        self.assertLess(names.index("Reload architecture reader connection policy"),
+                        names.index("Check whether the current Infisical password already authenticates"))
+        hba = self.data / "pg_hba.conf"
+        original = hba.read_text()
+        try:
+            # Reproduce the deployed development cluster's initial loopback trust.
+            hba.write_text("local all all trust\n" + original)
+            self.checked("SELECT pg_reload_conf();")
+            missing = self.sql("SELECT 1;", role="architecture_reader", password=self.password)
+            self.assertIn('role "architecture_reader" does not exist', missing.stderr)
+            rules = self.templates.get_template("reader-hba.j2").render(
+                architecture_reader_allowed_databases="postgres"
+            )
+            hba.write_text(rules + "\nlocal all all trust\n" + original)
+            self.checked("SELECT pg_reload_conf();")
+            missing = self.sql("SELECT 1;", role="architecture_reader", password=self.password)
+            self.assertIn("password authentication failed", missing.stderr)
+            self.provision()
+            self.assertEqual(self.sql("SELECT 1;", role="architecture_reader", password=self.password,
+                                      require_auth=True).returncode, 0)
+            repeated = self.provision(authenticated=True)
+            self.assertNotIn("ALTER ROLE", repeated.stdout)
+            self.assertNotIn("GRANT", repeated.stdout)
+        finally:
+            hba.write_text(original)
+            self.checked("SELECT pg_reload_conf();")
+
     def test_public_table_and_column_access_fail_and_rollback(self):
         for grant, revoke in [("GRANT SELECT ON fixture.parent TO PUBLIC;", "REVOKE SELECT ON fixture.parent FROM PUBLIC;"),
                               ("GRANT SELECT(id) ON fixture.parent TO PUBLIC;", "REVOKE SELECT(id) ON fixture.parent FROM PUBLIC;")]:
