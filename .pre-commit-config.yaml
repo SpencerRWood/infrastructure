@@ -73,6 +73,9 @@ repos:
           -e infrastructure_environment=dev --syntax-check &&
           ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
           -i ansible/inventory/dev ansible/playbooks/documentation-automation-db.yml
+          -e infrastructure_environment=dev --syntax-check &&
+          ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook
+          -i ansible/inventory/dev ansible/playbooks/codex-usage-coordination.yml
           -e infrastructure_environment=dev --syntax-check'
         language: system
         pass_filenames: false

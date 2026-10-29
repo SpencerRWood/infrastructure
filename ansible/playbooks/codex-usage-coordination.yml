@@ -1,0 +1,113 @@
+---
+- name: Enable reviewed shared-account coordination in only the existing usage container
+  hosts: infrastructure_hosts
+  become: true
+  gather_facts: false
+  vars:
+    codex_coordination_apply: false
+    codex_coordination_approval_reference: ""
+    codex_coordination_expected_image: ""
+    codex_coordination_source_sha256: 92f1ffe6f8e1789268dec24736e8c14fc9c92dfc5df976d317aeee1fcf5c95bb
+    codex_coordination_root: /srv/infrastructure/state/dagster/codex-lease-runtime
+    codex_coordination_container: infrastructure-dev-dagster-dagster-codex-usage-1
+  pre_tasks:
+    - name: Require explicit approval and the observed development image
+      ansible.builtin.assert:
+        that:
+          - infrastructure_environment | default('') == 'dev'
+          - codex_coordination_apply | bool
+          - codex_coordination_approval_reference | length > 0
+          - codex_coordination_expected_image is match('^sha256:[0-9a-f]{64}$')
+          - >-
+            lookup('ansible.builtin.file', playbook_dir + '/../../compose/dagster/app/codex_usage.py', rstrip=false)
+            | hash('sha256') == codex_coordination_source_sha256
+        fail_msg: Require approved dev-only coordination scope and the exact observed image.
+
+    - name: Inspect only the existing usage image
+      ansible.builtin.command:
+        argv: [docker, inspect, --format, "{% raw %}{{.Image}}{% endraw %}", "{{ codex_coordination_container }}"]
+      register: codex_coordination_image
+      changed_when: false
+      check_mode: false
+
+    - name: Reject changed or missing images
+      ansible.builtin.assert:
+        that:
+          - codex_coordination_image.stdout | trim == codex_coordination_expected_image
+  tasks:
+    - name: Prepare the root-owned non-secret coordination artifact directory
+      ansible.builtin.file:
+        path: "{{ codex_coordination_root }}/{{ codex_coordination_source_sha256 }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy only the reviewed usage adapter
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../compose/dagster/app/codex_usage.py"
+        dest: "{{ codex_coordination_root }}/{{ codex_coordination_source_sha256 }}/codex_usage.py"
+        owner: root
+        group: root
+        mode: '0444'
+
+    - name: Write a one-service override retaining the immutable live image
+      ansible.builtin.copy:
+        dest: "{{ codex_coordination_root }}/compose.override.yml"
+        owner: root
+        group: root
+        mode: '0600'
+        content: |
+          services:
+            dagster-codex-usage:
+              image: "{{ codex_coordination_expected_image }}"
+              pull_policy: never
+              volumes:
+                - type: bind
+                  source: "{{ codex_coordination_root }}/{{ codex_coordination_source_sha256 }}/codex_usage.py"
+                  target: /opt/dagster/app/codex_usage.py
+                  read_only: true
+
+    - name: Reconcile only the existing usage service without dependencies or builds
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - --project-name
+          - infrastructure-dev-dagster
+          - --env-file
+          - /srv/infrastructure/secrets/dev/dagster-compose.env
+          - -f
+          - /srv/infrastructure/compose/dagster/compose.yml
+          - -f
+          - "{{ codex_coordination_root }}/compose.override.yml"
+          - up
+          - --detach
+          - --no-deps
+          - --no-build
+          - --wait
+          - --wait-timeout
+          - '90'
+          - dagster-codex-usage
+      register: codex_coordination_reconcile
+      changed_when: >-
+        'Recreated' in codex_coordination_reconcile.stderr or
+        'Created' in codex_coordination_reconcile.stderr or
+        'Started' in codex_coordination_reconcile.stderr
+      no_log: true
+
+    - name: Verify live coordination source without invoking a usage target
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - "{{ codex_coordination_container }}"
+          - python
+          - -c
+          - >-
+            import hashlib,pathlib,codex_usage;
+            source=pathlib.Path(codex_usage.__file__).read_bytes();
+            assert hashlib.sha256(source).hexdigest()=='{{ codex_coordination_source_sha256 }}';
+            assert 'flock' in codex_usage.ping_target.__code__.co_names;
+            print('reviewed coordination adapter verified')
+      changed_when: false
