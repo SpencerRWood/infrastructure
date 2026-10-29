@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 ROOT = Path(__file__).parents[1]
@@ -129,6 +130,42 @@ class ReaderPostgresTests(unittest.TestCase):
         self.provision(password=rotated)
         self.assertNotEqual(self.sql("SELECT 1;", role="architecture_reader", password=self.password, require_auth=True).returncode, 0)
         self.assertEqual(self.sql("SELECT 1;", role="architecture_reader", password=rotated, require_auth=True).returncode, 0)
+
+    def test_authentication_preflight_allows_reconciliation_but_rejects_unsafe_transport(self):
+        tasks = yaml.safe_load((ROOT / "ansible/roles/architecture_reader/tasks/main.yml").read_text())
+        task = next(item for item in tasks if item["name"] ==
+                    "Check whether the current Infisical password already authenticates")
+        fails = self.templates.compile_expression(task["failed_when"])
+
+        def rejected(result):
+            return fails(architecture_reader_authentication={
+                "rc": result.returncode, "stderr": result.stderr,
+            })
+
+        missing = self.sql("SELECT 1;", role="architecture_reader", password=self.password)
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertFalse(rejected(missing))
+        self.provision()
+        wrong = self.sql("SELECT 1;", role="architecture_reader", password="wrong_fixture_password")
+        self.assertNotEqual(wrong.returncode, 0)
+        self.assertFalse(rejected(wrong))
+        valid = self.sql("SELECT 1;", role="architecture_reader", password=self.password)
+        self.assertEqual(valid.returncode, 0)
+        self.assertFalse(rejected(valid))
+        # A trust-authenticated success must pass the second, mandatory SCRAM
+        # probe before provisioning; require_auth masks both wrong-password
+        # and trust errors behind the same generic libpq diagnostic.
+        trust = self.sql("SELECT 1;")
+        self.assertEqual(trust.returncode, 0)
+        scram_task = next(item for item in tasks if item["name"] ==
+                         "Require SCRAM before trusting a successful credential probe")
+        enabled = self.templates.compile_expression(scram_task["when"][1])
+        self.assertTrue(enabled(architecture_reader_authentication={"rc": trust.returncode}))
+        self.assertIn("require_auth=scram-sha-256", " ".join(scram_task["ansible.builtin.command"]["argv"]))
+        self.assertNotEqual(self.sql("SELECT 1;", require_auth=True).returncode, 0)
+        self.assertTrue(fails(architecture_reader_authentication={
+            "rc": 2, "stderr": "connection timed out",
+        }))
 
     def test_public_table_and_column_access_fail_and_rollback(self):
         for grant, revoke in [("GRANT SELECT ON fixture.parent TO PUBLIC;", "REVOKE SELECT ON fixture.parent FROM PUBLIC;"),
