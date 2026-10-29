@@ -5,7 +5,11 @@ The dedicated `documentation-automation` producer has only `notifications:read`
 and `notifications:write`. Store its single random token in Infisical dev
 `/documentation-automation/DOCUMENTATION_AUTOMATION_EVENTS_TOKEN` and the matching
 entry in `/events-service/WES_PRODUCER_CREDENTIALS`; preserve every other entry.
-The existing Telegram routing and private owner identity are reused.
+Preserve the existing Telegram rules and private owner identity. Add one
+`documentation-automation-approvals` rule in `/events-service/WES_NOTIFICATION_POLICIES`
+with source `documentation-automation`, notification type `action-required`,
+severity `info`, and channel `telegram`. Existing rules for other sources do not
+authorize this source: without a matching rule the interactive request is rejected.
 
 `https://dev-events-api.woodhost.cloud` is DNS-only, pointing to the existing LAN
 address. Edge Caddy obtains and renews its certificate through the existing
@@ -17,9 +21,11 @@ wood-notify. The public callback hostname and its restrictions are unchanged.
 `ansible/playbooks/documentation-automation-events.yml` is deliberately scoped:
 require dev/apply/approval reference and all three observed images plus the exact
 released notifier reference. Inject both credential values only into the Ansible
-process. All secret handling is no_log with pipelining; never pass values in CLI
+process, together with `WES_NOTIFICATION_POLICIES`. All secret handling is no_log
+with pipelining; never pass values in CLI
 arguments, write them in Git or retain secret-bearing diagnostics. Only one line
-of the existing protected notifier input changes. Reconcile that one service with
+for credentials and one for routing in the existing protected notifier input change.
+Reconcile that one service with
 no dependencies/builds/pulls and require health; retain its immutable image. Hot
 reload the two existing proxies. Do not invoke general dev.yml, migrations or
 PostgreSQL, or activate Dagster/worker/schedules.
@@ -27,7 +33,7 @@ PostgreSQL, or activate Dagster/worker/schedules.
 Candidate Caddy configurations are validated by the running pinned binaries
 before mutation. Existing route conflicts are rejected. Apply failure removes
 only newly introduced fragments, reloads the former route set and restores the
-prior credential line/notifier configuration. Infisical entries and the DNS record
+prior credential and routing lines/notifier configuration. Infisical entries and the DNS record
 are retained for attended diagnosis rather than blindly deleted or recreated.
 The credential/DNS provisioner must create-or-verify its exact target and reject
 conflicting values. After an uncertain API result, read back before retrying.
