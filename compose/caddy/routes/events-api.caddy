@@ -1,0 +1,14 @@
+# Private same-host backhaul from the TLS edge; source credentials remain
+# enforced by wood-notify. The separate public callback route is unchanged.
+http://dev-events-api.woodhost.cloud:80 {
+	@notifications {
+		method GET POST
+		path /v1/notifications /v1/notifications/*
+	}
+	handle @notifications {
+		reverse_proxy wood-notify:8000
+	}
+	handle {
+		respond 404
+	}
+}

@@ -1,0 +1,235 @@
+---
+- name: Configure only the existing notifier and private documentation approval routes
+  hosts: infrastructure_hosts
+  become: true
+  gather_facts: false
+  vars:
+    events_access_apply: false
+    events_access_approval_reference: ""
+    events_access_expected_images: {}
+    events_access_expected_ref: ""
+    events_access_notify: infrastructure-dev-events-service-wood-notify-1
+    events_access_private_proxy: infrastructure-dev-caddy-caddy-1
+    events_access_edge: caddy
+    events_access_notify_env: /srv/infrastructure/secrets/runtime/events-service-notify.env
+    events_access_private_route: /srv/infrastructure/compose/caddy/routes/events-api.caddy
+    events_access_edge_route: /srv/docker/proxy/config/sites/events-api.caddy
+    events_access_compose:
+      - docker
+      - compose
+      - --project-name
+      - infrastructure-dev-events-service
+      - --env-file
+      - /srv/infrastructure/secrets/dev/events-service-compose.env
+      - -f
+      - /srv/infrastructure/compose/events-service/compose.yml
+    events_access_reconcile:
+      - up
+      - --detach
+      - --no-deps
+      - --no-build
+      - --pull
+      - never
+      - --wait
+      - --wait-timeout
+      - '90'
+      - wood-notify
+    events_access_credentials: "{{ lookup('ansible.builtin.env', 'WES_PRODUCER_CREDENTIALS') }}"
+  pre_tasks:
+    - name: Require explicit development scope and immutable observed images
+      ansible.builtin.assert:
+        that:
+          - infrastructure_environment | default('') == 'dev'
+          - events_access_apply | bool
+          - events_access_approval_reference | length > 0
+          - events_access_expected_images | length == 3
+          - >-
+            events_access_expected_images.keys() | list | sort ==
+            [events_access_edge, events_access_private_proxy, events_access_notify] | sort
+          - >-
+            events_access_expected_ref is match(
+            '^ghcr[.]io/spencerrwood/events-service:v[0-9]+[.][0-9]+[.][0-9]+@sha256:[0-9a-f]{64}$')
+
+    - name: Validate only the dedicated producer credential in memory
+      ansible.builtin.assert:
+        that:
+          - events_access_credentials | length > 0
+          - matching | length == 1
+          - matching[0].scopes | sort == ['notifications:read', 'notifications:write']
+          - matching[0].token | length >= 48
+          - matching[0].token == lookup('ansible.builtin.env', 'DOCUMENTATION_AUTOMATION_EVENTS_TOKEN')
+      vars:
+        matching: >-
+          {{ events_access_credentials | from_json |
+             selectattr('source', 'equalto', 'documentation-automation') | list }}
+      no_log: true
+
+    - name: Inspect the three existing service images
+      ansible.builtin.command:
+        argv: [docker, inspect, --format, "{% raw %}{{.Image}}{% endraw %}", "{{ item.key }}"]
+      loop: "{{ events_access_expected_images | dict2items }}"
+      register: events_access_images
+      changed_when: false
+      check_mode: false
+
+    - name: Reject an unexpected service image
+      ansible.builtin.assert:
+        that:
+          - item.item.value is match('^sha256:[0-9a-f]{64}$')
+          - item.stdout | trim == item.item.value
+      loop: "{{ events_access_images.results }}"
+
+    - name: Verify the existing notifier reference and protected runtime file
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import pathlib,stat,subprocess,json
+            p=pathlib.Path('/srv/infrastructure/secrets/runtime/events-service-notify.env')
+            s=p.lstat()
+            assert stat.S_ISREG(s.st_mode) and s.st_uid==0 and stat.S_IMODE(s.st_mode)==0o600 and s.st_nlink==1
+            compose=pathlib.Path('/srv/infrastructure/secrets/dev/events-service-compose.env')
+            env=dict(line.split('=',1) for line in compose.read_text().splitlines() if '=' in line)
+            expected='{{ events_access_expected_ref }}'
+            assert env['EVENTS_SERVICE_IMAGE_REF']==expected
+            image=json.loads(subprocess.check_output(['docker','image','inspect',expected]))[0]
+            assert image['Id']=='{{ events_access_expected_images[events_access_notify] }}'
+            old=[line for line in p.read_text().splitlines() if line.startswith('WES_PRODUCER_CREDENTIALS=')]
+            assert len(old)==1
+            print(old[0])
+      register: events_access_previous_line
+      changed_when: false
+      no_log: true
+
+    - name: Inspect route destinations without changing existing ownership
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        checksum_algorithm: sha256
+      loop: ["{{ events_access_private_route }}", "{{ events_access_edge_route }}"]
+      register: events_access_routes
+
+    - name: Reject conflicting or linked route files
+      ansible.builtin.assert:
+        that:
+          - >-
+            not item.stat.exists or
+            (item.stat.isreg and not item.stat.islnk and item.stat.checksum == expected_checksum)
+      vars:
+        expected_checksum: >-
+          {{ lookup('ansible.builtin.file', playbook_dir + '/../../compose/caddy/' +
+             ('routes/' if item.item == events_access_private_route else 'edge-routes/') +
+             'events-api.caddy', rstrip=false) | hash('sha256') }}
+      loop: "{{ events_access_routes.results }}"
+
+    - name: Read existing non-secret Caddyfile roots
+      ansible.builtin.command:
+        argv: [docker, exec, "{{ item }}", cat, /etc/caddy/Caddyfile]
+      loop: ["{{ events_access_private_proxy }}", "{{ events_access_edge }}"]
+      register: events_access_roots
+      changed_when: false
+      no_log: true
+
+    - name: Validate candidate proxy configurations before applying anything
+      ansible.builtin.command:
+        argv: [docker, exec, -i, "{{ item.container }}", caddy, validate, --config, '-', --adapter, caddyfile]
+        stdin: >-
+          {{ events_access_roots.results[item.index].stdout +
+             ('\n' + lookup('ansible.builtin.file', playbook_dir + '/../../compose/caddy/' +
+             item.folder + '/events-api.caddy', rstrip=false)
+             if not events_access_routes.results[item.index].stat.exists else '') }}
+      loop:
+        - {container: "{{ events_access_private_proxy }}", index: 0, folder: routes}
+        - {container: "{{ events_access_edge }}", index: 1, folder: edge-routes}
+      changed_when: false
+      no_log: true
+
+  tasks:
+    - name: Apply the reviewed credential and routes with scoped rollback
+      block:
+        - name: Update only the notifier credential array
+          ansible.builtin.lineinfile:
+            path: "{{ events_access_notify_env }}"
+            regexp: '^WES_PRODUCER_CREDENTIALS='
+            line: "WES_PRODUCER_CREDENTIALS={{ events_access_credentials }}"
+            owner: root
+            group: root
+            mode: '0600'
+          register: events_access_secret_change
+          no_log: true
+
+        - name: Reconcile only the existing immutable notifier
+          ansible.builtin.command:
+            argv: "{{ events_access_compose + events_access_reconcile }}"
+          when: events_access_secret_change.changed  # noqa no-handler -- immediate health/rollback boundary
+          changed_when: true
+          no_log: true
+
+        - name: Install only the two reviewed route fragments
+          ansible.builtin.copy:
+            src: "{{ playbook_dir }}/../../compose/caddy/{{ item.folder }}/events-api.caddy"
+            dest: "{{ item.destination }}"
+            owner: root
+            group: root
+            mode: '0644'
+          loop:
+            - {folder: routes, destination: "{{ events_access_private_route }}"}
+            - {folder: edge-routes, destination: "{{ events_access_edge_route }}"}
+          register: events_access_route_change
+
+        - name: Hot reload only the two existing proxies when routes change
+          ansible.builtin.command:
+            argv: [docker, exec, "{{ item }}", caddy, reload, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+          loop: ["{{ events_access_private_proxy }}", "{{ events_access_edge }}"]
+          when: events_access_route_change.changed  # noqa no-handler -- immediate rollback boundary
+          changed_when: true
+          no_log: true
+
+        - name: Verify the notifier retained its exact observed image and health
+          ansible.builtin.command:
+            argv:
+              - python3
+              - -c
+              - >-
+                import json,subprocess;
+                r=json.loads(subprocess.check_output(['docker','inspect','{{ events_access_notify }}']))[0];
+                assert r['Image']=='{{ events_access_expected_images[events_access_notify] }}';
+                assert r['State']['Health']['Status']=='healthy';
+                print('notifier image and readiness verified')
+          changed_when: false
+      rescue:
+        - name: Remove only newly introduced route files after failure
+          ansible.builtin.file:
+            path: "{{ item.item }}"
+            state: absent
+          loop: "{{ events_access_routes.results }}"
+          when: not item.stat.exists
+
+        - name: Restore both proxies to their previous route set
+          ansible.builtin.command:
+            argv: [docker, exec, "{{ item }}", caddy, reload, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+          loop: ["{{ events_access_private_proxy }}", "{{ events_access_edge }}"]
+          changed_when: true
+          no_log: true
+
+        - name: Restore the previous notifier credential line
+          ansible.builtin.lineinfile:
+            path: "{{ events_access_notify_env }}"
+            regexp: '^WES_PRODUCER_CREDENTIALS='
+            line: "{{ events_access_previous_line.stdout }}"
+            owner: root
+            group: root
+            mode: '0600'
+          register: events_access_restore
+          no_log: true
+
+        - name: Restore notifier configuration without changing its image
+          ansible.builtin.command:
+            argv: "{{ events_access_compose + events_access_reconcile }}"
+          when: events_access_restore.changed  # noqa no-handler -- rescue must restore immediately
+          changed_when: true
+          no_log: true
+
+        - name: Report the failed apply after scoped rollback
+          ansible.builtin.fail:
+            msg: Events approval access failed; scoped rollback was attempted. Inspect the private apply record.
