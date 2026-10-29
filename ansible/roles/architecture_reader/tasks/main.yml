@@ -28,6 +28,37 @@
   no_log: true
   when: not ansible_check_mode
 
+- name: Restrict architecture reader connections to the approved databases
+  ansible.builtin.blockinfile:
+    path: "/srv/infrastructure/state/postgres/data/pgdata/pg_hba.conf"
+    insertbefore: BOF
+    marker: "# {mark} ANSIBLE ARCHITECTURE METADATA READER"
+    block: "{{ lookup('ansible.builtin.template', 'reader-hba.j2') }}"
+    owner: '999'
+    group: '999'
+    mode: '0600'
+  register: architecture_reader_hba
+  when: not ansible_check_mode
+
+- name: Reload architecture reader connection policy
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ architecture_reader_container }}"
+      - psql
+      - -X
+      - -U
+      - "{{ lookup('ansible.builtin.env', 'POSTGRES_USER') }}"
+      - -d
+      - "{{ architecture_reader_scope.databases[0].name }}"
+      - -Atc
+      - SELECT pg_reload_conf();
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - architecture_reader_hba.changed
+
 - name: Check whether the current Infisical password already authenticates
   ansible.builtin.command:
     argv:
@@ -85,37 +116,6 @@
   when:
     - not ansible_check_mode
     - architecture_reader_authentication.rc == 0
-
-- name: Restrict architecture reader connections to the approved databases
-  ansible.builtin.blockinfile:
-    path: "/srv/infrastructure/state/postgres/data/pgdata/pg_hba.conf"
-    insertbefore: BOF
-    marker: "# {mark} ANSIBLE ARCHITECTURE METADATA READER"
-    block: "{{ lookup('ansible.builtin.template', 'reader-hba.j2') }}"
-    owner: '999'
-    group: '999'
-    mode: '0600'
-  register: architecture_reader_hba
-  when: not ansible_check_mode
-
-- name: Reload architecture reader connection policy
-  ansible.builtin.command:
-    argv:
-      - docker
-      - exec
-      - "{{ architecture_reader_container }}"
-      - psql
-      - -X
-      - -U
-      - "{{ lookup('ansible.builtin.env', 'POSTGRES_USER') }}"
-      - -d
-      - "{{ architecture_reader_scope.databases[0].name }}"
-      - -Atc
-      - SELECT pg_reload_conf();
-  changed_when: false
-  when:
-    - not ansible_check_mode
-    - architecture_reader_hba.changed
 
 - name: Reconcile the shared reader in each approved database
   ansible.builtin.include_tasks: database.yml
