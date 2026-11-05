@@ -3,7 +3,7 @@ name: ${CADDY_PROJECT_NAME:?CADDY_PROJECT_NAME is required}
 
 services:
   caddy:
-    image: caddy:2.11.8-alpine@sha256:f6228111e5fafa1a5238258d0858e103f10599b8d1659a146e7726681a002bb9
+    image: caddy:2.11.9-alpine@sha256:e8d293dca35c033c4eb958d77b9096098e34da2987da3954acc0028267c6cc9b
     restart: unless-stopped
     ports:
       - "${CADDY_HTTP_BIND:?CADDY_HTTP_BIND is required}:80"
